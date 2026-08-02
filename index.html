@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controle da Horta</title>
+<meta name="theme-color" content="#16a34a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root {
+    --verde: #16a34a;
+    --verde-escuro: #15803d;
+    --vermelho: #dc2626;
+    --laranja: #d97706;
+    --bg: #f3f6f4;
+    --card: #ffffff;
+    --texto: #14251b;
+    --texto-suave: #6b7c73;
+    --borda: #e2e8e4;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--texto);
+    padding-bottom: 78px;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--verde);
+    color: #fff;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 1.15rem; margin: 0; }
+  header button {
+    background: rgba(255,255,255,0.18);
+    border: none;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  main { display: none; padding: 16px; max-width: 640px; margin: 0 auto; }
+  main.active { display: block; }
+
+  .grid-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 18px; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .card .label { font-size: 0.75rem; color: var(--texto-suave); display: block; margin-bottom: 4px; }
+  .card .valor { font-size: 1.3rem; font-weight: 700; }
+  .card.alerta .valor { color: var(--vermelho); }
+
+  h2.titulo { font-size: 1rem; margin: 20px 0 10px; }
+  .lista { display: flex; flex-direction: column; gap: 8px; }
+  .item {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.04);
+    cursor: pointer;
+  }
+  .item .info strong { display: block; font-size: 0.92rem; }
+  .item .info small { color: var(--texto-suave); font-size: 0.76rem; }
+  .item .valor-direita { font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
+  .item.devendo .valor-direita { color: var(--vermelho); }
+  .item.estoque-baixo .valor-direita { color: var(--laranja); }
+  .vazio { text-align: center; color: var(--texto-suave); padding: 24px 0; font-size: 0.9rem; }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+  input, select, textarea {
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--borda);
+    background: #fff;
+    font-size: 0.92rem;
+    width: 100%;
+    font-family: inherit;
+  }
+  label { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; color: var(--texto-suave); margin-bottom: 12px; }
+  .linha { display: flex; gap: 10px; }
+  .linha > label { flex: 1; }
+
+  button.primario, button.fantasma, button.perigo {
+    border: none;
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primario { background: var(--verde); color: #fff; width: 100%; }
+  button.fantasma { background: #fff; border: 1px solid var(--borda); color: var(--texto); }
+  button.fantasma.active { background: var(--verde); color: #fff; border-color: var(--verde); }
+  button.perigo { background: #fff; border: 1px solid var(--vermelho); color: var(--vermelho); }
+  button.whatsapp { background: #25d366; color: #fff; width: 100%; }
+  .acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .acoes > * { flex: 1; }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    display: flex;
+    overflow-x: auto;
+    background: #fff;
+    border-top: 1px solid var(--borda);
+    z-index: 10;
+  }
+  .bottom-nav button {
+    flex: 0 0 68px; background: none; border: none;
+    padding: 10px 4px 8px;
+    display: flex; flex-direction: column; align-items: center;
+    font-size: 0.65rem; color: var(--texto-suave); gap: 2px; cursor: pointer;
+  }
+  .bottom-nav button span { font-size: 1.2rem; }
+  .bottom-nav button.active { color: var(--verde-escuro); font-weight: 600; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal-box {
+    background: #fff; width: 100%; max-width: 480px;
+    border-radius: 18px 18px 0 0;
+    padding: 20px; max-height: 88vh; overflow-y: auto;
+  }
+  .modal-box h3 { margin: 0 0 14px; }
+  @media (min-width: 700px) {
+    .modal-overlay { align-items: center; }
+    .modal-box { border-radius: 18px; }
+  }
+
+  .resumo-caixa { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; display: flex; justify-content: space-between; margin: 10px 0; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
+  .badge.andamento { background: #fef3c7; color: #b45309; }
+  .badge.pronto { background: #dcfce7; color: #15803d; }
+  .badge.atrasado { background: #fee2e2; color: #b91c1c; }
+  .badge.colhido { background: #e5e7eb; color: #4b5563; }
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+    background: var(--texto); color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 0.85rem; z-index: 100; transition: opacity 0.2s;
+  }
+  .toast.hidden { opacity: 0; pointer-events: none; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🌱 Controle da Horta</h1>
+  <button id="btnBackup">Backup</button>
+</header>
+
+<!-- ===================== INÍCIO ===================== -->
+<main id="tab-inicio" class="active">
+  <div class="item hidden" id="bannerBackup" style="background:#fef3c7;margin-bottom:14px;cursor:pointer">
+    <div class="info"><strong>⚠️ Faça seu backup</strong><small id="bannerBackupTexto"></small></div>
+  </div>
+
+  <div class="grid-cards">
+    <div class="card alerta"><span class="label">Fiado em aberto</span><span class="valor" id="dashFiado">R$ 0,00</span></div>
+    <div class="card"><span class="label">Valor em estoque</span><span class="valor" id="dashEstoque">R$ 0,00</span></div>
+    <div class="card alerta"><span class="label">Produtos em falta</span><span class="valor" id="dashFalta">0</span></div>
+    <div class="card"><span class="label">Vendas hoje</span><span class="valor" id="dashVendasHoje">R$ 0,00</span></div>
+    <div class="card"><span class="label">Lucro do mês (vendas − insumos)</span><span class="valor" id="dashLucroMes">R$ 0,00</span></div>
+    <div class="card alerta"><span class="label">Prontos para colher</span><span class="valor" id="dashProntosColher">0</span></div>
+    <div class="card alerta"><span class="label">Tarefas atrasadas</span><span class="valor" id="dashTarefasAtrasadas">0</span></div>
+  </div>
+
+  <h2 class="titulo">Quem está devendo</h2>
+  <div class="lista" id="listaDevedores"></div>
+
+  <h2 class="titulo">Tarefas pendentes</h2>
+  <div class="lista" id="listaTarefasDashboard"></div>
+</main>
+
+<!-- ===================== ESTOQUE ===================== -->
+<main id="tab-estoque">
+  <div class="toolbar">
+    <input type="search" id="buscaProduto" placeholder="Pesquisar produto...">
+    <button class="primario" style="width:auto" id="btnNovoProduto">+ Novo</button>
+  </div>
+  <div class="lista" id="listaProdutos"></div>
+</main>
+
+<!-- ===================== CLIENTES ===================== -->
+<main id="tab-clientes">
+  <div class="toolbar">
+    <input type="search" id="buscaCliente" placeholder="Pesquisar cliente...">
+    <button class="primario" style="width:auto" id="btnNovoCliente">+ Novo</button>
+  </div>
+  <div class="lista" id="listaClientes"></div>
+</main>
+
+<!-- ===================== VENDAS ===================== -->
+<main id="tab-vendas">
+  <h2 class="titulo" style="margin-top:0">Nova venda</h2>
+
+  <label>Cliente
+    <select id="vendaCliente">
+      <option value="">Sem cliente (venda avulsa)</option>
+    </select>
+  </label>
+
+  <div class="linha">
+    <label>Produto
+      <select id="vendaProdutoSelect"></select>
+    </label>
+    <label style="max-width:90px">Qtd.
+      <input type="number" id="vendaQtd" value="1" min="0.01" step="0.01">
+    </label>
+  </div>
+  <button class="fantasma" id="btnAdicionarItemVenda" style="width:100%;margin-bottom:14px">+ Adicionar item</button>
+
+  <div class="lista" id="vendaItensLista"></div>
+
+  <div class="resumo-caixa">
+    <span>Total</span><strong id="vendaTotalTexto">R$ 0,00</strong>
+  </div>
+
+  <label>Forma de pagamento
+    <select id="vendaFormaPagamento">
+      <option>Dinheiro</option>
+      <option>PIX</option>
+      <option>Cartão</option>
+      <option value="Fiado">Fiado</option>
+    </select>
+  </label>
+
+  <button class="primario" id="btnFinalizarVenda">Finalizar venda</button>
+
+  <h2 class="titulo">Últimas vendas</h2>
+  <div class="lista" id="listaVendasRecentes"></div>
+</main>
+
+<!-- ===================== INSUMOS (gastos) ===================== -->
+<main id="tab-insumos">
+  <div class="grid-cards">
+    <div class="card alerta"><span class="label">Gasto este mês</span><span class="valor" id="insumosGastoMes">R$ 0,00</span></div>
+    <div class="card"><span class="label">Gasto total (histórico)</span><span class="valor" id="insumosGastoTotal">R$ 0,00</span></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="search" id="buscaInsumo" placeholder="Pesquisar gasto...">
+    <button class="primario" style="width:auto" id="btnNovoInsumo">+ Novo</button>
+  </div>
+  <div class="lista" id="listaInsumos"></div>
+</main>
+
+<!-- ===================== PLANTIO ===================== -->
+<main id="tab-plantio">
+  <h2 class="titulo" style="margin-top:0">Desempenho de vendas por cultura</h2>
+  <div class="toolbar" id="desempenhoFiltros" style="gap:8px;margin-bottom:8px">
+    <button type="button" class="fantasma active" data-periodo="30">30 dias</button>
+    <button type="button" class="fantasma" data-periodo="90">90 dias</button>
+    <button type="button" class="fantasma" data-periodo="tudo">Tudo</button>
+  </div>
+  <canvas id="graficoDesempenhoCultura" style="width:100%;height:190px;display:block;background:#fff;border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.04)"></canvas>
+  <div id="legendaDesempenho" style="display:flex;flex-wrap:wrap;gap:12px;font-size:0.76rem;color:var(--texto-suave);margin:8px 0 16px"></div>
+  <div class="lista" id="rankingCulturas" style="margin-bottom:20px"></div>
+
+  <div class="toolbar toolbar-secondary" id="plantioFiltros" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button type="button" class="fantasma active" data-filtro="todos">Todos</button>
+    <button type="button" class="fantasma" data-filtro="andamento">Em andamento</button>
+    <button type="button" class="fantasma" data-filtro="pronto">Prontos p/ colher</button>
+    <button type="button" class="fantasma" data-filtro="colhido">Colhidos</button>
+  </div>
+  <button class="primario" id="btnNovoPlantio" style="width:100%;margin-bottom:12px">+ Novo plantio</button>
+  <div class="lista" id="listaPlantios"></div>
+</main>
+
+<!-- ===================== TAREFAS (delegar atividades) ===================== -->
+<main id="tab-tarefas">
+  <div class="toolbar">
+    <button class="fantasma" id="btnConfigResponsavel" style="width:auto">⚙ Responsável</button>
+    <button class="primario" style="width:auto;margin-left:auto" id="btnNovaTarefa">+ Nova tarefa</button>
+  </div>
+  <div class="toolbar" id="tarefaFiltros" style="gap:8px;flex-wrap:wrap">
+    <button type="button" class="fantasma active" data-filtro="todas">Todas</button>
+    <button type="button" class="fantasma" data-filtro="pendentes">Pendentes</button>
+    <button type="button" class="fantasma" data-filtro="atrasadas">Atrasadas</button>
+    <button type="button" class="fantasma" data-filtro="concluidas">Concluídas</button>
+  </div>
+  <div class="lista" id="listaTarefas"></div>
+</main>
+
+<nav class="bottom-nav">
+  <button data-tab="inicio" class="active"><span>🏠</span>Início</button>
+  <button data-tab="vendas"><span>🛒</span>Vendas</button>
+  <button data-tab="estoque"><span>🌿</span>Estoque</button>
+  <button data-tab="plantio"><span>📅</span>Plantio</button>
+  <button data-tab="tarefas"><span>📋</span>Tarefas</button>
+  <button data-tab="insumos"><span>💰</span>Insumos</button>
+  <button data-tab="clientes"><span>👤</span>Clientes</button>
+</nav>
+
+<!-- ===================== MODAL: TAREFA ===================== -->
+<div id="modalTarefa" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalTarefa">Nova tarefa</h3>
+    <input type="hidden" id="tarefaId">
+    <label>O que precisa ser feito?
+      <input type="text" id="tarefaTitulo" placeholder="Ex: Regar mudas, limpar reservatório...">
+    </label>
+    <div class="linha">
+      <label>Responsável
+        <input type="text" id="tarefaResponsavel">
+      </label>
+      <label>Data prevista
+        <input type="date" id="tarefaData">
+      </label>
+    </div>
+    <label>Vincular a um plantio (opcional)
+      <select id="tarefaPlantioVinculado">
+        <option value="">Nenhum</option>
+      </select>
+    </label>
+    <label>Observação
+      <input type="text" id="tarefaObservacao">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarTarefa">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirTarefa">Excluir</button>
+      <button class="primario" id="btnSalvarTarefa">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: CONFIGURAR RESPONSÁVEL PADRÃO ===================== -->
+<div id="modalResponsavel" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Responsável pelas tarefas</h3>
+    <p style="font-size:0.85rem;color:var(--texto-suave)">Esse nome e telefone preenchem automaticamente as novas tarefas e o botão de avisar pelo WhatsApp.</p>
+    <label>Nome
+      <input type="text" id="respNome" placeholder="Ex: Nome da sua filha">
+    </label>
+    <label>Telefone (com DDD)
+      <input type="tel" id="respTelefone">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarResponsavel">Cancelar</button>
+      <button class="primario" id="btnSalvarResponsavel">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: INSUMO (gasto) ===================== -->
+<div id="modalInsumo" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalInsumo">Novo gasto</h3>
+    <input type="hidden" id="insumoId">
+    <label>Descrição
+      <input type="text" id="insumoNome" placeholder="Ex: Solução nutritiva, sementes de alface...">
+    </label>
+    <div class="linha">
+      <label>Categoria
+        <select id="insumoCategoria">
+          <option>Sementes/Mudas</option>
+          <option>Nutrientes/Solução</option>
+          <option>Substrato</option>
+          <option>Energia/Água</option>
+          <option>Embalagens</option>
+          <option>Equipamentos</option>
+          <option>Outros</option>
+        </select>
+      </label>
+      <label>Valor (R$)
+        <input type="number" step="0.01" min="0" id="insumoValor">
+      </label>
+    </div>
+    <label>Data da compra
+      <input type="date" id="insumoData">
+    </label>
+    <label>Observação
+      <input type="text" id="insumoObservacao">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarInsumo">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirInsumo">Excluir</button>
+      <button class="primario" id="btnSalvarInsumo">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: PLANTIO ===================== -->
+<div id="modalPlantio" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalPlantio">Novo plantio</h3>
+    <input type="hidden" id="plantioId">
+    <label>Cultura / variedade
+      <input type="text" id="plantioCultura" placeholder="Ex: Alface crespa, rúcula...">
+    </label>
+    <div class="linha">
+      <label>Data do plantio
+        <input type="date" id="plantioDataPlantio">
+      </label>
+      <label>Ciclo (dias até colher)
+        <input type="number" min="1" id="plantioDiasCiclo" placeholder="Ex: 35">
+      </label>
+    </div>
+    <label>Quantidade (nº de mudas/vasos)
+      <input type="number" min="0" id="plantioQuantidade">
+    </label>
+    <label>Observação
+      <input type="text" id="plantioObservacao">
+    </label>
+    <label class="switch-row" id="plantioTarefaAutoWrap" style="flex-direction:row;align-items:center;justify-content:space-between;background:var(--bg);padding:10px 12px;border-radius:10px">
+      <span>Já criar a tarefa de colheita para a responsável</span>
+      <input type="checkbox" id="plantioCriarTarefa" checked>
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarPlantio">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirPlantio">Excluir</button>
+      <button class="primario" id="btnSalvarPlantio">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: MARCAR COMO COLHIDO ===================== -->
+<div id="modalColher" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Registrar colheita</h3>
+    <input type="hidden" id="colherPlantioId">
+    <p style="font-size:0.85rem;color:var(--texto-suave)" id="colherResumo"></p>
+    <label>Quantidade colhida
+      <input type="number" min="0" id="colherQuantidade">
+    </label>
+    <label>Adicionar direto no estoque? (opcional)
+      <select id="colherProdutoDestino">
+        <option value="">Não adicionar ao estoque</option>
+      </select>
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarColher">Cancelar</button>
+      <button class="primario" id="btnConfirmarColher">Confirmar colheita</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: PRODUTO ===================== -->
+<div id="modalProduto" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalProduto">Novo produto</h3>
+    <input type="hidden" id="produtoId">
+    <label>Nome do produto
+      <input type="text" id="produtoNome">
+    </label>
+    <div class="linha">
+      <label>Preço de venda (R$)
+        <input type="number" step="0.01" min="0" id="produtoPreco">
+      </label>
+      <label>Estoque atual
+        <input type="number" step="0.01" id="produtoEstoque">
+      </label>
+    </div>
+    <label>Estoque mínimo (avisar quando chegar nesse valor)
+      <input type="number" step="0.01" id="produtoEstoqueMinimo" value="0">
+    </label>
+    <label>Cultura vinculada (opcional — para o gráfico de desempenho)
+      <input type="text" id="produtoCultura" list="listCulturasProduto" placeholder="Ex: Alface crespa">
+      <datalist id="listCulturasProduto"></datalist>
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarProduto">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirProduto">Excluir</button>
+      <button class="primario" id="btnSalvarProduto">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: CLIENTE (cadastro/edição) ===================== -->
+<div id="modalCliente" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalCliente">Novo cliente</h3>
+    <input type="hidden" id="clienteId">
+    <label>Nome
+      <input type="text" id="clienteNome">
+    </label>
+    <label>Telefone (com DDD, ex: 11999998888)
+      <input type="tel" id="clienteTelefone">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarCliente">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirCliente">Excluir</button>
+      <button class="primario" id="btnSalvarCliente">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: DETALHE DO CLIENTE (fiado) ===================== -->
+<div id="modalDetalheCliente" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="detalheClienteNome">Cliente</h3>
+    <div class="resumo-caixa">
+      <span>Saldo devedor (fiado)</span><strong id="detalheClienteSaldo">R$ 0,00</strong>
+    </div>
+
+    <div id="detalheBaixaSection">
+      <label>Registrar pagamento recebido agora (R$)
+        <input type="number" step="0.01" min="0.01" id="detalhePagamentoValor">
+      </label>
+      <button class="primario" id="btnRegistrarPagamento">Registrar pagamento</button>
+    </div>
+
+    <button class="whatsapp" id="btnCobrarWhatsapp" style="margin-top:10px">📲 Cobrar pelo WhatsApp</button>
+    <button class="fantasma" id="btnEnviarExtrato" style="margin-top:8px">📄 Enviar extrato completo</button>
+
+    <h2 class="titulo">Histórico</h2>
+    <div class="lista" id="detalheHistorico"></div>
+
+    <div class="acoes">
+      <button class="fantasma" id="btnEditarClienteDetalhe">Editar dados</button>
+      <button class="fantasma" id="btnFecharDetalheCliente">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: DETALHE DA VENDA (cancelar) ===================== -->
+<div id="modalVendaDetalhe" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Detalhe da venda</h3>
+    <input type="hidden" id="vendaDetalheId">
+    <p style="font-size:0.85rem;color:var(--texto-suave)" id="vendaDetalheInfo"></p>
+    <div class="lista" id="vendaDetalheItens"></div>
+    <div class="resumo-caixa">
+      <span>Total</span><strong id="vendaDetalheTotal">R$ 0,00</strong>
+    </div>
+    <p style="font-size:0.78rem;color:var(--texto-suave)">Cancelar devolve os itens ao estoque e remove o valor do fiado do cliente (se houver).</p>
+    <div class="acoes">
+      <button class="fantasma" id="btnFecharVendaDetalhe">Fechar</button>
+      <button class="perigo" id="btnCancelarVendaRegistrada">Cancelar esta venda</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: BACKUP ===================== -->
+<div id="modalBackup" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Backup dos dados</h3>
+    <p style="font-size:0.85rem;color:var(--texto-suave)">
+      Seus dados ficam salvos apenas neste navegador/celular. Se limpar o
+      histórico do navegador ou trocar de aparelho, você perde tudo — por
+      isso, exporte um backup de vez em quando e guarde o arquivo em local
+      seguro (Google Drive, e-mail para você mesmo, etc.).
+    </p>
+    <div class="acoes">
+      <button class="fantasma" id="btnExportarBackup">Exportar backup</button>
+      <button class="fantasma" id="btnImportarBackup">Importar backup</button>
+    </div>
+    <input type="file" id="fileImportarBackup" accept=".json" hidden>
+    <button class="fantasma" id="btnFecharBackup" style="width:100%;margin-top:10px">Fechar</button>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+/* ============================================================
+   CONTROLE DA HORTA — app único, sem servidor
+   Todos os dados ficam salvos no localStorage do navegador.
+   ============================================================ */
+
+// -------------------- ARMAZENAMENTO --------------------
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas' };
+const CHAVE_RESPONSAVEL = 'hg_responsavel';
+function carregarResponsavel() { return JSON.parse(localStorage.getItem(CHAVE_RESPONSAVEL) || '{"nome":"","telefone":""}'); }
+function salvarResponsavel(obj) { localStorage.setItem(CHAVE_RESPONSAVEL, JSON.stringify(obj)); }
+
+function carregar(chave) { return JSON.parse(localStorage.getItem(chave) || '[]'); }
+function salvar(chave, dados) { localStorage.setItem(chave, JSON.stringify(dados)); }
+function gerarId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function formatarMoeda(v) { return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+function escapeHTML(s = '') { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+let toastTimer;
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 2400);
+}
+
+// -------------------- NAVEGAÇÃO ENTRE ABAS --------------------
+function irParaAba(nome) {
+  document.querySelectorAll('main').forEach((m) => m.classList.remove('active'));
+  document.getElementById('tab-' + nome).classList.add('active');
+  document.querySelectorAll('.bottom-nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === nome));
+  if (nome === 'inicio') renderDashboard();
+  if (nome === 'estoque') renderProdutos();
+  if (nome === 'clientes') renderClientes();
+  if (nome === 'vendas') { preencherSelects(); renderVendasRecentes(); }
+  if (nome === 'insumos') renderInsumos();
+  if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); }
+  if (nome === 'tarefas') renderTarefas();
+}
+document.querySelectorAll('.bottom-nav button').forEach((b) => b.addEventListener('click', () => irParaAba(b.dataset.tab)));
+
+// -------------------- SALDO DEVEDOR DE CADA CLIENTE --------------------
+function saldoDevedor(clienteId) {
+  const vendas = carregar(CHAVES.vendas).filter((v) => v.clienteId === clienteId && v.formaPagamento === 'Fiado');
+  const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId);
+  const totalFiado = vendas.reduce((s, v) => s + v.total, 0);
+  const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0);
+  return totalFiado - totalPago;
+}
+
+// ============================================================
+// DASHBOARD (INÍCIO)
+// ============================================================
+function renderDashboard() {
+  atualizarBannerBackup();
+  const produtos = carregar(CHAVES.produtos);
+  const clientes = carregar(CHAVES.clientes);
+  const vendas = carregar(CHAVES.vendas);
+
+  const valorEstoque = produtos.reduce((s, p) => s + (p.preco * p.estoqueAtual), 0);
+  const emFalta = produtos.filter((p) => p.estoqueAtual <= (p.estoqueMinimo || 0)).length;
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const vendasHoje = vendas.filter((v) => v.data.slice(0, 10) === hoje).reduce((s, v) => s + v.total, 0);
+
+  const inicioMes = hoje.slice(0, 7); // "AAAA-MM"
+  const vendasMes = vendas.filter((v) => v.data.slice(0, 7) === inicioMes).reduce((s, v) => s + v.total, 0);
+  const insumosMes = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === inicioMes).reduce((s, i) => s + i.valor, 0);
+  document.getElementById('dashLucroMes').textContent = formatarMoeda(vendasMes - insumosMes);
+
+  const plantios = carregar(CHAVES.plantios);
+  const prontos = plantios.filter((p) => !p.colhido && calcularDataPrevista(p) <= hoje).length;
+  document.getElementById('dashProntosColher').textContent = prontos;
+
+  const tarefas = carregar(CHAVES.tarefas);
+  const atrasadas = tarefas.filter((t) => !t.concluida && t.dataPrevista < hoje).length;
+  document.getElementById('dashTarefasAtrasadas').textContent = atrasadas;
+
+  const devedores = clientes.map((c) => ({ ...c, saldo: saldoDevedor(c.id) })).filter((c) => c.saldo > 0.009);
+  const totalFiado = devedores.reduce((s, c) => s + c.saldo, 0);
+
+  document.getElementById('dashFiado').textContent = formatarMoeda(totalFiado);
+  document.getElementById('dashEstoque').textContent = formatarMoeda(valorEstoque);
+  document.getElementById('dashFalta').textContent = emFalta;
+  document.getElementById('dashVendasHoje').textContent = formatarMoeda(vendasHoje);
+
+  const lista = document.getElementById('listaDevedores');
+  if (devedores.length === 0) {
+    lista.innerHTML = '<p class="vazio">Ninguém devendo no momento. 🎉</p>';
+  } else {
+    devedores.sort((a, b) => b.saldo - a.saldo);
+    lista.innerHTML = devedores.map((c) => `
+      <div class="item devendo" data-id="${c.id}">
+        <div class="info"><strong>${escapeHTML(c.nome)}</strong></div>
+        <span class="valor-direita">${formatarMoeda(c.saldo)}</span>
+      </div>
+    `).join('');
+    lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirDetalheCliente(el.dataset.id)));
+  }
+
+  const listaTarefasDash = document.getElementById('listaTarefasDashboard');
+  const pendentes = tarefas.filter((t) => !t.concluida).sort((a, b) => (a.dataPrevista || '').localeCompare(b.dataPrevista || '')).slice(0, 5);
+  if (pendentes.length === 0) {
+    listaTarefasDash.innerHTML = '<p class="vazio">Nenhuma tarefa pendente. 🎉</p>';
+  } else {
+    listaTarefasDash.innerHTML = pendentes.map((t) => {
+      const atrasada = t.dataPrevista < hoje;
+      return `
+        <div class="item">
+          <div class="info"><strong>${escapeHTML(t.titulo)}</strong><small>${escapeHTML(t.responsavel || '')} · ${formatarDataBR(t.dataPrevista)}</small></div>
+          <span class="badge ${atrasada ? 'atrasado' : 'andamento'}">${atrasada ? 'Atrasada' : 'Pendente'}</span>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// ============================================================
+// PRODUTOS / ESTOQUE
+// ============================================================
+function renderProdutos() {
+  const termo = document.getElementById('buscaProduto').value.trim().toLowerCase();
+  const produtos = carregar(CHAVES.produtos).filter((p) => !termo || p.nome.toLowerCase().includes(termo));
+  const lista = document.getElementById('listaProdutos');
+
+  if (produtos.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nenhum produto cadastrado ainda.</p>';
+    return;
+  }
+  lista.innerHTML = produtos.map((p) => {
+    const baixo = p.estoqueAtual <= (p.estoqueMinimo || 0);
+    return `
+      <div class="item ${baixo ? 'estoque-baixo' : ''}" data-id="${p.id}">
+        <div class="info"><strong>${escapeHTML(p.nome)}</strong><small>${formatarMoeda(p.preco)} cada</small></div>
+        <span class="valor-direita">${p.estoqueAtual}</span>
+      </div>
+    `;
+  }).join('');
+  lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirModalProduto(el.dataset.id)));
+}
+document.getElementById('buscaProduto').addEventListener('input', renderProdutos);
+
+function abrirModalProduto(id) {
+  document.getElementById('produtoId').value = id || '';
+  const btnExcluir = document.getElementById('btnExcluirProduto');
+
+  const culturas = [...new Set(carregar(CHAVES.plantios).map((p) => p.cultura).filter(Boolean))];
+  document.getElementById('listCulturasProduto').innerHTML = culturas.map((c) => `<option value="${escapeHTML(c)}">`).join('');
+
+  if (id) {
+    const p = carregar(CHAVES.produtos).find((x) => x.id === id);
+    document.getElementById('tituloModalProduto').textContent = 'Editar produto';
+    document.getElementById('produtoNome').value = p.nome;
+    document.getElementById('produtoPreco').value = p.preco;
+    document.getElementById('produtoEstoque').value = p.estoqueAtual;
+    document.getElementById('produtoEstoqueMinimo').value = p.estoqueMinimo || 0;
+    document.getElementById('produtoCultura').value = p.cultura || '';
+    btnExcluir.classList.remove('hidden');
+  } else {
+    document.getElementById('tituloModalProduto').textContent = 'Novo produto';
+    document.getElementById('produtoNome').value = '';
+    document.getElementById('produtoPreco').value = '';
+    document.getElementById('produtoEstoque').value = 0;
+    document.getElementById('produtoEstoqueMinimo').value = 0;
+    document.getElementById('produtoCultura').value = '';
+    btnExcluir.classList.add('hidden');
+  }
+  document.getElementById('modalProduto').classList.remove('hidden');
+}
+document.getElementById('btnNovoProduto').addEventListener('click', () => abrirModalProduto(null));
+document.getElementById('btnCancelarProduto').addEventListener('click', () => document.getElementById('modalProduto').classList.add('hidden'));
+
+document.getElementById('btnSalvarProduto').addEventListener('click', () => {
+  const nome = document.getElementById('produtoNome').value.trim();
+  if (!nome) { mostrarToast('Informe o nome do produto.'); return; }
+  const idExistente = document.getElementById('produtoId').value;
+  const produtos = carregar(CHAVES.produtos);
+
+  const produto = {
+    id: idExistente || gerarId(),
+    nome,
+    preco: parseFloat(document.getElementById('produtoPreco').value) || 0,
+    estoqueAtual: parseFloat(document.getElementById('produtoEstoque').value) || 0,
+    estoqueMinimo: parseFloat(document.getElementById('produtoEstoqueMinimo').value) || 0,
+    cultura: document.getElementById('produtoCultura').value.trim()
+  };
+  const idx = produtos.findIndex((p) => p.id === produto.id);
+  if (idx >= 0) produtos[idx] = produto; else produtos.push(produto);
+  salvar(CHAVES.produtos, produtos);
+
+  document.getElementById('modalProduto').classList.add('hidden');
+  renderProdutos();
+  mostrarToast('Produto salvo.');
+});
+
+document.getElementById('btnExcluirProduto').addEventListener('click', () => {
+  const id = document.getElementById('produtoId').value;
+  if (!confirm('Excluir este produto?')) return;
+  salvar(CHAVES.produtos, carregar(CHAVES.produtos).filter((p) => p.id !== id));
+  document.getElementById('modalProduto').classList.add('hidden');
+  renderProdutos();
+  mostrarToast('Produto excluído.');
+});
+
+// ============================================================
+// CLIENTES
+// ============================================================
+function renderClientes() {
+  const termo = document.getElementById('buscaCliente').value.trim().toLowerCase();
+  const clientes = carregar(CHAVES.clientes).filter((c) => !termo || c.nome.toLowerCase().includes(termo));
+  const lista = document.getElementById('listaClientes');
+
+  if (clientes.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nenhum cliente cadastrado ainda.</p>';
+    return;
+  }
+  lista.innerHTML = clientes.map((c) => {
+    const saldo = saldoDevedor(c.id);
+    return `
+      <div class="item ${saldo > 0.009 ? 'devendo' : ''}" data-id="${c.id}">
+        <div class="info"><strong>${escapeHTML(c.nome)}</strong><small>${c.telefone || 'sem telefone'}</small></div>
+        <span class="valor-direita">${saldo > 0.009 ? formatarMoeda(saldo) : ''}</span>
+      </div>
+    `;
+  }).join('');
+  lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirDetalheCliente(el.dataset.id)));
+}
+document.getElementById('buscaCliente').addEventListener('input', renderClientes);
+
+function abrirModalCliente(id) {
+  document.getElementById('clienteId').value = id || '';
+  const btnExcluir = document.getElementById('btnExcluirCliente');
+  if (id) {
+    const c = carregar(CHAVES.clientes).find((x) => x.id === id);
+    document.getElementById('tituloModalCliente').textContent = 'Editar cliente';
+    document.getElementById('clienteNome').value = c.nome;
+    document.getElementById('clienteTelefone').value = c.telefone || '';
+    btnExcluir.classList.remove('hidden');
+  } else {
+    document.getElementById('tituloModalCliente').textContent = 'Novo cliente';
+    document.getElementById('clienteNome').value = '';
+    document.getElementById('clienteTelefone').value = '';
+    btnExcluir.classList.add('hidden');
+  }
+  document.getElementById('modalDetalheCliente').classList.add('hidden');
+  document.getElementById('modalCliente').classList.remove('hidden');
+}
+document.getElementById('btnNovoCliente').addEventListener('click', () => abrirModalCliente(null));
+document.getElementById('btnCancelarCliente').addEventListener('click', () => document.getElementById('modalCliente').classList.add('hidden'));
+document.getElementById('btnEditarClienteDetalhe').addEventListener('click', () => abrirModalCliente(document.getElementById('modalDetalheCliente').dataset.clienteId));
+
+document.getElementById('btnSalvarCliente').addEventListener('click', () => {
+  const nome = document.getElementById('clienteNome').value.trim();
+  if (!nome) { mostrarToast('Informe o nome do cliente.'); return; }
+  const idExistente = document.getElementById('clienteId').value;
+  const clientes = carregar(CHAVES.clientes);
+
+  const cliente = {
+    id: idExistente || gerarId(),
+    nome,
+    telefone: document.getElementById('clienteTelefone').value.trim().replace(/\D/g, '')
+  };
+  const idx = clientes.findIndex((c) => c.id === cliente.id);
+  if (idx >= 0) clientes[idx] = cliente; else clientes.push(cliente);
+  salvar(CHAVES.clientes, clientes);
+
+  document.getElementById('modalCliente').classList.add('hidden');
+  renderClientes();
+  mostrarToast('Cliente salvo.');
+});
+
+document.getElementById('btnExcluirCliente').addEventListener('click', () => {
+  const id = document.getElementById('clienteId').value;
+  if (!confirm('Excluir este cliente? O histórico de vendas dele será mantido, mas desvinculado.')) return;
+  salvar(CHAVES.clientes, carregar(CHAVES.clientes).filter((c) => c.id !== id));
+  document.getElementById('modalCliente').classList.add('hidden');
+  renderClientes();
+  mostrarToast('Cliente excluído.');
+});
+
+// -------------------- DETALHE DO CLIENTE (fiado, histórico, WhatsApp) --------------------
+function abrirDetalheCliente(id) {
+  const cliente = carregar(CHAVES.clientes).find((c) => c.id === id);
+  if (!cliente) return;
+  const saldo = saldoDevedor(id);
+
+  document.getElementById('modalDetalheCliente').dataset.clienteId = id;
+  document.getElementById('detalheClienteNome').textContent = cliente.nome;
+  document.getElementById('detalheClienteSaldo').textContent = formatarMoeda(saldo);
+  document.getElementById('detalhePagamentoValor').value = '';
+
+  document.getElementById('detalheBaixaSection').classList.toggle('hidden', saldo <= 0.009);
+
+  const btnWhats = document.getElementById('btnCobrarWhatsapp');
+  if (saldo > 0.009 && cliente.telefone) {
+    btnWhats.classList.remove('hidden');
+  } else {
+    btnWhats.classList.add('hidden');
+  }
+  document.getElementById('btnEnviarExtrato').classList.toggle('hidden', !cliente.telefone);
+
+  renderHistoricoCliente(id);
+  document.getElementById('modalCliente').classList.add('hidden');
+  document.getElementById('modalDetalheCliente').classList.remove('hidden');
+}
+document.getElementById('btnFecharDetalheCliente').addEventListener('click', () => document.getElementById('modalDetalheCliente').classList.add('hidden'));
+
+function renderHistoricoCliente(clienteId) {
+  const vendas = carregar(CHAVES.vendas).filter((v) => v.clienteId === clienteId);
+  const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId);
+
+  const eventos = [
+    ...vendas.map((v) => ({ tipo: 'venda', data: v.data, valor: v.total, extra: v.formaPagamento })),
+    ...pagamentos.map((p) => ({ tipo: 'pagamento', data: p.data, valor: p.valor }))
+  ].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  const container = document.getElementById('detalheHistorico');
+  if (eventos.length === 0) {
+    container.innerHTML = '<p class="vazio">Nenhuma movimentação ainda.</p>';
+    return;
+  }
+  container.innerHTML = eventos.map((e) => `
+    <div class="item">
+      <div class="info">
+        <strong>${e.tipo === 'venda' ? 'Compra (' + e.extra + ')' : 'Pagamento recebido'}</strong>
+        <small>${new Date(e.data).toLocaleString('pt-BR')}</small>
+      </div>
+      <span class="valor-direita" style="color:${e.tipo === 'venda' && e.extra === 'Fiado' ? 'var(--vermelho)' : 'var(--verde-escuro)'}">
+        ${e.tipo === 'pagamento' ? '+ ' : ''}${formatarMoeda(e.valor)}
+      </span>
+    </div>
+  `).join('');
+}
+
+document.getElementById('btnRegistrarPagamento').addEventListener('click', () => {
+  const clienteId = document.getElementById('modalDetalheCliente').dataset.clienteId;
+  const valor = parseFloat(document.getElementById('detalhePagamentoValor').value) || 0;
+  if (valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
+
+  const pagamentos = carregar(CHAVES.pagamentos);
+  pagamentos.push({ id: gerarId(), clienteId, data: new Date().toISOString(), valor });
+  salvar(CHAVES.pagamentos, pagamentos);
+
+  mostrarToast('Pagamento registrado.');
+  abrirDetalheCliente(clienteId); // recarrega saldo e histórico
+});
+
+document.getElementById('btnCobrarWhatsapp').addEventListener('click', () => {
+  const clienteId = document.getElementById('modalDetalheCliente').dataset.clienteId;
+  const cliente = carregar(CHAVES.clientes).find((c) => c.id === clienteId);
+  const saldo = saldoDevedor(clienteId);
+  const mensagem = `Olá ${cliente.nome}! Tudo bem? Passando pra lembrar do fiado da horta, que está em ${formatarMoeda(saldo)}. Qualquer dia que puder acertar, me avisa. Obrigado! 🌱`;
+  const telefone = cliente.telefone.length <= 11 ? '55' + cliente.telefone : cliente.telefone;
+  window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
+});
+
+document.getElementById('btnEnviarExtrato').addEventListener('click', () => {
+  const clienteId = document.getElementById('modalDetalheCliente').dataset.clienteId;
+  const cliente = carregar(CHAVES.clientes).find((c) => c.id === clienteId);
+  if (!cliente.telefone) { mostrarToast('Cadastre o telefone do cliente para enviar pelo WhatsApp.'); return; }
+
+  // Extrato considera apenas o que afeta o fiado: vendas fiado + pagamentos recebidos
+  const vendasFiado = carregar(CHAVES.vendas).filter((v) => v.clienteId === clienteId && v.formaPagamento === 'Fiado');
+  const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId);
+  const eventos = [
+    ...vendasFiado.map((v) => ({ data: v.data, texto: 'Compra fiado', valor: v.total, sinal: '' })),
+    ...pagamentos.map((p) => ({ data: p.data, texto: 'Pagamento recebido', valor: p.valor, sinal: '-' }))
+  ].sort((a, b) => new Date(a.data) - new Date(b.data));
+
+  if (eventos.length === 0) { mostrarToast('Esse cliente não tem movimentação de fiado ainda.'); return; }
+
+  const linhas = [`📋 *Extrato - ${cliente.nome}*`, ''];
+  eventos.forEach((e) => {
+    const dataFmt = new Date(e.data).toLocaleDateString('pt-BR');
+    linhas.push(`${dataFmt} — ${e.texto}: ${e.sinal}${formatarMoeda(e.valor)}`);
+  });
+  linhas.push('');
+  linhas.push(`*Saldo devedor atual: ${formatarMoeda(saldoDevedor(clienteId))}*`);
+
+  const mensagem = linhas.join('\n');
+  const telefone = cliente.telefone.length <= 11 ? '55' + cliente.telefone : cliente.telefone;
+  window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
+});
+
+// ============================================================
+// VENDAS
+// ============================================================
+let itensVendaAtual = [];
+
+function preencherSelects() {
+  const clientes = carregar(CHAVES.clientes);
+  const selectCliente = document.getElementById('vendaCliente');
+  selectCliente.innerHTML = '<option value="">Sem cliente (venda avulsa)</option>' +
+    clientes.map((c) => `<option value="${c.id}">${escapeHTML(c.nome)}</option>`).join('');
+
+  const produtos = carregar(CHAVES.produtos);
+  const selectProduto = document.getElementById('vendaProdutoSelect');
+  selectProduto.innerHTML = produtos.map((p) => `<option value="${p.id}">${escapeHTML(p.nome)} — ${formatarMoeda(p.preco)}</option>`).join('');
+}
+
+document.getElementById('btnAdicionarItemVenda').addEventListener('click', () => {
+  const produtoId = document.getElementById('vendaProdutoSelect').value;
+  const qtd = parseFloat(document.getElementById('vendaQtd').value) || 0;
+  const produto = carregar(CHAVES.produtos).find((p) => p.id === produtoId);
+  if (!produto || qtd <= 0) { mostrarToast('Selecione um produto e uma quantidade válida.'); return; }
+
+  const existente = itensVendaAtual.find((i) => i.produtoId === produtoId);
+  const quantidadeJaNoCarrinho = existente ? existente.quantidade : 0;
+  if (quantidadeJaNoCarrinho + qtd > produto.estoqueAtual) {
+    mostrarToast(`Atenção: estoque de "${produto.nome}" é só ${produto.estoqueAtual}. Adicionando mesmo assim.`);
+  }
+
+  if (existente) existente.quantidade += qtd;
+  else itensVendaAtual.push({ produtoId, nome: produto.nome, precoUnitario: produto.preco, quantidade: qtd });
+
+  renderItensVenda();
+});
+
+function renderItensVenda() {
+  const lista = document.getElementById('vendaItensLista');
+  if (itensVendaAtual.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nenhum item adicionado ainda.</p>';
+  } else {
+    lista.innerHTML = itensVendaAtual.map((item, idx) => `
+      <div class="item">
+        <div class="info"><strong>${escapeHTML(item.nome)}</strong><small>${item.quantidade} x ${formatarMoeda(item.precoUnitario)}</small></div>
+        <span class="valor-direita">${formatarMoeda(item.quantidade * item.precoUnitario)}</span>
+        <button class="perigo" style="padding:6px 10px" data-idx="${idx}">×</button>
+      </div>
+    `).join('');
+    lista.querySelectorAll('button[data-idx]').forEach((btn) => {
+      btn.addEventListener('click', () => { itensVendaAtual.splice(Number(btn.dataset.idx), 1); renderItensVenda(); });
+    });
+  }
+  const total = itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
+  document.getElementById('vendaTotalTexto').textContent = formatarMoeda(total);
+}
+
+document.getElementById('btnFinalizarVenda').addEventListener('click', () => {
+  if (itensVendaAtual.length === 0) { mostrarToast('Adicione ao menos um item.'); return; }
+
+  const clienteId = document.getElementById('vendaCliente').value;
+  const formaPagamento = document.getElementById('vendaFormaPagamento').value;
+  if (formaPagamento === 'Fiado' && !clienteId) { mostrarToast('Selecione um cliente para venda fiado.'); return; }
+
+  const total = itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
+  const cliente = clienteId ? carregar(CHAVES.clientes).find((c) => c.id === clienteId) : null;
+
+  const venda = {
+    id: gerarId(),
+    data: new Date().toISOString(),
+    clienteId: clienteId || '',
+    clienteNome: cliente ? cliente.nome : 'Venda avulsa',
+    itens: itensVendaAtual,
+    total,
+    formaPagamento
+  };
+  const vendas = carregar(CHAVES.vendas);
+  vendas.push(venda);
+  salvar(CHAVES.vendas, vendas);
+
+  // Debita estoque
+  const produtos = carregar(CHAVES.produtos);
+  itensVendaAtual.forEach((item) => {
+    const p = produtos.find((x) => x.id === item.produtoId);
+    if (p) p.estoqueAtual -= item.quantidade;
+  });
+  salvar(CHAVES.produtos, produtos);
+
+  itensVendaAtual = [];
+  renderItensVenda();
+  document.getElementById('vendaCliente').value = '';
+  document.getElementById('vendaFormaPagamento').value = 'Dinheiro';
+  renderVendasRecentes();
+  mostrarToast('Venda registrada com sucesso.');
+});
+
+function renderVendasRecentes() {
+  const vendas = [...carregar(CHAVES.vendas)].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 10);
+  const lista = document.getElementById('listaVendasRecentes');
+  if (vendas.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nenhuma venda registrada ainda.</p>';
+    return;
+  }
+  lista.innerHTML = vendas.map((v) => `
+    <div class="item" data-id="${v.id}">
+      <div class="info"><strong>${escapeHTML(v.clienteNome)}</strong><small>${new Date(v.data).toLocaleString('pt-BR')} · ${v.formaPagamento}</small></div>
+      <span class="valor-direita">${formatarMoeda(v.total)}</span>
+    </div>
+  `).join('');
+  lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirDetalheVenda(el.dataset.id)));
+}
+
+function abrirDetalheVenda(id) {
+  const venda = carregar(CHAVES.vendas).find((v) => v.id === id);
+  if (!venda) return;
+  document.getElementById('vendaDetalheId').value = id;
+  document.getElementById('vendaDetalheInfo').textContent =
+    `${venda.clienteNome} · ${new Date(venda.data).toLocaleString('pt-BR')} · ${venda.formaPagamento}`;
+  document.getElementById('vendaDetalheItens').innerHTML = venda.itens.map((item) => `
+    <div class="item">
+      <div class="info"><strong>${escapeHTML(item.nome)}</strong><small>${item.quantidade} x ${formatarMoeda(item.precoUnitario)}</small></div>
+      <span class="valor-direita">${formatarMoeda(item.quantidade * item.precoUnitario)}</span>
+    </div>
+  `).join('');
+  document.getElementById('vendaDetalheTotal').textContent = formatarMoeda(venda.total);
+  document.getElementById('modalVendaDetalhe').classList.remove('hidden');
+}
+document.getElementById('btnFecharVendaDetalhe').addEventListener('click', () => document.getElementById('modalVendaDetalhe').classList.add('hidden'));
+
+document.getElementById('btnCancelarVendaRegistrada').addEventListener('click', () => {
+  const id = document.getElementById('vendaDetalheId').value;
+  if (!confirm('Cancelar esta venda? Os itens voltam ao estoque e o valor sai do fiado do cliente (se houver).')) return;
+
+  const vendas = carregar(CHAVES.vendas);
+  const venda = vendas.find((v) => v.id === id);
+  if (!venda) return;
+
+  // Devolve os itens ao estoque
+  const produtos = carregar(CHAVES.produtos);
+  venda.itens.forEach((item) => {
+    const p = produtos.find((x) => x.id === item.produtoId);
+    if (p) p.estoqueAtual += item.quantidade;
+  });
+  salvar(CHAVES.produtos, produtos);
+
+  // Remove a venda (isso já reduz o saldo devedor do cliente automaticamente, se era fiado)
+  salvar(CHAVES.vendas, vendas.filter((v) => v.id !== id));
+
+  document.getElementById('modalVendaDetalhe').classList.add('hidden');
+  renderVendasRecentes();
+  mostrarToast('Venda cancelada e estoque devolvido.');
+});
+
+// ============================================================
+// INSUMOS (gastos da horta — usados para calcular o lucro real)
+// ============================================================
+function renderInsumos() {
+  const termo = document.getElementById('buscaInsumo').value.trim().toLowerCase();
+  const insumos = carregar(CHAVES.insumos).filter((i) => !termo || i.nome.toLowerCase().includes(termo));
+  insumos.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  const mesAtual = hoje.slice(0, 7);
+  const gastoMes = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === mesAtual).reduce((s, i) => s + i.valor, 0);
+  const gastoTotal = carregar(CHAVES.insumos).reduce((s, i) => s + i.valor, 0);
+  document.getElementById('insumosGastoMes').textContent = formatarMoeda(gastoMes);
+  document.getElementById('insumosGastoTotal').textContent = formatarMoeda(gastoTotal);
+
+  const lista = document.getElementById('listaInsumos');
+  if (insumos.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nenhum gasto registrado ainda.</p>';
+    return;
+  }
+  lista.innerHTML = insumos.map((i) => `
+    <div class="item" data-id="${i.id}">
+      <div class="info"><strong>${escapeHTML(i.nome)}</strong><small>${escapeHTML(i.categoria)} · ${formatarDataBR(i.data)}</small></div>
+      <span class="valor-direita">${formatarMoeda(i.valor)}</span>
+    </div>
+  `).join('');
+  lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirModalInsumo(el.dataset.id)));
+}
+document.getElementById('buscaInsumo').addEventListener('input', renderInsumos);
+
+function abrirModalInsumo(id) {
+  document.getElementById('insumoId').value = id || '';
+  const btnExcluir = document.getElementById('btnExcluirInsumo');
+  if (id) {
+    const i = carregar(CHAVES.insumos).find((x) => x.id === id);
+    document.getElementById('tituloModalInsumo').textContent = 'Editar gasto';
+    document.getElementById('insumoNome').value = i.nome;
+    document.getElementById('insumoCategoria').value = i.categoria;
+    document.getElementById('insumoValor').value = i.valor;
+    document.getElementById('insumoData').value = i.data;
+    document.getElementById('insumoObservacao').value = i.observacao || '';
+    btnExcluir.classList.remove('hidden');
+  } else {
+    document.getElementById('tituloModalInsumo').textContent = 'Novo gasto';
+    document.getElementById('insumoNome').value = '';
+    document.getElementById('insumoCategoria').value = 'Sementes/Mudas';
+    document.getElementById('insumoValor').value = '';
+    document.getElementById('insumoData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('insumoObservacao').value = '';
+    btnExcluir.classList.add('hidden');
+  }
+  document.getElementById('modalInsumo').classList.remove('hidden');
+}
+document.getElementById('btnNovoInsumo').addEventListener('click', () => abrirModalInsumo(null));
+document.getElementById('btnCancelarInsumo').addEventListener('click', () => document.getElementById('modalInsumo').classList.add('hidden'));
+
+document.getElementById('btnSalvarInsumo').addEventListener('click', () => {
+  const nome = document.getElementById('insumoNome').value.trim();
+  const valor = parseFloat(document.getElementById('insumoValor').value) || 0;
+  if (!nome || valor <= 0) { mostrarToast('Informe a descrição e um valor válido.'); return; }
+
+  const idExistente = document.getElementById('insumoId').value;
+  const insumos = carregar(CHAVES.insumos);
+  const insumo = {
+    id: idExistente || gerarId(),
+    nome,
+    categoria: document.getElementById('insumoCategoria').value,
+    valor,
+    data: document.getElementById('insumoData').value || new Date().toISOString().slice(0, 10),
+    observacao: document.getElementById('insumoObservacao').value.trim()
+  };
+  const idx = insumos.findIndex((i) => i.id === insumo.id);
+  if (idx >= 0) insumos[idx] = insumo; else insumos.push(insumo);
+  salvar(CHAVES.insumos, insumos);
+
+  document.getElementById('modalInsumo').classList.add('hidden');
+  renderInsumos();
+  mostrarToast('Gasto salvo.');
+});
+
+document.getElementById('btnExcluirInsumo').addEventListener('click', () => {
+  const id = document.getElementById('insumoId').value;
+  if (!confirm('Excluir este gasto?')) return;
+  salvar(CHAVES.insumos, carregar(CHAVES.insumos).filter((i) => i.id !== id));
+  document.getElementById('modalInsumo').classList.add('hidden');
+  renderInsumos();
+  mostrarToast('Gasto excluído.');
+});
+
+// ============================================================
+// PLANTIO (controle de cultivo: data de plantio e previsão de colheita)
+// ============================================================
+let plantioFiltroAtivo = 'todos';
+
+function calcularDataPrevista(p) {
+  if (!p.dataPlantio) return '9999-12-31';
+  const d = new Date(p.dataPlantio + 'T00:00:00');
+  d.setDate(d.getDate() + (Number(p.diasCiclo) || 0));
+  return d.toISOString().slice(0, 10);
+}
+
+function statusPlantio(p) {
+  if (p.colhido) return 'colhido';
+  const hoje = new Date().toISOString().slice(0, 10);
+  const prevista = calcularDataPrevista(p);
+  if (prevista <= hoje) return 'pronto';
+  return 'andamento';
+}
+
+document.querySelectorAll('#plantioFiltros [data-filtro]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    plantioFiltroAtivo = btn.dataset.filtro;
+    document.querySelectorAll('#plantioFiltros [data-filtro]').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderPlantios();
+  });
+});
+
+function renderPlantios() {
+  let plantios = carregar(CHAVES.plantios);
+  if (plantioFiltroAtivo !== 'todos') plantios = plantios.filter((p) => statusPlantio(p) === plantioFiltroAtivo);
+  plantios.sort((a, b) => calcularDataPrevista(a).localeCompare(calcularDataPrevista(b)));
+
+  const rotulos = { andamento: 'Em andamento', pronto: 'Pronto p/ colher', colhido: 'Colhido' };
+  const lista = document.getElementById('listaPlantios');
+  if (plantios.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nenhum plantio encontrado.</p>';
+    return;
+  }
+  lista.innerHTML = plantios.map((p) => {
+    const status = statusPlantio(p);
+    const prevista = calcularDataPrevista(p);
+    return `
+      <div class="item" data-id="${p.id}">
+        <div class="info">
+          <strong>${escapeHTML(p.cultura)}</strong>
+          <small>Plantado em ${formatarDataBR(p.dataPlantio)} · Colheita prevista: ${formatarDataBR(prevista)}</small>
+          <div><span class="badge ${status}">${rotulos[status]}</span></div>
+        </div>
+        ${status !== 'colhido' ? `<button class="primario colher-btn" style="width:auto;padding:8px 12px" data-id="${p.id}">Colher</button>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  lista.querySelectorAll('.item > .info').forEach((el) => {
+    el.addEventListener('click', () => abrirModalPlantio(el.closest('.item').dataset.id));
+  });
+  lista.querySelectorAll('.colher-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); abrirModalColher(btn.dataset.id); });
+  });
+}
+
+function abrirModalPlantio(id) {
+  document.getElementById('plantioId').value = id || '';
+  const btnExcluir = document.getElementById('btnExcluirPlantio');
+  if (id) {
+    const p = carregar(CHAVES.plantios).find((x) => x.id === id);
+    document.getElementById('tituloModalPlantio').textContent = 'Editar plantio';
+    document.getElementById('plantioCultura').value = p.cultura;
+    document.getElementById('plantioDataPlantio').value = p.dataPlantio;
+    document.getElementById('plantioDiasCiclo').value = p.diasCiclo;
+    document.getElementById('plantioQuantidade').value = p.quantidade || '';
+    document.getElementById('plantioObservacao').value = p.observacao || '';
+    document.getElementById('plantioTarefaAutoWrap').classList.add('hidden');
+    btnExcluir.classList.remove('hidden');
+  } else {
+    document.getElementById('tituloModalPlantio').textContent = 'Novo plantio';
+    document.getElementById('plantioCultura').value = '';
+    document.getElementById('plantioDataPlantio').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('plantioDiasCiclo').value = '';
+    document.getElementById('plantioQuantidade').value = '';
+    document.getElementById('plantioObservacao').value = '';
+    document.getElementById('plantioTarefaAutoWrap').classList.remove('hidden');
+    document.getElementById('plantioCriarTarefa').checked = true;
+    btnExcluir.classList.add('hidden');
+  }
+  document.getElementById('modalPlantio').classList.remove('hidden');
+}
+document.getElementById('btnNovoPlantio').addEventListener('click', () => abrirModalPlantio(null));
+document.getElementById('btnCancelarPlantio').addEventListener('click', () => document.getElementById('modalPlantio').classList.add('hidden'));
+
+document.getElementById('btnSalvarPlantio').addEventListener('click', () => {
+  const cultura = document.getElementById('plantioCultura').value.trim();
+  const dataPlantio = document.getElementById('plantioDataPlantio').value;
+  const diasCiclo = parseInt(document.getElementById('plantioDiasCiclo').value, 10);
+  if (!cultura || !dataPlantio || !diasCiclo) { mostrarToast('Preencha cultura, data de plantio e dias de ciclo.'); return; }
+
+  const idExistente = document.getElementById('plantioId').value;
+  const plantios = carregar(CHAVES.plantios);
+  const existente = idExistente ? plantios.find((p) => p.id === idExistente) : null;
+
+  const plantio = {
+    id: idExistente || gerarId(),
+    cultura,
+    dataPlantio,
+    diasCiclo,
+    quantidade: parseInt(document.getElementById('plantioQuantidade').value, 10) || 0,
+    observacao: document.getElementById('plantioObservacao').value.trim(),
+    colhido: existente ? existente.colhido : false
+  };
+  const idx = plantios.findIndex((p) => p.id === plantio.id);
+  if (idx >= 0) plantios[idx] = plantio; else plantios.push(plantio);
+  salvar(CHAVES.plantios, plantios);
+
+  // Cria automaticamente a tarefa de colheita (apenas para plantios novos, se marcado)
+  if (!idExistente && document.getElementById('plantioCriarTarefa').checked) {
+    const responsavel = carregarResponsavel();
+    const tarefas = carregar(CHAVES.tarefas);
+    tarefas.push({
+      id: gerarId(),
+      titulo: `Colher: ${cultura}`,
+      responsavel: responsavel.nome || '',
+      dataPrevista: calcularDataPrevista(plantio),
+      plantioId: plantio.id,
+      observacao: '',
+      concluida: false
+    });
+    salvar(CHAVES.tarefas, tarefas);
+  }
+
+  document.getElementById('modalPlantio').classList.add('hidden');
+  renderPlantios();
+  mostrarToast('Plantio salvo.');
+});
+
+document.getElementById('btnExcluirPlantio').addEventListener('click', () => {
+  const id = document.getElementById('plantioId').value;
+  if (!confirm('Excluir este plantio?')) return;
+  salvar(CHAVES.plantios, carregar(CHAVES.plantios).filter((p) => p.id !== id));
+  document.getElementById('modalPlantio').classList.add('hidden');
+  renderPlantios();
+  mostrarToast('Plantio excluído.');
+});
+
+// -------------------- MARCAR COMO COLHIDO (opcionalmente já soma no estoque) --------------------
+function abrirModalColher(id) {
+  const plantio = carregar(CHAVES.plantios).find((p) => p.id === id);
+  if (!plantio) return;
+
+  document.getElementById('colherPlantioId').value = id;
+  document.getElementById('colherResumo').textContent = `${plantio.cultura} — plantado em ${formatarDataBR(plantio.dataPlantio)}`;
+  document.getElementById('colherQuantidade').value = plantio.quantidade || '';
+
+  const produtos = carregar(CHAVES.produtos);
+  const selectDestino = document.getElementById('colherProdutoDestino');
+  selectDestino.innerHTML = '<option value="">Não adicionar ao estoque</option>' +
+    produtos.map((p) => `<option value="${p.id}">${escapeHTML(p.nome)}</option>`).join('');
+
+  document.getElementById('modalColher').classList.remove('hidden');
+}
+document.getElementById('btnCancelarColher').addEventListener('click', () => document.getElementById('modalColher').classList.add('hidden'));
+
+document.getElementById('btnConfirmarColher').addEventListener('click', () => {
+  const id = document.getElementById('colherPlantioId').value;
+  const quantidadeColhida = parseFloat(document.getElementById('colherQuantidade').value) || 0;
+  const produtoDestinoId = document.getElementById('colherProdutoDestino').value;
+
+  const plantios = carregar(CHAVES.plantios);
+  const plantio = plantios.find((p) => p.id === id);
+  if (plantio) { plantio.colhido = true; plantio.quantidadeColhida = quantidadeColhida; salvar(CHAVES.plantios, plantios); }
+
+  if (produtoDestinoId && quantidadeColhida > 0) {
+    const produtos = carregar(CHAVES.produtos);
+    const produto = produtos.find((p) => p.id === produtoDestinoId);
+    if (produto) { produto.estoqueAtual += quantidadeColhida; salvar(CHAVES.produtos, produtos); }
+  }
+
+  document.getElementById('modalColher').classList.add('hidden');
+  renderPlantios();
+  mostrarToast(produtoDestinoId ? 'Colheita registrada e adicionada ao estoque.' : 'Colheita registrada.');
+});
+
+function formatarDataBR(iso) {
+  if (!iso || iso === '9999-12-31') return '-';
+  const [ano, mes, dia] = iso.split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+// ============================================================
+// TAREFAS (delegar atividades — ex: para a filha que trabalha junto)
+// ============================================================
+let tarefaFiltroAtivo = 'todas';
+
+function statusTarefa(t) {
+  if (t.concluida) return 'concluidas';
+  const hoje = new Date().toISOString().slice(0, 10);
+  return t.dataPrevista < hoje ? 'atrasadas' : 'pendentes';
+}
+
+document.querySelectorAll('#tarefaFiltros [data-filtro]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    tarefaFiltroAtivo = btn.dataset.filtro;
+    document.querySelectorAll('#tarefaFiltros [data-filtro]').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTarefas();
+  });
+});
+
+function renderTarefas() {
+  let tarefas = carregar(CHAVES.tarefas);
+  if (tarefaFiltroAtivo !== 'todas') tarefas = tarefas.filter((t) => statusTarefa(t) === tarefaFiltroAtivo);
+  tarefas.sort((a, b) => (a.dataPrevista || '').localeCompare(b.dataPrevista || ''));
+
+  const rotulosBadge = { pendentes: 'Pendente', atrasadas: 'Atrasada', concluidas: 'Concluída' };
+  const classeBadge = { pendentes: 'andamento', atrasadas: 'atrasado', concluidas: 'colhido' };
+
+  const lista = document.getElementById('listaTarefas');
+  if (tarefas.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nenhuma tarefa encontrada.</p>';
+    return;
+  }
+  lista.innerHTML = tarefas.map((t) => {
+    const status = statusTarefa(t);
+    return `
+      <div class="item" data-id="${t.id}">
+        <div class="info">
+          <strong>${escapeHTML(t.titulo)}</strong>
+          <small>${escapeHTML(t.responsavel || 'sem responsável')} · Prazo: ${formatarDataBR(t.dataPrevista)}</small>
+          <div><span class="badge ${classeBadge[status]}">${rotulosBadge[status]}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${!t.concluida ? `<button class="primario concluir-tarefa-btn" style="width:auto;padding:8px 10px" data-id="${t.id}">Concluir</button>` : ''}
+          <button class="whatsapp avisar-tarefa-btn" style="width:auto;padding:8px 10px" data-id="${t.id}">📲</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  lista.querySelectorAll('.item > .info').forEach((el) => {
+    el.addEventListener('click', () => abrirModalTarefa(el.closest('.item').dataset.id));
+  });
+  lista.querySelectorAll('.concluir-tarefa-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); concluirTarefa(btn.dataset.id); });
+  });
+  lista.querySelectorAll('.avisar-tarefa-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => { e.stopPropagation(); avisarTarefaWhatsapp(btn.dataset.id); });
+  });
+}
+
+function preencherSelectPlantiosNaTarefa() {
+  const plantios = carregar(CHAVES.plantios).filter((p) => !p.colhido);
+  const select = document.getElementById('tarefaPlantioVinculado');
+  select.innerHTML = '<option value="">Nenhum</option>' +
+    plantios.map((p) => `<option value="${p.id}">${escapeHTML(p.cultura)} (colheita ${formatarDataBR(calcularDataPrevista(p))})</option>`).join('');
+}
+
+function abrirModalTarefa(id) {
+  preencherSelectPlantiosNaTarefa();
+  document.getElementById('tarefaId').value = id || '';
+  const btnExcluir = document.getElementById('btnExcluirTarefa');
+
+  if (id) {
+    const t = carregar(CHAVES.tarefas).find((x) => x.id === id);
+    document.getElementById('tituloModalTarefa').textContent = 'Editar tarefa';
+    document.getElementById('tarefaTitulo').value = t.titulo;
+    document.getElementById('tarefaResponsavel').value = t.responsavel || '';
+    document.getElementById('tarefaData').value = t.dataPrevista;
+    document.getElementById('tarefaPlantioVinculado').value = t.plantioId || '';
+    document.getElementById('tarefaObservacao').value = t.observacao || '';
+    btnExcluir.classList.remove('hidden');
+  } else {
+    const responsavel = carregarResponsavel();
+    document.getElementById('tituloModalTarefa').textContent = 'Nova tarefa';
+    document.getElementById('tarefaTitulo').value = '';
+    document.getElementById('tarefaResponsavel').value = responsavel.nome || '';
+    document.getElementById('tarefaData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('tarefaPlantioVinculado').value = '';
+    document.getElementById('tarefaObservacao').value = '';
+    btnExcluir.classList.add('hidden');
+  }
+  document.getElementById('modalTarefa').classList.remove('hidden');
+}
+document.getElementById('btnNovaTarefa').addEventListener('click', () => abrirModalTarefa(null));
+document.getElementById('btnCancelarTarefa').addEventListener('click', () => document.getElementById('modalTarefa').classList.add('hidden'));
+
+document.getElementById('btnSalvarTarefa').addEventListener('click', () => {
+  const titulo = document.getElementById('tarefaTitulo').value.trim();
+  const dataPrevista = document.getElementById('tarefaData').value;
+  if (!titulo || !dataPrevista) { mostrarToast('Preencha a tarefa e a data prevista.'); return; }
+
+  const idExistente = document.getElementById('tarefaId').value;
+  const tarefas = carregar(CHAVES.tarefas);
+  const existente = idExistente ? tarefas.find((t) => t.id === idExistente) : null;
+
+  const tarefa = {
+    id: idExistente || gerarId(),
+    titulo,
+    responsavel: document.getElementById('tarefaResponsavel').value.trim(),
+    dataPrevista,
+    plantioId: document.getElementById('tarefaPlantioVinculado').value || '',
+    observacao: document.getElementById('tarefaObservacao').value.trim(),
+    concluida: existente ? existente.concluida : false
+  };
+  const idx = tarefas.findIndex((t) => t.id === tarefa.id);
+  if (idx >= 0) tarefas[idx] = tarefa; else tarefas.push(tarefa);
+  salvar(CHAVES.tarefas, tarefas);
+
+  document.getElementById('modalTarefa').classList.add('hidden');
+  renderTarefas();
+  mostrarToast('Tarefa salva.');
+});
+
+document.getElementById('btnExcluirTarefa').addEventListener('click', () => {
+  const id = document.getElementById('tarefaId').value;
+  if (!confirm('Excluir esta tarefa?')) return;
+  salvar(CHAVES.tarefas, carregar(CHAVES.tarefas).filter((t) => t.id !== id));
+  document.getElementById('modalTarefa').classList.add('hidden');
+  renderTarefas();
+  mostrarToast('Tarefa excluída.');
+});
+
+function concluirTarefa(id) {
+  const tarefas = carregar(CHAVES.tarefas);
+  const t = tarefas.find((x) => x.id === id);
+  if (!t) return;
+  t.concluida = true;
+  t.dataConclusao = new Date().toISOString();
+  salvar(CHAVES.tarefas, tarefas);
+  renderTarefas();
+  mostrarToast('Tarefa concluída. 🎉');
+}
+
+function avisarTarefaWhatsapp(id) {
+  const t = carregar(CHAVES.tarefas).find((x) => x.id === id);
+  const responsavel = carregarResponsavel();
+  if (!responsavel.telefone) {
+    mostrarToast('Configure o telefone do responsável primeiro (botão "⚙ Responsável").');
+    return;
+  }
+  const mensagem = `Oi ${t.responsavel || responsavel.nome}! Passando a tarefa: "${t.titulo}", prazo ${formatarDataBR(t.dataPrevista)}. ${t.observacao ? 'Obs: ' + t.observacao : ''}`;
+  const telefone = responsavel.telefone.length <= 11 ? '55' + responsavel.telefone : responsavel.telefone;
+  window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
+}
+
+// -------------------- CONFIGURAR RESPONSÁVEL PADRÃO --------------------
+document.getElementById('btnConfigResponsavel').addEventListener('click', () => {
+  const r = carregarResponsavel();
+  document.getElementById('respNome').value = r.nome || '';
+  document.getElementById('respTelefone').value = r.telefone || '';
+  document.getElementById('modalResponsavel').classList.remove('hidden');
+});
+document.getElementById('btnCancelarResponsavel').addEventListener('click', () => document.getElementById('modalResponsavel').classList.add('hidden'));
+document.getElementById('btnSalvarResponsavel').addEventListener('click', () => {
+  salvarResponsavel({
+    nome: document.getElementById('respNome').value.trim(),
+    telefone: document.getElementById('respTelefone').value.trim().replace(/\D/g, '')
+  });
+  document.getElementById('modalResponsavel').classList.add('hidden');
+  mostrarToast('Responsável salvo.');
+});
+
+// ============================================================
+// DESEMPENHO DE VENDAS POR CULTURA (gráfico de linha)
+// ============================================================
+let desempenhoPeriodoAtivo = '30';
+
+document.querySelectorAll('#desempenhoFiltros [data-periodo]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    desempenhoPeriodoAtivo = btn.dataset.periodo;
+    document.querySelectorAll('#desempenhoFiltros [data-periodo]').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderDesempenhoCulturas();
+  });
+});
+
+function definirIntervaloDesempenho(periodo) {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  let dataInicio, agrupamento;
+  if (periodo === '30') {
+    dataInicio = new Date(hoje.getTime() - 29 * 86400000);
+    agrupamento = 'dia';
+  } else if (periodo === '90') {
+    dataInicio = new Date(hoje.getTime() - 89 * 86400000);
+    agrupamento = 'semana';
+  } else {
+    const vendas = carregar(CHAVES.vendas);
+    dataInicio = vendas.length === 0 ? hoje : new Date(Math.min(...vendas.map((v) => new Date(v.data).getTime())));
+    dataInicio.setHours(0, 0, 0, 0);
+    agrupamento = 'mes';
+  }
+  return { dataInicio, dataFim: hoje, agrupamento };
+}
+
+function chaveBucket(data, agrupamento) {
+  const d = new Date(data);
+  if (agrupamento === 'dia') return d.toISOString().slice(0, 10);
+  if (agrupamento === 'mes') return d.toISOString().slice(0, 7);
+  const diaSemana = d.getDay();
+  const diff = (diaSemana === 0 ? -6 : 1) - diaSemana; // volta pra segunda-feira daquela semana
+  const segunda = new Date(d);
+  segunda.setDate(d.getDate() + diff);
+  return segunda.toISOString().slice(0, 10);
+}
+
+function formatarRotuloBucket(chave) {
+  if (chave.length === 7) { const [a, m] = chave.split('-'); return `${m}/${a.slice(2)}`; }
+  const [, m, dd] = chave.split('-'); return `${dd}/${m}`;
+}
+
+function renderDesempenhoCulturas() {
+  const { dataInicio, dataFim, agrupamento } = definirIntervaloDesempenho(desempenhoPeriodoAtivo);
+  const produtos = carregar(CHAVES.produtos);
+  const mapaCultura = {};
+  produtos.forEach((p) => { mapaCultura[p.id] = (p.cultura && p.cultura.trim()) || p.nome; });
+
+  const limiteFim = new Date(dataFim.getTime() + 86399999);
+  const vendas = carregar(CHAVES.vendas).filter((v) => {
+    const d = new Date(v.data);
+    return d >= dataInicio && d <= limiteFim;
+  });
+
+  // Gera a lista ordenada de "baldes" de tempo (dias/semanas/meses) do período
+  const buckets = [];
+  const cursor = new Date(dataInicio);
+  while (cursor <= dataFim) {
+    buckets.push(chaveBucket(cursor, agrupamento));
+    if (agrupamento === 'dia') cursor.setDate(cursor.getDate() + 1);
+    else if (agrupamento === 'semana') cursor.setDate(cursor.getDate() + 7);
+    else cursor.setMonth(cursor.getMonth() + 1);
+  }
+  const bucketsUnicos = [...new Set(buckets)];
+
+  const totaisPorCultura = {};
+  vendas.forEach((v) => {
+    const chave = chaveBucket(v.data, agrupamento);
+    (v.itens || []).forEach((item) => {
+      const cultura = mapaCultura[item.produtoId] || item.nome;
+      totaisPorCultura[cultura] = totaisPorCultura[cultura] || {};
+      totaisPorCultura[cultura][chave] = (totaisPorCultura[cultura][chave] || 0) + item.quantidade * item.precoUnitario;
+    });
+  });
+
+  const ranking = Object.entries(totaisPorCultura)
+    .map(([cultura, porBucket]) => ({ cultura, total: Object.values(porBucket).reduce((s, v) => s + v, 0) }))
+    .sort((a, b) => b.total - a.total);
+
+  const cores = ['#16a34a', '#2563eb', '#d97706', '#dc2626', '#9333ea', '#0891b2'];
+  const top = ranking.slice(0, 5);
+  const series = top.map((r, i) => ({
+    cultura: r.cultura,
+    cor: cores[i % cores.length],
+    valores: bucketsUnicos.map((b) => (totaisPorCultura[r.cultura] && totaisPorCultura[r.cultura][b]) || 0)
+  }));
+
+  desenharGraficoLinha(document.getElementById('graficoDesempenhoCultura'), series, bucketsUnicos);
+
+  const legenda = document.getElementById('legendaDesempenho');
+  legenda.innerHTML = series.length === 0 ? '' : series.map((s) => `
+    <span style="display:flex;align-items:center;gap:4px">
+      <span style="width:9px;height:9px;border-radius:50%;background:${s.cor};display:inline-block"></span>${escapeHTML(s.cultura)}
+    </span>
+  `).join('');
+
+  const rankingContainer = document.getElementById('rankingCulturas');
+  rankingContainer.innerHTML = ranking.length === 0
+    ? '<p class="vazio">Nenhuma venda registrada nesse período.</p>'
+    : ranking.map((r) => `
+        <div class="item">
+          <div class="info"><strong>${escapeHTML(r.cultura)}</strong></div>
+          <span class="valor-direita">${formatarMoeda(r.total)}</span>
+        </div>
+      `).join('');
+}
+
+function desenharGraficoLinha(canvas, series, buckets) {
+  const dpr = window.devicePixelRatio || 1;
+  const larguraCSS = canvas.clientWidth || 320;
+  const alturaCSS = canvas.clientHeight || 190;
+  canvas.width = larguraCSS * dpr;
+  canvas.height = alturaCSS * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, larguraCSS, alturaCSS);
+
+  if (series.length === 0 || buckets.length === 0) {
+    ctx.fillStyle = '#6b7c73';
+    ctx.font = '12px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sem vendas suficientes para mostrar o gráfico', larguraCSS / 2, alturaCSS / 2);
+    return;
+  }
+
+  const margemE = 8, margemD = 8, margemTopo = 14, margemBaixo = 22;
+  const areaLargura = larguraCSS - margemE - margemD;
+  const areaAltura = alturaCSS - margemTopo - margemBaixo;
+  const maxValor = Math.max(1, ...series.flatMap((s) => s.valores));
+  const passoX = buckets.length > 1 ? areaLargura / (buckets.length - 1) : 0;
+
+  series.forEach((s) => {
+    ctx.strokeStyle = s.cor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    s.valores.forEach((v, i) => {
+      const x = margemE + i * passoX;
+      const y = margemTopo + areaAltura - (v / maxValor) * areaAltura;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    ctx.fillStyle = s.cor;
+    s.valores.forEach((v, i) => {
+      const x = margemE + i * passoX;
+      const y = margemTopo + areaAltura - (v / maxValor) * areaAltura;
+      ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill();
+    });
+  });
+
+  ctx.fillStyle = '#6b7c73';
+  ctx.font = '10px -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  const passoRotulo = Math.max(1, Math.ceil(buckets.length / 6));
+  buckets.forEach((b, i) => {
+    if (i % passoRotulo === 0 || i === buckets.length - 1) {
+      const x = margemE + i * passoX;
+      ctx.fillText(formatarRotuloBucket(b), x, alturaCSS - 6);
+    }
+  });
+}
+
+// ============================================================
+// BACKUP (exportar / importar tudo em um JSON)
+// ============================================================
+document.getElementById('btnBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.remove('hidden'));
+document.getElementById('btnFecharBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.add('hidden'));
+
+document.getElementById('btnExportarBackup').addEventListener('click', () => {
+  const dump = {};
+  Object.values(CHAVES).forEach((chave) => { dump[chave] = carregar(chave); });
+  dump[CHAVE_RESPONSAVEL] = carregarResponsavel();
+  dump._exportadoEm = new Date().toISOString();
+  const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_horta_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  localStorage.setItem('hg_ultimo_backup', new Date().toISOString());
+  atualizarBannerBackup();
+  mostrarToast('Backup exportado.');
+});
+
+document.getElementById('btnImportarBackup').addEventListener('click', () => document.getElementById('fileImportarBackup').click());
+document.getElementById('fileImportarBackup').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const dump = JSON.parse(reader.result);
+      Object.values(CHAVES).forEach((chave) => {
+        if (Array.isArray(dump[chave])) salvar(chave, dump[chave]);
+      });
+      if (dump[CHAVE_RESPONSAVEL]) salvarResponsavel(dump[CHAVE_RESPONSAVEL]);
+      localStorage.setItem('hg_ultimo_backup', new Date().toISOString());
+      atualizarBannerBackup();
+      mostrarToast('Backup importado com sucesso!');
+      document.getElementById('modalBackup').classList.add('hidden');
+      irParaAba('inicio');
+    } catch (err) {
+      mostrarToast('Arquivo de backup inválido.');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file, 'utf-8');
+});
+
+function atualizarBannerBackup() {
+  const ultimo = localStorage.getItem('hg_ultimo_backup');
+  const banner = document.getElementById('bannerBackup');
+  const texto = document.getElementById('bannerBackupTexto');
+
+  if (!ultimo) {
+    texto.textContent = 'Você ainda não fez nenhum backup. Toque aqui para exportar agora.';
+    banner.classList.remove('hidden');
+    return;
+  }
+  const dias = Math.floor((Date.now() - new Date(ultimo).getTime()) / 86400000);
+  if (dias >= 14) {
+    texto.textContent = `Seu último backup foi há ${dias} dias. Toque aqui para exportar agora.`;
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+document.getElementById('bannerBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.remove('hidden'));
+
+// ============================================================
+// INICIALIZAÇÃO
+// ============================================================
+renderDashboard();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
