@@ -742,7 +742,7 @@
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros' };
 const CHAVE_RESPONSAVEL = 'hg_responsavel';
 function carregarResponsavel() { return JSON.parse(localStorage.getItem(CHAVE_RESPONSAVEL) || '{"nome":"","telefone":""}'); }
-function salvarResponsavel(obj) { localStorage.setItem(CHAVE_RESPONSAVEL, JSON.stringify(obj)); }
+function salvarResponsavel(obj) { localStorage.setItem(CHAVE_RESPONSAVEL, JSON.stringify(obj)); if (typeof agendarAtualizacaoCatalogo === 'function') agendarAtualizacaoCatalogo(); }
 
 function carregar(chave) { return JSON.parse(localStorage.getItem(chave) || '[]'); }
 function salvar(chave, dados) { localStorage.setItem(chave, JSON.stringify(dados)); }
@@ -2619,16 +2619,41 @@ document.getElementById('btnSairGoogle').addEventListener('click', () => {
 });
 document.getElementById('btnSincronizarAgora').addEventListener('click', () => baixarDaNuvem(true));
 
-// Reaproveita salvar() para também empurrar mudanças para a nuvem (com debounce)
+// Reaproveita salvar() para também empurrar mudanças para a nuvem (com debounce),
+// e reconstrói o catálogo automaticamente quando os produtos mudam.
 const salvarOriginal = salvar;
 salvar = function(chave, dados) {
   salvarOriginal(chave, dados);
   agendarEnvioNuvem();
+  if (chave === CHAVES.produtos) agendarAtualizacaoCatalogo();
 };
 
 // ============================================================
 // CATÁLOGO COMPARTILHÁVEL
 // ============================================================
+let catalogoDebounceTimer;
+function agendarAtualizacaoCatalogo() {
+  if (!nuvemAuth || !nuvemAuth.currentUser) return;
+  clearTimeout(catalogoDebounceTimer);
+  catalogoDebounceTimer = setTimeout(atualizarCatalogoNaNuvem, 2000);
+}
+
+async function atualizarCatalogoNaNuvem() {
+  if (!nuvemAuth || !nuvemAuth.currentUser) return;
+  const produtos = carregar(CHAVES.produtos).filter((p) => p.estoqueAtual > 0);
+  const responsavel = carregarResponsavel();
+  const itensCatalogo = produtos.map((p) => ({ nome: p.nome, preco: p.preco, foto: p.foto || '' }));
+  try {
+    await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({
+      itens: itensCatalogo,
+      telefone: responsavel.telefone || '',
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch (err) {
+    // Falha silenciosa: tentará de novo na próxima alteração.
+  }
+}
+
 document.getElementById('btnCompartilharCatalogo').addEventListener('click', async () => {
   if (!nuvemAuth || !nuvemAuth.currentUser) {
     mostrarToast('Entre com sua conta Google (menu Backup) para gerar o catálogo.');
@@ -2639,18 +2664,10 @@ document.getElementById('btnCompartilharCatalogo').addEventListener('click', asy
     mostrarToast('Nenhum produto com estoque disponível para o catálogo.');
     return;
   }
-  const responsavel = carregarResponsavel();
-  const itensCatalogo = produtos.map((p) => ({ nome: p.nome, preco: p.preco, foto: p.foto || '' }));
-
   mostrarToast('Gerando catálogo...');
   try {
-    const uid = nuvemAuth.currentUser.uid;
-    await nuvemDb.collection('catalogos').doc(uid).set({
-      itens: itensCatalogo,
-      telefone: responsavel.telefone || '',
-      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    const link = `${location.origin}${location.pathname.replace(/index\.html$/, '')}catalogo.html?u=${uid}`;
+    await atualizarCatalogoNaNuvem();
+    const link = `${location.origin}${location.pathname.replace(/index\.html$/, '')}catalogo.html?u=${nuvemAuth.currentUser.uid}`;
     const mensagem = `Confira nosso catálogo da horta! 🌱\n${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensagem)}`, '_blank');
     mostrarToast('Catálogo atualizado e pronto para compartilhar.');
