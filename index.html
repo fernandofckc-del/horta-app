@@ -575,6 +575,17 @@
     <button class="whatsapp" id="btnCobrarWhatsapp" style="margin-top:10px">📲 Cobrar pelo WhatsApp</button>
     <button class="fantasma" id="btnEnviarExtrato" style="margin-top:8px">📄 Enviar extrato completo</button>
 
+    <h2 class="titulo">Extrato em PDF</h2>
+    <div class="linha">
+      <label>De (opcional)
+        <input type="date" id="extratoPdfDataInicio">
+      </label>
+      <label>Até (opcional)
+        <input type="date" id="extratoPdfDataFim">
+      </label>
+    </div>
+    <button class="primario" id="btnGerarExtratoPdf" style="width:100%;margin-bottom:14px">📄 Gerar extrato PDF (compras, pagamentos e saldo)</button>
+
     <h2 class="titulo">Histórico</h2>
     <div class="lista" id="detalheHistorico"></div>
 
@@ -2283,6 +2294,112 @@ document.getElementById('btnGerarRelatorioPdf').addEventListener('click', () => 
 
   doc.save(`relatorio_horta_${inicioMes}.pdf`);
   mostrarToast('Relatório PDF gerado.');
+});
+
+// -------------------- EXTRATO EM PDF POR CLIENTE --------------------
+document.getElementById('btnGerarExtratoPdf').addEventListener('click', () => {
+  if (typeof window.jspdf === 'undefined') {
+    mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.');
+    return;
+  }
+  const clienteId = document.getElementById('modalDetalheCliente').dataset.clienteId;
+  const cliente = carregar(CHAVES.clientes).find((c) => c.id === clienteId);
+  if (!cliente) return;
+
+  const dataInicio = document.getElementById('extratoPdfDataInicio').value; // "AAAA-MM-DD" ou ""
+  const dataFim = document.getElementById('extratoPdfDataFim').value;
+
+  const dentroDoIntervalo = (isoData) => {
+    const data = isoData.slice(0, 10);
+    if (dataInicio && data < dataInicio) return false;
+    if (dataFim && data > dataFim) return false;
+    return true;
+  };
+
+  const vendas = carregar(CHAVES.vendas).filter((v) => v.clienteId === clienteId && dentroDoIntervalo(v.data))
+    .sort((a, b) => a.data.localeCompare(b.data));
+  const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId && dentroDoIntervalo(p.data))
+    .sort((a, b) => a.data.localeCompare(b.data));
+
+  if (vendas.length === 0 && pagamentos.length === 0) {
+    mostrarToast('Nenhuma movimentação encontrada nesse período.');
+    return;
+  }
+
+  const totalComprado = vendas.reduce((s, v) => s + v.total, 0);
+  const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0);
+  const saldoAtual = saldoDevedor(clienteId);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const margemDireita = 196;
+  let y = 20;
+
+  const novaPaginaSeNecessario = (espacoNecessario = 10) => {
+    if (y + espacoNecessario > 280) { doc.addPage(); y = 20; }
+  };
+
+  doc.setFontSize(16);
+  doc.text(`Extrato — ${cliente.nome}`, 14, y);
+  y += 8;
+  doc.setFontSize(10);
+  doc.setTextColor(120);
+  const periodoTexto = dataInicio || dataFim
+    ? `Período: ${dataInicio ? formatarDataBR(dataInicio) : 'início'} até ${dataFim ? formatarDataBR(dataFim) : 'hoje'}`
+    : 'Período: todo o histórico';
+  doc.text(periodoTexto, 14, y);
+  doc.setTextColor(0);
+  y += 12;
+
+  doc.setFontSize(13);
+  doc.text('Resumo', 14, y); y += 8;
+  doc.setFontSize(11);
+  doc.text(`Total comprado no período: ${formatarMoeda(totalComprado)}`, 14, y); y += 7;
+  doc.text(`Total pago no período: ${formatarMoeda(totalPago)}`, 14, y); y += 7;
+  doc.setFont(undefined, 'bold');
+  doc.text(`Saldo devedor atual: ${formatarMoeda(saldoAtual)}`, 14, y);
+  doc.setFont(undefined, 'normal');
+  y += 14;
+
+  if (vendas.length > 0) {
+    doc.setFontSize(13);
+    doc.text('Compras', 14, y); y += 8;
+    doc.setFontSize(10);
+    vendas.forEach((v) => {
+      novaPaginaSeNecessario(14);
+      const itensTexto = v.itens.map((i) => `${i.quantidade}x ${i.nome}`).join(', ');
+      doc.text(formatarDataBR(v.data.slice(0, 10)), 14, y);
+      doc.text(v.formaPagamento, 60, y);
+      doc.text(formatarMoeda(v.total), margemDireita, y, { align: 'right' });
+      y += 5;
+      const linhasItens = doc.splitTextToSize(itensTexto, 175);
+      doc.setTextColor(120);
+      linhasItens.forEach((linha) => { novaPaginaSeNecessario(6); doc.text(linha, 14, y); y += 5; });
+      doc.setTextColor(0);
+      y += 3;
+    });
+    y += 6;
+  }
+
+  if (pagamentos.length > 0) {
+    novaPaginaSeNecessario(16);
+    doc.setFontSize(13);
+    doc.text('Pagamentos recebidos', 14, y); y += 8;
+    doc.setFontSize(10);
+    pagamentos.forEach((p) => {
+      novaPaginaSeNecessario(7);
+      doc.text(formatarDataBR(p.data.slice(0, 10)), 14, y);
+      doc.text(formatarMoeda(p.valor), margemDireita, y, { align: 'right' });
+      y += 7;
+    });
+  }
+
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 290);
+
+  doc.save(`extrato_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
+  mostrarToast('Extrato PDF gerado.');
 });
 
 document.getElementById('btnImportarBackup').addEventListener('click', () => document.getElementById('fileImportarBackup').click());
