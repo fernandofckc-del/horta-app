@@ -1971,7 +1971,9 @@ document.getElementById('btnRegistrarPagamentoFinanceiro').addEventListener('cli
 document.getElementById('btnBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.remove('hidden'));
 document.getElementById('btnFecharBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.add('hidden'));
 
-document.getElementById('btnExportarBackup').addEventListener('click', () => {
+document.getElementById('btnExportarBackup').addEventListener('click', () => exportarBackup(false));
+
+function exportarBackup(automatico) {
   const dump = {};
   Object.values(CHAVES).forEach((chave) => { dump[chave] = carregar(chave); });
   dump[CHAVE_RESPONSAVEL] = carregarResponsavel();
@@ -1980,13 +1982,14 @@ document.getElementById('btnExportarBackup').addEventListener('click', () => {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `backup_horta_${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `backup_horta_${new Date().toISOString().slice(0, 10)}${automatico ? '_auto' : ''}.json`;
   a.click();
   URL.revokeObjectURL(url);
   localStorage.setItem('hg_ultimo_backup', new Date().toISOString());
   atualizarBannerBackup();
-  mostrarToast('Backup exportado.');
-});
+  if (!automatico) mostrarToast('Backup exportado.');
+  else mostrarToast('Backup automático salvo em Downloads.');
+}
 
 document.getElementById('btnImportarBackup').addEventListener('click', () => document.getElementById('fileImportarBackup').click());
 document.getElementById('fileImportarBackup').addEventListener('change', (e) => {
@@ -2024,7 +2027,7 @@ function atualizarBannerBackup() {
     return;
   }
   const dias = Math.floor((Date.now() - new Date(ultimo).getTime()) / 86400000);
-  if (dias >= 14) {
+  if (dias >= 7) {
     texto.textContent = `Seu último backup foi há ${dias} dias. Toque aqui para exportar agora.`;
     banner.classList.remove('hidden');
   } else {
@@ -2033,10 +2036,21 @@ function atualizarBannerBackup() {
 }
 document.getElementById('bannerBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.remove('hidden'));
 
+// Backup automático: se houver dados e o último backup tiver mais de 3 dias
+// (ou nunca ter sido feito), exporta um arquivo sozinho ao abrir o app.
+function verificarBackupAutomatico() {
+  const temDados = Object.values(CHAVES).some((chave) => carregar(chave).length > 0);
+  if (!temDados) return;
+  const ultimo = localStorage.getItem('hg_ultimo_backup');
+  const dias = ultimo ? Math.floor((Date.now() - new Date(ultimo).getTime()) / 86400000) : Infinity;
+  if (dias >= 3) exportarBackup(true);
+}
+
 // ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 renderDashboard();
+verificarBackupAutomatico();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
