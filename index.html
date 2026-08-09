@@ -2734,8 +2734,27 @@ Clientes cadastrados: ${clientes.join(', ') || 'nenhum'}.
 Contexto para perguntas: vendas hoje = R$${vendasHoje.toFixed(2)}, fiado em aberto = R$${totalFiado.toFixed(2)}.
 
 Responda APENAS com um JSON válido, sem texto antes ou depois, no formato:
-{"acoes":[{"tipo":"venda","produtoNome":"...","quantidade":1,"clienteNome":"...","formaPagamento":"Dinheiro"},{"tipo":"gasto","descricao":"...","valor":0,"categoria":"Outros"},{"tipo":"tarefa","titulo":"...","dataPrevista":"AAAA-MM-DD"},{"tipo":"financeiro","subtipo":"devo","nome":"...","valor":0},{"tipo":"resposta","texto":"..."}]}
-Use "tipo":"resposta" para perguntas ou quando não entender o comando. Campos opcionais podem ser omitidos. formaPagamento pode ser Dinheiro, PIX, Cartão ou Fiado. subtipo pode ser "devo" ou "receber". Use nomes de produtos/clientes o mais próximo possível dos cadastrados.`;
+{"acoes":[
+  {"tipo":"venda","produtoNome":"...","quantidade":1,"clienteNome":"...","formaPagamento":"Dinheiro"},
+  {"tipo":"gasto","descricao":"...","valor":0,"categoria":"Outros"},
+  {"tipo":"tarefa","titulo":"...","dataPrevista":"AAAA-MM-DD"},
+  {"tipo":"financeiro","subtipo":"devo","nome":"...","valor":0},
+  {"tipo":"cliente","nome":"...","telefone":"..."},
+  {"tipo":"produto","nome":"...","preco":0,"estoqueInicial":0,"cultura":"..."},
+  {"tipo":"concluir_tarefa","titulo":"..."},
+  {"tipo":"pagamento_cliente","clienteNome":"...","valor":0},
+  {"tipo":"resposta","texto":"..."}
+]}
+Use "tipo":"resposta" para perguntas ou quando não entender o comando. Campos opcionais podem ser omitidos.
+- "venda": registra uma venda. formaPagamento pode ser Dinheiro, PIX, Cartão ou Fiado.
+- "gasto": registra um gasto/insumo.
+- "tarefa": cria uma tarefa nova a fazer.
+- "financeiro": registro pessoal de dívida/a receber. subtipo pode ser "devo" ou "receber".
+- "cliente": cadastra um cliente novo (use quando o comando for só "cadastrar/criar cliente X", não durante uma venda).
+- "produto": cadastra um produto novo no estoque, com preço de venda e estoque inicial (0 se não informado).
+- "concluir_tarefa": marca uma tarefa existente como concluída, pelo título mais parecido.
+- "pagamento_cliente": registra que um cliente pagou parte ou todo o fiado (abate o saldo devedor dele).
+Use nomes de produtos/clientes o mais próximo possível dos já cadastrados.`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -2814,6 +2833,46 @@ function aplicarAcoesVoz(acoes) {
         const financeiros = carregar(CHAVES.financeiros); financeiros.push(registro); salvar(CHAVES.financeiros, financeiros);
         linhas.push(`✅ ${registro.tipo === 'devo' ? 'Você deve' : 'A receber de'} ${registro.nome} — ${formatarMoeda(valor)}`);
 
+      } else if (acao.tipo === 'cliente') {
+        if (!acao.nome) { linhas.push('❌ Nome do cliente não informado.'); return; }
+        const clientes = carregar(CHAVES.clientes);
+        const existente = clientes.find((c) => c.nome.toLowerCase() === acao.nome.toLowerCase());
+        if (existente) { linhas.push(`⚠️ Cliente "${existente.nome}" já existia.`); return; }
+        const novoCliente = { id: gerarId(), nome: acao.nome, telefone: (acao.telefone || '').replace(/\D/g, '') };
+        clientes.push(novoCliente); salvar(CHAVES.clientes, clientes);
+        linhas.push(`✅ Cliente cadastrado: ${novoCliente.nome}`);
+
+      } else if (acao.tipo === 'produto') {
+        if (!acao.nome) { linhas.push('❌ Nome do produto não informado.'); return; }
+        const produtos = carregar(CHAVES.produtos);
+        const existente = produtos.find((p) => p.nome.toLowerCase() === acao.nome.toLowerCase());
+        if (existente) { linhas.push(`⚠️ Produto "${existente.nome}" já existia.`); return; }
+        const novoProduto = { id: gerarId(), nome: acao.nome, preco: Number(acao.preco) || 0, estoqueAtual: Number(acao.estoqueInicial) || 0, estoqueMinimo: 0, cultura: acao.cultura || '', foto: '' };
+        produtos.push(novoProduto); salvar(CHAVES.produtos, produtos);
+        linhas.push(`✅ Produto cadastrado: ${novoProduto.nome} — ${formatarMoeda(novoProduto.preco)}`);
+
+      } else if (acao.tipo === 'concluir_tarefa') {
+        if (!acao.titulo) { linhas.push('❌ Título da tarefa não informado.'); return; }
+        const tarefas = carregar(CHAVES.tarefas);
+        const tarefa = tarefas.find((t) => !t.concluida && (t.titulo.toLowerCase().includes(acao.titulo.toLowerCase()) || acao.titulo.toLowerCase().includes(t.titulo.toLowerCase())));
+        if (!tarefa) { linhas.push(`❌ Nenhuma tarefa pendente parecida com "${acao.titulo}".`); return; }
+        tarefa.concluida = true; salvar(CHAVES.tarefas, tarefas);
+        linhas.push(`✅ Tarefa concluída: ${tarefa.titulo}`);
+
+      } else if (acao.tipo === 'pagamento_cliente') {
+        if (!acao.clienteNome) { linhas.push('❌ Nome do cliente não informado.'); return; }
+        const valor = Number(acao.valor) || 0;
+        if (valor <= 0) { linhas.push('❌ Valor de pagamento inválido.'); return; }
+        const clientes = carregar(CHAVES.clientes);
+        const cliente = clientes.find((c) => c.nome.toLowerCase().includes(acao.clienteNome.toLowerCase()) || acao.clienteNome.toLowerCase().includes(c.nome.toLowerCase()));
+        if (!cliente) { linhas.push(`❌ Cliente "${acao.clienteNome}" não encontrado.`); return; }
+        const saldoAtual = saldoDevedor(cliente.id);
+        if (valor > saldoAtual + 0.009) { linhas.push(`⚠️ Valor maior que o saldo devedor de ${cliente.nome} (${formatarMoeda(saldoAtual)}). Registrado mesmo assim.`); }
+        const pagamentos = carregar(CHAVES.pagamentos);
+        pagamentos.push({ id: gerarId(), clienteId: cliente.id, data: new Date().toISOString(), valor });
+        salvar(CHAVES.pagamentos, pagamentos);
+        linhas.push(`✅ Pagamento de ${cliente.nome}: ${formatarMoeda(valor)}`);
+
       } else if (acao.tipo === 'resposta') {
         linhas.push(`💬 ${acao.texto}`);
       }
@@ -2832,6 +2891,7 @@ function aplicarAcoesVoz(acoes) {
   renderTarefas();
   renderFinancas();
   renderVendasRecentes();
+  renderClientes();
 }
 
 // ============================================================
