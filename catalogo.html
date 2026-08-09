@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo — Controle da Horta</title>
+<meta name="theme-color" content="#7c3aed">
+<style>
+  :root {
+    --verde: #7c3aed;
+    --verde-escuro: #6d28d9;
+    --bg: #f3f6f4;
+    --card: #ffffff;
+    --texto: #14251b;
+    --texto-suave: #6b7c73;
+    --borda: #e2e8e4;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--texto);
+  }
+  header {
+    background: var(--verde);
+    color: #fff;
+    padding: 20px 16px;
+    text-align: center;
+  }
+  header h1 { margin: 0 0 4px; font-size: 1.3rem; }
+  header p { margin: 0; opacity: 0.9; font-size: 0.85rem; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .produto {
+    background: var(--card);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .produto img { width: 100%; height: 120px; object-fit: cover; display: block; background: var(--bg); }
+  .produto .sem-foto { width: 100%; height: 120px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+  .produto .info { padding: 10px 12px; }
+  .produto .info strong { display: block; font-size: 0.92rem; margin-bottom: 4px; }
+  .produto .info span { color: var(--verde-escuro); font-weight: 700; }
+  .vazio { text-align: center; color: var(--texto-suave); padding: 40px 16px; }
+  .whatsapp {
+    display: block; text-align: center; text-decoration: none;
+    background: #25d366; color: #fff; padding: 13px; border-radius: 12px;
+    font-weight: 600; margin-top: 20px;
+  }
+  footer { text-align: center; font-size: 0.72rem; color: var(--texto-suave); padding: 20px; }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<header>
+  <h1>🌱 Catálogo da Horta</h1>
+  <p>Confira os produtos disponíveis</p>
+</header>
+
+<main>
+  <div id="conteudo" class="vazio">Carregando catálogo...</div>
+</main>
+
+<footer>Feito com Controle da Horta</footer>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBiH-ifNvQd60K8nlflriCrtJMHObzbyoo",
+  authDomain: "horta-app-6a4ca.firebaseapp.com",
+  projectId: "horta-app-6a4ca",
+  storageBucket: "horta-app-6a4ca.firebasestorage.app",
+  messagingSenderId: "750724063638",
+  appId: "1:750724063638:web:1ce40cbace48965d43bdb7"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function formatarMoeda(v) { return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+function escapeHTML(s = '') { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+const params = new URLSearchParams(location.search);
+const uid = params.get('u');
+const conteudo = document.getElementById('conteudo');
+
+if (!uid) {
+  conteudo.textContent = 'Link inválido.';
+} else {
+  db.collection('catalogos').doc(uid).get().then((doc) => {
+    if (!doc.exists || !doc.data().itens || doc.data().itens.length === 0) {
+      conteudo.textContent = 'Catálogo vazio ou não encontrado.';
+      return;
+    }
+    const dados = doc.data();
+    const itens = dados.itens;
+
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    grid.innerHTML = itens.map((p) => `
+      <div class="produto">
+        ${p.foto ? `<img src="${p.foto}" alt="${escapeHTML(p.nome)}">` : `<div class="sem-foto">🌿</div>`}
+        <div class="info">
+          <strong>${escapeHTML(p.nome)}</strong>
+          <span>${formatarMoeda(p.preco)}</span>
+        </div>
+      </div>
+    `).join('');
+    conteudo.className = '';
+    conteudo.innerHTML = '';
+    conteudo.appendChild(grid);
+
+    if (dados.telefone) {
+      const link = document.createElement('a');
+      link.href = `https://wa.me/${dados.telefone.length <= 11 ? '55' + dados.telefone : dados.telefone}?text=${encodeURIComponent('Olá! Vi o catálogo da horta e queria fazer um pedido.')}`;
+      link.className = 'whatsapp';
+      link.target = '_blank';
+      link.textContent = '📲 Fazer pedido pelo WhatsApp';
+      conteudo.after(link);
+    }
+  }).catch(() => {
+    conteudo.textContent = 'Erro ao carregar o catálogo.';
+  });
+}
+</script>
+</body>
+</html>

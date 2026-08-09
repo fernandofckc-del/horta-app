@@ -174,6 +174,7 @@
 <header>
   <h1>🌱 Controle da Horta</h1>
   <div style="display:flex;gap:8px">
+    <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
     <button id="btnBackup">Backup</button>
   </div>
@@ -208,6 +209,7 @@
     <input type="search" id="buscaProduto" placeholder="Pesquisar produto...">
     <button class="primario" style="width:auto" id="btnNovoProduto">+ Novo</button>
   </div>
+  <button class="fantasma" id="btnCompartilharCatalogo" style="width:100%;margin-bottom:12px">🔗 Compartilhar catálogo com clientes</button>
   <div class="lista" id="listaProdutos"></div>
 </main>
 
@@ -687,6 +689,28 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
+
+<!-- ===================== MODAL: COMANDO DE VOZ ===================== -->
+<div id="modalComandoVoz" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>🎤 Comando de voz</h3>
+    <div id="vozConfigSection">
+      <p style="font-size:0.85rem;color:var(--texto-suave)">Cole sua chave de API da Anthropic (só precisa fazer isso uma vez, fica salva neste aparelho).</p>
+      <label>Chave de API (Anthropic)
+        <input type="password" id="vozApiKey" placeholder="sk-ant-...">
+      </label>
+      <button class="primario" id="btnSalvarApiKeyVoz" style="width:100%">Salvar chave</button>
+    </div>
+    <div id="vozPrincipalSection" class="hidden">
+      <p style="font-size:0.85rem;color:var(--texto-suave)" id="vozStatusTexto">Toque no microfone e fale o comando. Ex: "vendi 2 alfaces pro João", "gastei 50 reais em sementes", "lembrar de regar amanhã".</p>
+      <button class="primario" id="btnFalar" style="width:100%;font-size:1.3rem;padding:16px">🎤</button>
+      <p id="vozTranscript" style="min-height:22px;font-style:italic;color:var(--texto-suave);margin:10px 0"></p>
+      <div class="lista" id="vozResultado"></div>
+      <button class="fantasma" id="btnEsquecerApiKeyVoz" style="width:100%;margin-top:10px">Trocar chave de API</button>
+    </div>
+    <button class="fantasma" id="btnFecharComandoVoz" style="width:100%;margin-top:10px">Fechar</button>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -2459,6 +2483,227 @@ salvar = function(chave, dados) {
   salvarOriginal(chave, dados);
   agendarEnvioNuvem();
 };
+
+// ============================================================
+// CATÁLOGO COMPARTILHÁVEL
+// ============================================================
+document.getElementById('btnCompartilharCatalogo').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) para gerar o catálogo.');
+    return;
+  }
+  const produtos = carregar(CHAVES.produtos).filter((p) => p.estoqueAtual > 0);
+  if (produtos.length === 0) {
+    mostrarToast('Nenhum produto com estoque disponível para o catálogo.');
+    return;
+  }
+  const responsavel = carregarResponsavel();
+  const itensCatalogo = produtos.map((p) => ({ nome: p.nome, preco: p.preco, foto: p.foto || '' }));
+
+  mostrarToast('Gerando catálogo...');
+  try {
+    const uid = nuvemAuth.currentUser.uid;
+    await nuvemDb.collection('catalogos').doc(uid).set({
+      itens: itensCatalogo,
+      telefone: responsavel.telefone || '',
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const link = `${location.origin}${location.pathname.replace(/index\.html$/, '')}catalogo.html?u=${uid}`;
+    const mensagem = `Confira nosso catálogo da horta! 🌱\n${link}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensagem)}`, '_blank');
+    mostrarToast('Catálogo atualizado e pronto para compartilhar.');
+  } catch (err) {
+    mostrarToast('Erro ao gerar catálogo: ' + (err.code || err.message));
+  }
+});
+
+// ============================================================
+// COMANDO DE VOZ (IA)
+// ============================================================
+const CHAVE_API_VOZ = 'hg_anthropic_key';
+let reconhecimentoVoz = null, ouvindoAgora = false;
+
+function atualizarUiVoz() {
+  const key = localStorage.getItem(CHAVE_API_VOZ);
+  document.getElementById('vozConfigSection').classList.toggle('hidden', !!key);
+  document.getElementById('vozPrincipalSection').classList.toggle('hidden', !key);
+}
+
+document.getElementById('btnComandoVoz').addEventListener('click', () => {
+  document.getElementById('vozTranscript').textContent = '';
+  document.getElementById('vozResultado').innerHTML = '';
+  atualizarUiVoz();
+  document.getElementById('modalComandoVoz').classList.remove('hidden');
+});
+document.getElementById('btnFecharComandoVoz').addEventListener('click', () => {
+  if (reconhecimentoVoz && ouvindoAgora) reconhecimentoVoz.stop();
+  document.getElementById('modalComandoVoz').classList.add('hidden');
+});
+document.getElementById('btnSalvarApiKeyVoz').addEventListener('click', () => {
+  const key = document.getElementById('vozApiKey').value.trim();
+  if (!key.startsWith('sk-ant-')) { mostrarToast('Chave de API inválida.'); return; }
+  localStorage.setItem(CHAVE_API_VOZ, key);
+  document.getElementById('vozApiKey').value = '';
+  atualizarUiVoz();
+  mostrarToast('Chave salva.');
+});
+document.getElementById('btnEsquecerApiKeyVoz').addEventListener('click', () => {
+  localStorage.removeItem(CHAVE_API_VOZ);
+  atualizarUiVoz();
+});
+
+document.getElementById('btnFalar').addEventListener('click', () => {
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognitionAPI) {
+    mostrarToast('Reconhecimento de voz não é suportado neste navegador.');
+    return;
+  }
+  if (ouvindoAgora) { reconhecimentoVoz.stop(); return; }
+
+  reconhecimentoVoz = new SpeechRecognitionAPI();
+  reconhecimentoVoz.lang = 'pt-BR';
+  reconhecimentoVoz.interimResults = true;
+  reconhecimentoVoz.continuous = false;
+
+  const status = document.getElementById('vozStatusTexto');
+  const btnFalar = document.getElementById('btnFalar');
+  const transcriptEl = document.getElementById('vozTranscript');
+
+  reconhecimentoVoz.onstart = () => { ouvindoAgora = true; status.textContent = 'Ouvindo... fale agora.'; btnFalar.textContent = '⏹️'; };
+  reconhecimentoVoz.onresult = (e) => {
+    let texto = '';
+    for (let i = 0; i < e.results.length; i++) texto += e.results[i][0].transcript;
+    transcriptEl.textContent = texto;
+  };
+  reconhecimentoVoz.onerror = (e) => { mostrarToast('Erro no microfone: ' + e.error); };
+  reconhecimentoVoz.onend = async () => {
+    ouvindoAgora = false;
+    btnFalar.textContent = '🎤';
+    status.textContent = 'Toque no microfone e fale o comando.';
+    const texto = transcriptEl.textContent.trim();
+    if (texto) await processarComandoVoz(texto);
+  };
+  reconhecimentoVoz.start();
+});
+
+async function processarComandoVoz(texto) {
+  const resultadoEl = document.getElementById('vozResultado');
+  resultadoEl.innerHTML = '<p class="vazio">Processando...</p>';
+  const key = localStorage.getItem(CHAVE_API_VOZ);
+
+  const produtos = carregar(CHAVES.produtos).map((p) => p.nome);
+  const clientes = carregar(CHAVES.clientes).map((c) => c.nome);
+  const hoje = new Date().toISOString().slice(0, 10);
+  const vendas = carregar(CHAVES.vendas);
+  const vendasHoje = vendas.filter((v) => v.data.slice(0, 10) === hoje).reduce((s, v) => s + v.total, 0);
+  const clientesComSaldo = carregar(CHAVES.clientes).map((c) => ({ ...c, saldo: saldoDevedor(c.id) })).filter((c) => c.saldo > 0.009);
+  const totalFiado = clientesComSaldo.reduce((s, c) => s + c.saldo, 0);
+
+  const systemPrompt = `Você interpreta comandos de voz em português para um app de controle de horta. Data de hoje: ${hoje}.
+Produtos cadastrados: ${produtos.join(', ') || 'nenhum'}.
+Clientes cadastrados: ${clientes.join(', ') || 'nenhum'}.
+Contexto para perguntas: vendas hoje = R$${vendasHoje.toFixed(2)}, fiado em aberto = R$${totalFiado.toFixed(2)}.
+
+Responda APENAS com um JSON válido, sem texto antes ou depois, no formato:
+{"acoes":[{"tipo":"venda","produtoNome":"...","quantidade":1,"clienteNome":"...","formaPagamento":"Dinheiro"},{"tipo":"gasto","descricao":"...","valor":0,"categoria":"Outros"},{"tipo":"tarefa","titulo":"...","dataPrevista":"AAAA-MM-DD"},{"tipo":"financeiro","subtipo":"devo","nome":"...","valor":0},{"tipo":"resposta","texto":"..."}]}
+Use "tipo":"resposta" para perguntas ou quando não entender o comando. Campos opcionais podem ser omitidos. formaPagamento pode ser Dinheiro, PIX, Cartão ou Fiado. subtipo pode ser "devo" ou "receber". Use nomes de produtos/clientes o mais próximo possível dos cadastrados.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 800,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: texto }]
+      })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || 'Erro na API');
+    const textoResposta = (data.content || []).map((c) => c.text || '').join('').trim();
+    const limpo = textoResposta.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(limpo);
+    aplicarAcoesVoz(parsed.acoes || []);
+  } catch (err) {
+    resultadoEl.innerHTML = `<p class="vazio">Erro: ${escapeHTML(err.message)}</p>`;
+  }
+}
+
+function aplicarAcoesVoz(acoes) {
+  const resultadoEl = document.getElementById('vozResultado');
+  const linhas = [];
+
+  acoes.forEach((acao) => {
+    try {
+      if (acao.tipo === 'venda') {
+        const produtos = carregar(CHAVES.produtos);
+        const produto = produtos.find((p) => p.nome.toLowerCase().includes((acao.produtoNome || '').toLowerCase()) || (acao.produtoNome || '').toLowerCase().includes(p.nome.toLowerCase()));
+        if (!produto) { linhas.push(`❌ Produto "${acao.produtoNome}" não encontrado.`); return; }
+        const qtd = Number(acao.quantidade) || 1;
+        let clienteId = '';
+        if (acao.clienteNome) {
+          const clientes = carregar(CHAVES.clientes);
+          let cliente = clientes.find((c) => c.nome.toLowerCase().includes(acao.clienteNome.toLowerCase()) || acao.clienteNome.toLowerCase().includes(c.nome.toLowerCase()));
+          if (!cliente) { cliente = { id: gerarId(), nome: acao.clienteNome, telefone: '' }; clientes.push(cliente); salvar(CHAVES.clientes, clientes); }
+          clienteId = cliente.id;
+        }
+        const formaPagamento = acao.formaPagamento || 'Dinheiro';
+        const venda = {
+          id: gerarId(), data: new Date().toISOString(), clienteId,
+          clienteNome: clienteId ? carregar(CHAVES.clientes).find((c) => c.id === clienteId).nome : 'Venda avulsa',
+          itens: [{ produtoId: produto.id, nome: produto.nome, precoUnitario: produto.preco, quantidade: qtd }],
+          total: produto.preco * qtd, formaPagamento
+        };
+        const vendas = carregar(CHAVES.vendas); vendas.push(venda); salvar(CHAVES.vendas, vendas);
+        produto.estoqueAtual -= qtd; salvar(CHAVES.produtos, produtos);
+        linhas.push(`✅ Venda: ${qtd}x ${produto.nome} — ${formatarMoeda(produto.preco * qtd)}`);
+
+      } else if (acao.tipo === 'gasto') {
+        const valor = Number(acao.valor) || 0;
+        if (valor <= 0) { linhas.push('❌ Gasto sem valor válido.'); return; }
+        const insumo = { id: gerarId(), nome: acao.descricao || 'Gasto por voz', categoria: acao.categoria || 'Outros', valor, data: new Date().toISOString().slice(0, 10), observacao: 'Registrado por comando de voz' };
+        const insumos = carregar(CHAVES.insumos); insumos.push(insumo); salvar(CHAVES.insumos, insumos);
+        linhas.push(`✅ Gasto: ${insumo.nome} — ${formatarMoeda(valor)}`);
+
+      } else if (acao.tipo === 'tarefa') {
+        if (!acao.titulo) { linhas.push('❌ Tarefa sem título.'); return; }
+        const responsavel = carregarResponsavel();
+        const tarefa = { id: gerarId(), titulo: acao.titulo, responsavel: responsavel.nome || '', dataPrevista: acao.dataPrevista || new Date().toISOString().slice(0, 10), plantioId: '', observacao: 'Registrado por comando de voz', concluida: false };
+        const tarefas = carregar(CHAVES.tarefas); tarefas.push(tarefa); salvar(CHAVES.tarefas, tarefas);
+        linhas.push(`✅ Tarefa: ${tarefa.titulo} — ${formatarDataBR(tarefa.dataPrevista)}`);
+
+      } else if (acao.tipo === 'financeiro') {
+        const valor = Number(acao.valor) || 0;
+        if (!acao.nome || valor <= 0) { linhas.push('❌ Registro financeiro incompleto.'); return; }
+        const registro = { id: gerarId(), tipo: acao.subtipo === 'receber' ? 'receber' : 'devo', nome: acao.nome, valorTotal: valor, data: new Date().toISOString().slice(0, 10), obs: 'Registrado por comando de voz' };
+        const financeiros = carregar(CHAVES.financeiros); financeiros.push(registro); salvar(CHAVES.financeiros, financeiros);
+        linhas.push(`✅ ${registro.tipo === 'devo' ? 'Você deve' : 'A receber de'} ${registro.nome} — ${formatarMoeda(valor)}`);
+
+      } else if (acao.tipo === 'resposta') {
+        linhas.push(`💬 ${acao.texto}`);
+      }
+    } catch (err) {
+      linhas.push('❌ Erro ao processar uma ação.');
+    }
+  });
+
+  resultadoEl.innerHTML = linhas.length === 0
+    ? '<p class="vazio">Não entendi o comando.</p>'
+    : linhas.map((l) => `<div class="item" style="cursor:default"><div class="info">${escapeHTML(l)}</div></div>`).join('');
+
+  renderDashboard();
+  renderProdutos();
+  renderInsumos();
+  renderTarefas();
+  renderFinancas();
+  renderVendasRecentes();
+}
 
 // ============================================================
 // INICIALIZAÇÃO
