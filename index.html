@@ -214,7 +214,9 @@
     <input type="search" id="buscaProduto" placeholder="Pesquisar produto...">
     <button class="primario" style="width:auto" id="btnNovoProduto">+ Novo</button>
   </div>
-  <button class="fantasma" id="btnCompartilharCatalogo" style="width:100%;margin-bottom:12px">🔗 Compartilhar catálogo com clientes</button>
+  <button class="fantasma" id="btnCompartilharCatalogo" style="width:100%;margin-bottom:8px">🔗 Compartilhar catálogo com clientes</button>
+  <button class="fantasma" id="btnBannerCatalogo" style="width:100%;margin-bottom:12px">🖼️ Adicionar/trocar banner do catálogo</button>
+  <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
 
@@ -2636,7 +2638,7 @@ document.getElementById('btnCompartilharCatalogo').addEventListener('click', asy
       itens: itensCatalogo,
       telefone: responsavel.telefone || '',
       atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    }, { merge: true });
     const link = `${location.origin}${location.pathname.replace(/index\.html$/, '')}catalogo.html?u=${uid}`;
     const mensagem = `Confira nosso catálogo da horta! 🌱\n${link}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensagem)}`, '_blank');
@@ -2644,6 +2646,45 @@ document.getElementById('btnCompartilharCatalogo').addEventListener('click', asy
   } catch (err) {
     mostrarToast('Erro ao gerar catálogo: ' + (err.code || err.message));
   }
+});
+
+document.getElementById('btnBannerCatalogo').addEventListener('click', () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  document.getElementById('arquivoBannerCatalogo').click();
+});
+
+document.getElementById('arquivoBannerCatalogo').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const larguraMax = 1000;
+      const escala = Math.min(1, larguraMax / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * escala;
+      canvas.height = img.height * escala;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+
+      nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({
+        banner: dataUrl,
+        atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true }).then(() => {
+        mostrarToast('Banner atualizado! Já aparece no catálogo.');
+      }).catch((err) => {
+        mostrarToast('Erro ao salvar banner: ' + (err.code || err.message));
+      });
+    };
+    img.src = leitor.result;
+  };
+  leitor.readAsDataURL(file);
+  e.target.value = '';
 });
 
 // ============================================================

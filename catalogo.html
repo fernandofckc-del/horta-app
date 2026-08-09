@@ -31,6 +31,7 @@
   }
   header h1 { margin: 0 0 4px; font-size: 1.3rem; }
   header p { margin: 0; opacity: 0.9; font-size: 0.85rem; }
+  header img.banner { width: 100%; max-height: 220px; object-fit: cover; display: block; }
   main { max-width: 640px; margin: 0 auto; padding: 16px; }
   .grid {
     display: grid;
@@ -43,16 +44,34 @@
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
-  .produto img { width: 100%; height: 120px; object-fit: cover; display: block; background: var(--bg); }
-  .produto .sem-foto { width: 100%; height: 120px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+  .produto .foto-wrap { width: 100%; height: 150px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 10px; }
+  .produto .foto-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .produto .sem-foto { width: 100%; height: 150px; background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
   .produto .info { padding: 10px 12px; }
   .produto .info strong { display: block; font-size: 0.92rem; margin-bottom: 4px; }
-  .produto .info span { color: var(--verde-escuro); font-weight: 700; }
+  .produto .info span.preco { color: var(--verde-escuro); font-weight: 700; }
   .vazio { text-align: center; color: var(--texto-suave); padding: 40px 16px; }
   .whatsapp {
     display: block; text-align: center; text-decoration: none;
     background: #25d366; color: #fff; padding: 13px; border-radius: 12px;
-    font-weight: 600; margin-top: 20px;
+    font-weight: 600; margin-top: 20px; border: none; width: 100%; font-size: 1rem; cursor: pointer;
+  }
+  .qtd-controle { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+  .qtd-controle button {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--borda);
+    background: var(--bg); font-size: 1rem; font-weight: 700; color: var(--texto); cursor: pointer;
+  }
+  .qtd-controle span { font-weight: 700; min-width: 20px; text-align: center; }
+  .carrinho-barra {
+    position: sticky; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 1px solid var(--borda);
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+  }
+  .carrinho-barra .total { font-weight: 700; font-size: 1.05rem; }
+  .carrinho-barra button {
+    background: #25d366; color: #fff; border: none; padding: 12px 18px; border-radius: 12px;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
   }
   footer { text-align: center; font-size: 0.72rem; color: var(--texto-suave); padding: 20px; }
 </style>
@@ -61,7 +80,7 @@
 </head>
 <body>
 
-<header>
+<header id="header">
   <h1>🌱 Catálogo da Horta</h1>
   <p>Confira os produtos disponíveis</p>
 </header>
@@ -69,6 +88,11 @@
 <main>
   <div id="conteudo" class="vazio">Carregando catálogo...</div>
 </main>
+
+<div id="carrinhoBarra" class="carrinho-barra" style="display:none">
+  <span class="total" id="carrinhoTotal">R$ 0,00</span>
+  <button id="btnFinalizarPedido">📲 Finalizar pedido pelo WhatsApp</button>
+</div>
 
 <footer>Feito com Controle da Horta</footer>
 
@@ -91,6 +115,40 @@ const params = new URLSearchParams(location.search);
 const uid = params.get('u');
 const conteudo = document.getElementById('conteudo');
 
+let itensCatalogo = [];
+let telefoneVendedor = '';
+const carrinho = {}; // { indice: quantidade }
+
+function atualizarCarrinhoBarra() {
+  const barra = document.getElementById('carrinhoBarra');
+  const total = Object.entries(carrinho).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? itensCatalogo[idx].preco * qtd : 0), 0);
+  const temItens = Object.values(carrinho).some((q) => q > 0);
+  barra.style.display = temItens ? 'flex' : 'none';
+  document.getElementById('carrinhoTotal').textContent = formatarMoeda(total);
+}
+
+function mudarQtd(idx, delta) {
+  const atual = carrinho[idx] || 0;
+  const novo = Math.max(0, atual + delta);
+  carrinho[idx] = novo;
+  document.getElementById('qtd-' + idx).textContent = novo;
+  atualizarCarrinhoBarra();
+}
+
+document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
+  const linhas = Object.entries(carrinho)
+    .filter(([, qtd]) => qtd > 0)
+    .map(([idx, qtd]) => {
+      const p = itensCatalogo[idx];
+      return `${qtd}x ${p.nome} — ${formatarMoeda(p.preco * qtd)}`;
+    });
+  if (linhas.length === 0) return;
+  const total = Object.entries(carrinho).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? itensCatalogo[idx].preco * qtd : 0), 0);
+  const mensagem = `Olá! Quero fazer um pedido:\n\n${linhas.join('\n')}\n\nTotal: ${formatarMoeda(total)}`;
+  const numero = telefoneVendedor ? (telefoneVendedor.length <= 11 ? '55' + telefoneVendedor : telefoneVendedor) : '';
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
+});
+
 if (!uid) {
   conteudo.textContent = 'Link inválido.';
 } else {
@@ -100,16 +158,31 @@ if (!uid) {
       return;
     }
     const dados = doc.data();
-    const itens = dados.itens;
+    itensCatalogo = dados.itens;
+    telefoneVendedor = dados.telefone || '';
+
+    if (dados.banner) {
+      const img = document.createElement('img');
+      img.src = dados.banner;
+      img.className = 'banner';
+      document.getElementById('header').prepend(img);
+    }
 
     const grid = document.createElement('div');
     grid.className = 'grid';
-    grid.innerHTML = itens.map((p) => `
+    grid.innerHTML = itensCatalogo.map((p, idx) => `
       <div class="produto">
-        ${p.foto ? `<img src="${p.foto}" alt="${escapeHTML(p.nome)}">` : `<div class="sem-foto">🌿</div>`}
+        ${p.foto ? `<div class="foto-wrap"><img src="${p.foto}" alt="${escapeHTML(p.nome)}"></div>` : `<div class="sem-foto">🌿</div>`}
         <div class="info">
           <strong>${escapeHTML(p.nome)}</strong>
-          <span>${formatarMoeda(p.preco)}</span>
+          <span class="preco">${formatarMoeda(p.preco)}</span>
+          ${telefoneVendedor ? `
+            <div class="qtd-controle">
+              <button onclick="mudarQtd(${idx}, -1)">−</button>
+              <span id="qtd-${idx}">0</span>
+              <button onclick="mudarQtd(${idx}, 1)">+</button>
+            </div>
+          ` : ''}
         </div>
       </div>
     `).join('');
@@ -117,13 +190,8 @@ if (!uid) {
     conteudo.innerHTML = '';
     conteudo.appendChild(grid);
 
-    if (dados.telefone) {
-      const link = document.createElement('a');
-      link.href = `https://wa.me/${dados.telefone.length <= 11 ? '55' + dados.telefone : dados.telefone}?text=${encodeURIComponent('Olá! Vi o catálogo da horta e queria fazer um pedido.')}`;
-      link.className = 'whatsapp';
-      link.target = '_blank';
-      link.textContent = '📲 Fazer pedido pelo WhatsApp';
-      conteudo.after(link);
+    if (!telefoneVendedor) {
+      document.getElementById('carrinhoBarra').style.display = 'none';
     }
   }).catch(() => {
     conteudo.textContent = 'Erro ao carregar o catálogo.';
