@@ -2392,7 +2392,9 @@ function iniciarFirebase() {
   nuvemAuth = firebase.auth();
   nuvemDb = firebase.firestore();
 
-  nuvemAuth.getRedirectResult().catch(() => {});
+  nuvemAuth.getRedirectResult().catch((err) => {
+    if (err && err.code) mostrarToast('Erro no login: ' + err.code);
+  });
 
   nuvemAuth.onAuthStateChanged(async (user) => {
     atualizarUiNuvem(user);
@@ -2414,17 +2416,25 @@ function iniciarFirebase() {
         enviarParaNuvem();
       }
     } catch (err) {
-      mostrarToast('Erro ao sincronizar com a nuvem.');
+      mostrarToast('Erro ao sincronizar: ' + (err.code || err.message || 'desconhecido'));
     }
     sincronizacaoEmAndamento = false;
   });
 }
 iniciarFirebase();
 
-document.getElementById('btnEntrarGoogle').addEventListener('click', () => {
+document.getElementById('btnEntrarGoogle').addEventListener('click', async () => {
   if (!nuvemAuth) { mostrarToast('Aguarde, carregando...'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
-  nuvemAuth.signInWithRedirect(provider);
+  try {
+    await nuvemAuth.signInWithPopup(provider);
+  } catch (err) {
+    if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment' || err.code === 'auth/cancelled-popup-request') {
+      nuvemAuth.signInWithRedirect(provider).catch((err2) => mostrarToast('Erro no login: ' + err2.code));
+    } else if (err.code !== 'auth/popup-closed-by-user') {
+      mostrarToast('Erro no login: ' + err.code);
+    }
+  }
 });
 document.getElementById('btnSairGoogle').addEventListener('click', () => {
   if (!nuvemAuth) return;
