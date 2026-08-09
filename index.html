@@ -2423,15 +2423,25 @@ function iniciarFirebase() {
 }
 iniciarFirebase();
 
+// Detecta se o app está rodando dentro do app instalado (TWA), onde popups não funcionam bem
+const rodandoEmAppInstalado = document.referrer.startsWith('android-app://') ||
+  (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+
 document.getElementById('btnEntrarGoogle').addEventListener('click', async () => {
   if (!nuvemAuth) { mostrarToast('Aguarde, carregando...'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
+
+  if (rodandoEmAppInstalado) {
+    nuvemAuth.signInWithRedirect(provider).catch((err) => mostrarToast('Erro no login: ' + err.code));
+    return;
+  }
+
   try {
     await nuvemAuth.signInWithPopup(provider);
   } catch (err) {
-    if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment' || err.code === 'auth/cancelled-popup-request') {
+    if (err.code === 'auth/popup-blocked' || err.code === 'auth/operation-not-supported-in-this-environment' || err.code === 'auth/cancelled-popup-request' || err.code === 'auth/popup-closed-by-user') {
       nuvemAuth.signInWithRedirect(provider).catch((err2) => mostrarToast('Erro no login: ' + err2.code));
-    } else if (err.code !== 'auth/popup-closed-by-user') {
+    } else {
       mostrarToast('Erro no login: ' + err.code);
     }
   }
