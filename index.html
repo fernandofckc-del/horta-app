@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js" defer></script>
 <style>
   :root {
     --verde: #7c3aed;
@@ -668,6 +671,17 @@
     </div>
     <input type="file" id="fileImportarBackup" accept=".json" hidden>
     <button class="primario" id="btnGerarRelatorioPdf" style="width:100%;margin-top:10px">📄 Gerar relatório PDF do mês</button>
+
+    <h2 class="titulo">Sincronização na nuvem</h2>
+    <p style="font-size:0.85rem;color:var(--texto-suave);margin-top:-6px" id="nuvemStatusTexto">
+      Entre com sua conta Google para manter seus dados salvos na nuvem e sincronizados entre aparelhos.
+    </p>
+    <button class="primario hidden" id="btnEntrarGoogle" style="width:100%">Entrar com Google</button>
+    <div id="nuvemLogado" class="hidden">
+      <button class="fantasma" id="btnSincronizarAgora" style="width:100%;margin-bottom:8px">🔄 Sincronizar agora</button>
+      <button class="fantasma" id="btnSairGoogle" style="width:100%">Sair da conta</button>
+    </div>
+
     <button class="fantasma" id="btnFecharBackup" style="width:100%;margin-top:10px">Fechar</button>
   </div>
 </div>
@@ -2296,6 +2310,135 @@ function verificarBackupAutomatico() {
   const dias = ultimo ? Math.floor((Date.now() - new Date(ultimo).getTime()) / 86400000) : Infinity;
   if (dias >= 3) exportarBackup(true);
 }
+
+// ============================================================
+// SINCRONIZAÇÃO NA NUVEM (Firebase)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBiH-ifNvQd60K8nlflriCrtJMHObzbyoo",
+  authDomain: "horta-app-6a4ca.firebaseapp.com",
+  projectId: "horta-app-6a4ca",
+  storageBucket: "horta-app-6a4ca.firebasestorage.app",
+  messagingSenderId: "750724063638",
+  appId: "1:750724063638:web:1ce40cbace48965d43bdb7"
+};
+
+let nuvemAuth, nuvemDb, sincronizacaoEmAndamento = false, pushDebounceTimer;
+
+function empacotarDump() {
+  const dump = {};
+  Object.values(CHAVES).forEach((chave) => { dump[chave] = carregar(chave); });
+  dump[CHAVE_RESPONSAVEL] = carregarResponsavel();
+  return dump;
+}
+
+function aplicarDump(dump) {
+  Object.values(CHAVES).forEach((chave) => {
+    if (Array.isArray(dump[chave])) salvar(chave, dump[chave]);
+  });
+  if (dump[CHAVE_RESPONSAVEL]) salvarResponsavel(dump[CHAVE_RESPONSAVEL]);
+}
+
+function atualizarUiNuvem(user) {
+  const status = document.getElementById('nuvemStatusTexto');
+  const btnEntrar = document.getElementById('btnEntrarGoogle');
+  const logado = document.getElementById('nuvemLogado');
+  if (user) {
+    status.textContent = `Conectado como ${user.email}. Seus dados são salvos na nuvem automaticamente.`;
+    btnEntrar.classList.add('hidden');
+    logado.classList.remove('hidden');
+  } else {
+    status.textContent = 'Entre com sua conta Google para manter seus dados salvos na nuvem e sincronizados entre aparelhos.';
+    btnEntrar.classList.remove('hidden');
+    logado.classList.add('hidden');
+  }
+}
+
+function enviarParaNuvem() {
+  if (!nuvemAuth || !nuvemAuth.currentUser || sincronizacaoEmAndamento) return;
+  const uid = nuvemAuth.currentUser.uid;
+  nuvemDb.collection('users').doc(uid).set({
+    dump: empacotarDump(),
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {});
+}
+
+function agendarEnvioNuvem() {
+  if (!nuvemAuth || !nuvemAuth.currentUser) return;
+  clearTimeout(pushDebounceTimer);
+  pushDebounceTimer = setTimeout(enviarParaNuvem, 1500);
+}
+
+async function baixarDaNuvem(mostrarAviso) {
+  if (!nuvemAuth || !nuvemAuth.currentUser) return;
+  const uid = nuvemAuth.currentUser.uid;
+  try {
+    const doc = await nuvemDb.collection('users').doc(uid).get();
+    if (doc.exists && doc.data().dump) {
+      aplicarDump(doc.data().dump);
+      irParaAba('inicio');
+      if (mostrarAviso) mostrarToast('Dados atualizados a partir da nuvem.');
+    } else if (mostrarAviso) {
+      mostrarToast('Nenhum dado encontrado na nuvem ainda.');
+    }
+  } catch (err) {
+    mostrarToast('Não foi possível sincronizar agora.');
+  }
+}
+
+function iniciarFirebase() {
+  if (typeof firebase === 'undefined') { setTimeout(iniciarFirebase, 500); return; }
+  firebase.initializeApp(firebaseConfig);
+  nuvemAuth = firebase.auth();
+  nuvemDb = firebase.firestore();
+
+  nuvemAuth.getRedirectResult().catch(() => {});
+
+  nuvemAuth.onAuthStateChanged(async (user) => {
+    atualizarUiNuvem(user);
+    if (!user) return;
+    sincronizacaoEmAndamento = true;
+    try {
+      const doc = await nuvemDb.collection('users').doc(user.uid).get();
+      if (doc.exists && doc.data().dump) {
+        const dataNuvem = doc.data().atualizadoEm ? doc.data().atualizadoEm.toDate().toLocaleString('pt-BR') : 'data desconhecida';
+        const usarNuvem = confirm(`Encontramos dados salvos na nuvem (última atualização: ${dataNuvem}).\n\nOK = usar os dados da nuvem (substitui os deste aparelho)\nCancelar = manter os dados deste aparelho (substitui os da nuvem)`);
+        if (usarNuvem) {
+          aplicarDump(doc.data().dump);
+          irParaAba('inicio');
+          mostrarToast('Dados da nuvem aplicados.');
+        } else {
+          enviarParaNuvem();
+        }
+      } else {
+        enviarParaNuvem();
+      }
+    } catch (err) {
+      mostrarToast('Erro ao sincronizar com a nuvem.');
+    }
+    sincronizacaoEmAndamento = false;
+  });
+}
+iniciarFirebase();
+
+document.getElementById('btnEntrarGoogle').addEventListener('click', () => {
+  if (!nuvemAuth) { mostrarToast('Aguarde, carregando...'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  nuvemAuth.signInWithRedirect(provider);
+});
+document.getElementById('btnSairGoogle').addEventListener('click', () => {
+  if (!nuvemAuth) return;
+  nuvemAuth.signOut();
+  mostrarToast('Desconectado da nuvem.');
+});
+document.getElementById('btnSincronizarAgora').addEventListener('click', () => baixarDaNuvem(true));
+
+// Reaproveita salvar() para também empurrar mudanças para a nuvem (com debounce)
+const salvarOriginal = salvar;
+salvar = function(chave, dados) {
+  salvarOriginal(chave, dados);
+  agendarEnvioNuvem();
+};
 
 // ============================================================
 // INICIALIZAÇÃO
