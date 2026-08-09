@@ -297,6 +297,28 @@
   <div class="lista" id="listaTarefas"></div>
 </main>
 
+<!-- ===================== FINANÇAS (pessoal, sem relação com a horta) ===================== -->
+<main id="tab-financas">
+  <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:0">
+    Controle pessoal de dívidas e valores a receber. Não entra nas contas da horta.
+  </p>
+
+  <div class="grid-cards">
+    <div class="card alerta"><span class="label">Eu devo (em aberto)</span><span class="valor" id="finDashDevo">R$ 0,00</span></div>
+    <div class="card"><span class="label">Tenho a receber</span><span class="valor" id="finDashReceber">R$ 0,00</span></div>
+  </div>
+
+  <div class="toolbar" id="financasFiltros" style="gap:8px;flex-wrap:wrap">
+    <button type="button" class="fantasma active" data-filtro-fin="todos">Todos</button>
+    <button type="button" class="fantasma" data-filtro-fin="devo">Eu devo</button>
+    <button type="button" class="fantasma" data-filtro-fin="receber">A receber</button>
+    <button type="button" class="fantasma" data-filtro-fin="quitados">Quitados</button>
+  </div>
+
+  <button class="primario" id="btnNovoFinanceiro" style="width:100%;margin-bottom:12px">+ Novo registro</button>
+  <div class="lista" id="listaFinancas"></div>
+</main>
+
 <nav class="bottom-nav">
   <button data-tab="inicio" class="active"><span>🏠</span>Início</button>
   <button data-tab="vendas"><span>🛒</span>Vendas</button>
@@ -305,6 +327,7 @@
   <button data-tab="tarefas"><span>📋</span>Tarefas</button>
   <button data-tab="insumos"><span>💰</span>Insumos</button>
   <button data-tab="clientes"><span>👤</span>Clientes</button>
+  <button data-tab="financas"><span>💳</span>Finanças</button>
 </nav>
 
 <!-- ===================== MODAL: TAREFA ===================== -->
@@ -528,6 +551,65 @@
   </div>
 </div>
 
+<!-- ===================== MODAL: FINANCEIRO (cadastro/edição) ===================== -->
+<div id="modalFinanceiro" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalFinanceiro">Novo registro</h3>
+    <input type="hidden" id="financeiroId">
+    <label>Tipo
+      <select id="financeiroTipo">
+        <option value="devo">Eu devo (dívida)</option>
+        <option value="receber">Tenho a receber</option>
+      </select>
+    </label>
+    <label>Nome (pessoa ou empresa)
+      <input type="text" id="financeiroNome" placeholder="Ex: João, Loja X, Cartão...">
+    </label>
+    <div class="linha">
+      <label>Valor total (R$)
+        <input type="number" step="0.01" min="0.01" id="financeiroValor">
+      </label>
+      <label>Data
+        <input type="date" id="financeiroData">
+      </label>
+    </div>
+    <label>Observação (opcional)
+      <textarea id="financeiroObs" rows="2"></textarea>
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarFinanceiro">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirFinanceiro">Excluir</button>
+      <button class="primario" id="btnSalvarFinanceiro">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: DETALHE FINANCEIRO (abater pagamento) ===================== -->
+<div id="modalDetalheFinanceiro" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="detalheFinanceiroNome">Registro</h3>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-8px" id="detalheFinanceiroTipoTexto"></p>
+    <div class="resumo-caixa">
+      <span id="detalheFinanceiroLabelSaldo">Saldo</span><strong id="detalheFinanceiroSaldo">R$ 0,00</strong>
+    </div>
+
+    <div id="detalheFinanceiroBaixaSection">
+      <label id="detalheFinanceiroLabelPagamento">Registrar pagamento (R$)
+        <input type="number" step="0.01" min="0.01" id="detalheFinanceiroPagamentoValor">
+      </label>
+      <button class="primario" id="btnRegistrarPagamentoFinanceiro">Registrar</button>
+    </div>
+
+    <h2 class="titulo">Histórico</h2>
+    <div class="lista" id="detalheFinanceiroHistorico"></div>
+
+    <div class="acoes">
+      <button class="fantasma" id="btnEditarFinanceiroDetalhe">Editar dados</button>
+      <button class="fantasma" id="btnFecharDetalheFinanceiro">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MODAL: DETALHE DA VENDA (cancelar) ===================== -->
 <div id="modalVendaDetalhe" class="modal-overlay hidden">
   <div class="modal-box">
@@ -574,7 +656,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas' };
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros' };
 const CHAVE_RESPONSAVEL = 'hg_responsavel';
 function carregarResponsavel() { return JSON.parse(localStorage.getItem(CHAVE_RESPONSAVEL) || '{"nome":"","telefone":""}'); }
 function salvarResponsavel(obj) { localStorage.setItem(CHAVE_RESPONSAVEL, JSON.stringify(obj)); }
@@ -606,6 +688,7 @@ function irParaAba(nome) {
   if (nome === 'insumos') renderInsumos();
   if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); }
   if (nome === 'tarefas') renderTarefas();
+  if (nome === 'financas') renderFinancas();
 }
 document.querySelectorAll('.bottom-nav button').forEach((b) => b.addEventListener('click', () => irParaAba(b.dataset.tab)));
 
@@ -1720,6 +1803,167 @@ function desenharGraficoLinha(canvas, series, buckets) {
     }
   });
 }
+
+// ============================================================
+// FINANÇAS (pessoal — dívidas e valores a receber, sem relação com a horta)
+// ============================================================
+let filtroFinancasAtual = 'todos';
+
+function saldoFinanceiro(registroId) {
+  const registro = carregar(CHAVES.financeiros).find((r) => r.id === registroId);
+  if (!registro) return 0;
+  const pagamentos = carregar(CHAVES.pagamentosFinanceiros).filter((p) => p.registroId === registroId);
+  const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0);
+  return registro.valorTotal - totalPago;
+}
+
+function renderFinancas() {
+  const registros = carregar(CHAVES.financeiros).map((r) => ({ ...r, saldo: saldoFinanceiro(r.id) }));
+
+  const devo = registros.filter((r) => r.tipo === 'devo' && r.saldo > 0.009);
+  const receber = registros.filter((r) => r.tipo === 'receber' && r.saldo > 0.009);
+  const totalDevo = devo.reduce((s, r) => s + r.saldo, 0);
+  const totalReceber = receber.reduce((s, r) => s + r.saldo, 0);
+  document.getElementById('finDashDevo').textContent = formatarMoeda(totalDevo);
+  document.getElementById('finDashReceber').textContent = formatarMoeda(totalReceber);
+
+  let filtrados = registros;
+  if (filtroFinancasAtual === 'devo') filtrados = registros.filter((r) => r.tipo === 'devo' && r.saldo > 0.009);
+  else if (filtroFinancasAtual === 'receber') filtrados = registros.filter((r) => r.tipo === 'receber' && r.saldo > 0.009);
+  else if (filtroFinancasAtual === 'quitados') filtrados = registros.filter((r) => r.saldo <= 0.009);
+  else filtrados = registros.filter((r) => r.saldo > 0.009);
+
+  filtrados.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+
+  const lista = document.getElementById('listaFinancas');
+  if (filtrados.length === 0) {
+    lista.innerHTML = '<p class="vazio">Nada por aqui.</p>';
+    return;
+  }
+  lista.innerHTML = filtrados.map((r) => {
+    const quitado = r.saldo <= 0.009;
+    const classe = quitado ? '' : (r.tipo === 'devo' ? 'devendo' : '');
+    const corValor = quitado ? 'color:var(--texto-suave)' : (r.tipo === 'devo' ? 'color:var(--vermelho)' : 'color:var(--verde-escuro)');
+    const rotulo = r.tipo === 'devo' ? 'Eu devo' : 'A receber';
+    return `<div class="item ${classe}" data-id="${r.id}" onclick="abrirDetalheFinanceiro('${r.id}')">
+      <div class="info"><strong>${escapeHTML(r.nome)}</strong><small>${rotulo}${quitado ? ' · quitado' : ''}</small></div>
+      <div class="valor-direita" style="${corValor}">${formatarMoeda(quitado ? r.valorTotal : r.saldo)}</div>
+    </div>`;
+  }).join('');
+}
+
+document.querySelectorAll('#financasFiltros button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#financasFiltros button').forEach((x) => x.classList.remove('active'));
+    b.classList.add('active');
+    filtroFinancasAtual = b.dataset.filtroFin;
+    renderFinancas();
+  });
+});
+
+function abrirModalFinanceiro(id) {
+  document.getElementById('financeiroId').value = id || '';
+  document.getElementById('btnExcluirFinanceiro').classList.toggle('hidden', !id);
+  if (id) {
+    const r = carregar(CHAVES.financeiros).find((x) => x.id === id);
+    document.getElementById('tituloModalFinanceiro').textContent = 'Editar registro';
+    document.getElementById('financeiroTipo').value = r.tipo;
+    document.getElementById('financeiroNome').value = r.nome;
+    document.getElementById('financeiroValor').value = r.valorTotal;
+    document.getElementById('financeiroData').value = r.data;
+    document.getElementById('financeiroObs').value = r.obs || '';
+  } else {
+    document.getElementById('tituloModalFinanceiro').textContent = 'Novo registro';
+    document.getElementById('financeiroTipo').value = 'devo';
+    document.getElementById('financeiroNome').value = '';
+    document.getElementById('financeiroValor').value = '';
+    document.getElementById('financeiroData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('financeiroObs').value = '';
+  }
+  document.getElementById('modalFinanceiro').classList.remove('hidden');
+}
+document.getElementById('btnNovoFinanceiro').addEventListener('click', () => abrirModalFinanceiro());
+document.getElementById('btnCancelarFinanceiro').addEventListener('click', () => document.getElementById('modalFinanceiro').classList.add('hidden'));
+
+document.getElementById('btnSalvarFinanceiro').addEventListener('click', () => {
+  const nome = document.getElementById('financeiroNome').value.trim();
+  const valor = parseFloat(document.getElementById('financeiroValor').value);
+  if (!nome) { mostrarToast('Informe o nome.'); return; }
+  if (!valor || valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
+  const idExistente = document.getElementById('financeiroId').value;
+  const registros = carregar(CHAVES.financeiros);
+  const registro = {
+    id: idExistente || gerarId(),
+    tipo: document.getElementById('financeiroTipo').value,
+    nome,
+    valorTotal: valor,
+    data: document.getElementById('financeiroData').value || new Date().toISOString().slice(0, 10),
+    obs: document.getElementById('financeiroObs').value.trim()
+  };
+  const idx = registros.findIndex((r) => r.id === registro.id);
+  if (idx >= 0) registros[idx] = registro; else registros.push(registro);
+  salvar(CHAVES.financeiros, registros);
+  document.getElementById('modalFinanceiro').classList.add('hidden');
+  renderFinancas();
+  mostrarToast('Registro salvo.');
+});
+
+document.getElementById('btnExcluirFinanceiro').addEventListener('click', () => {
+  const id = document.getElementById('financeiroId').value;
+  if (!confirm('Excluir este registro e todo o histórico de pagamentos dele?')) return;
+  salvar(CHAVES.financeiros, carregar(CHAVES.financeiros).filter((r) => r.id !== id));
+  salvar(CHAVES.pagamentosFinanceiros, carregar(CHAVES.pagamentosFinanceiros).filter((p) => p.registroId !== id));
+  document.getElementById('modalFinanceiro').classList.add('hidden');
+  renderFinancas();
+  mostrarToast('Registro excluído.');
+});
+
+function renderHistoricoFinanceiro(registroId) {
+  const pagamentos = carregar(CHAVES.pagamentosFinanceiros).filter((p) => p.registroId === registroId)
+    .sort((a, b) => b.data.localeCompare(a.data));
+  const div = document.getElementById('detalheFinanceiroHistorico');
+  if (pagamentos.length === 0) {
+    div.innerHTML = '<p class="vazio">Nenhum pagamento registrado ainda.</p>';
+    return;
+  }
+  div.innerHTML = pagamentos.map((p) => `<div class="item">
+    <div class="info"><strong>Pagamento</strong><small>${new Date(p.data).toLocaleDateString('pt-BR')}</small></div>
+    <div class="valor-direita">${formatarMoeda(p.valor)}</div>
+  </div>`).join('');
+}
+
+function abrirDetalheFinanceiro(id) {
+  const r = carregar(CHAVES.financeiros).find((x) => x.id === id);
+  if (!r) return;
+  const saldo = saldoFinanceiro(id);
+  document.getElementById('modalDetalheFinanceiro').dataset.financeiroId = id;
+  document.getElementById('detalheFinanceiroNome').textContent = r.nome;
+  document.getElementById('detalheFinanceiroTipoTexto').textContent = r.tipo === 'devo' ? 'Eu devo' : 'Tenho a receber';
+  document.getElementById('detalheFinanceiroLabelSaldo').textContent = r.tipo === 'devo' ? 'Saldo que ainda devo' : 'Saldo a receber';
+  document.getElementById('detalheFinanceiroSaldo').textContent = formatarMoeda(Math.max(saldo, 0));
+  document.getElementById('detalheFinanceiroLabelPagamento').firstChild.textContent = r.tipo === 'devo' ? 'Registrar pagamento feito (R$)' : 'Registrar valor recebido (R$)';
+  document.getElementById('detalheFinanceiroPagamentoValor').value = '';
+  document.getElementById('detalheFinanceiroBaixaSection').classList.toggle('hidden', saldo <= 0.009);
+  renderHistoricoFinanceiro(id);
+  document.getElementById('modalDetalheFinanceiro').classList.remove('hidden');
+}
+
+document.getElementById('btnFecharDetalheFinanceiro').addEventListener('click', () => document.getElementById('modalDetalheFinanceiro').classList.add('hidden'));
+document.getElementById('btnEditarFinanceiroDetalhe').addEventListener('click', () => abrirModalFinanceiro(document.getElementById('modalDetalheFinanceiro').dataset.financeiroId));
+
+document.getElementById('btnRegistrarPagamentoFinanceiro').addEventListener('click', () => {
+  const registroId = document.getElementById('modalDetalheFinanceiro').dataset.financeiroId;
+  const valor = parseFloat(document.getElementById('detalheFinanceiroPagamentoValor').value);
+  if (!valor || valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
+  const saldoAtual = saldoFinanceiro(registroId);
+  if (valor > saldoAtual + 0.009) { mostrarToast('Valor maior que o saldo em aberto.'); return; }
+  const pagamentos = carregar(CHAVES.pagamentosFinanceiros);
+  pagamentos.push({ id: gerarId(), registroId, data: new Date().toISOString(), valor });
+  salvar(CHAVES.pagamentosFinanceiros, pagamentos);
+  mostrarToast('Registrado.');
+  abrirDetalheFinanceiro(registroId);
+  renderFinancas();
+});
 
 // ============================================================
 // BACKUP (exportar / importar tudo em um JSON)
