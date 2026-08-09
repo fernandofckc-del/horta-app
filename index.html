@@ -2259,7 +2259,27 @@ function exportarBackup(automatico) {
 }
 
 // -------------------- RELATÓRIO EM PDF (resumo do mês) --------------------
-document.getElementById('btnGerarRelatorioPdf').addEventListener('click', () => {
+// -------------------- BANNER NO TOPO DOS PDFs --------------------
+function dimensoesImagem(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.width, h: img.height });
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+async function desenharBannerPdf(doc) {
+  const banner = localStorage.getItem('hg_banner_local');
+  if (!banner) return 20; // y inicial padrão sem banner
+  const dim = await dimensoesImagem(banner);
+  if (!dim) return 20;
+  const larguraPdf = 182; // largura útil (A4 210mm - margens de 14mm)
+  const alturaPdf = larguraPdf * (dim.h / dim.w);
+  doc.addImage(banner, 'JPEG', 14, 10, larguraPdf, alturaPdf);
+  return 10 + alturaPdf + 10;
+}
+
+document.getElementById('btnGerarRelatorioPdf').addEventListener('click', async () => {
   if (typeof window.jspdf === 'undefined') {
     mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.');
     return;
@@ -2284,7 +2304,7 @@ document.getElementById('btnGerarRelatorioPdf').addEventListener('click', () => 
   const totalDevo = financeiros.filter((f) => f.tipo === 'devo').reduce((s, f) => s + Math.max(saldoFinanceiro(f.id), 0), 0);
   const totalReceber = financeiros.filter((f) => f.tipo === 'receber').reduce((s, f) => s + Math.max(saldoFinanceiro(f.id), 0), 0);
 
-  let y = 20;
+  let y = await desenharBannerPdf(doc);
   doc.setFontSize(16);
   doc.text('Controle da Horta — Relatório Mensal', 14, y);
   y += 8;
@@ -2317,7 +2337,7 @@ document.getElementById('btnGerarRelatorioPdf').addEventListener('click', () => 
 });
 
 // -------------------- EXTRATO EM PDF POR CLIENTE --------------------
-document.getElementById('btnGerarExtratoPdf').addEventListener('click', () => {
+document.getElementById('btnGerarExtratoPdf').addEventListener('click', async () => {
   if (typeof window.jspdf === 'undefined') {
     mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.');
     return;
@@ -2353,7 +2373,7 @@ document.getElementById('btnGerarExtratoPdf').addEventListener('click', () => {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   const margemDireita = 196;
-  let y = 20;
+  let y = await desenharBannerPdf(doc);
 
   const novaPaginaSeNecessario = (espacoNecessario = 10) => {
     if (y + espacoNecessario > 280) { doc.addPage(); y = 20; }
@@ -2704,7 +2724,8 @@ document.getElementById('arquivoBannerCatalogo').addEventListener('change', (e) 
         banner: dataUrl,
         atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true }).then(() => {
-        mostrarToast('Banner atualizado! Já aparece no catálogo.');
+        localStorage.setItem('hg_banner_local', dataUrl);
+        mostrarToast('Banner atualizado! Já aparece no catálogo e nos PDFs.');
       }).catch((err) => {
         mostrarToast('Erro ao salvar banner: ' + (err.code || err.message));
       });
@@ -2725,6 +2746,7 @@ document.getElementById('btnRemoverBannerCatalogo').addEventListener('click', ()
     banner: firebase.firestore.FieldValue.delete(),
     atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
   }, { merge: true }).then(() => {
+    localStorage.removeItem('hg_banner_local');
     mostrarToast('Banner removido.');
   }).catch((err) => {
     mostrarToast('Erro ao remover banner: ' + (err.code || err.message));
