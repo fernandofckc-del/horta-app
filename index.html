@@ -9,6 +9,7 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <style>
   :root {
     --verde: #7c3aed;
@@ -21,6 +22,13 @@
     --texto-suave: #6b7c73;
     --borda: #e2e8e4;
     --radius: 14px;
+  }
+  [data-tema="escuro"] {
+    --bg: #14161a;
+    --card: #1f2228;
+    --texto: #eef0f2;
+    --texto-suave: #9aa1ab;
+    --borda: #2d313a;
   }
   * { box-sizing: border-box; }
   body {
@@ -83,7 +91,8 @@
     padding: 11px 12px;
     border-radius: 10px;
     border: 1px solid var(--borda);
-    background: #fff;
+    background: var(--card);
+    color: var(--texto);
     font-size: 0.92rem;
     width: 100%;
     font-family: inherit;
@@ -101,9 +110,9 @@
     cursor: pointer;
   }
   button.primario { background: var(--verde); color: #fff; width: 100%; }
-  button.fantasma { background: #fff; border: 1px solid var(--borda); color: var(--texto); }
+  button.fantasma { background: var(--card); border: 1px solid var(--borda); color: var(--texto); }
   button.fantasma.active { background: var(--verde); color: #fff; border-color: var(--verde); }
-  button.perigo { background: #fff; border: 1px solid var(--vermelho); color: var(--vermelho); }
+  button.perigo { background: var(--card); border: 1px solid var(--vermelho); color: var(--vermelho); }
   button.whatsapp { background: #25d366; color: #fff; width: 100%; }
   .acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   .acoes > * { flex: 1; }
@@ -112,7 +121,7 @@
     position: fixed; bottom: 0; left: 0; right: 0;
     display: flex;
     overflow-x: auto;
-    background: #fff;
+    background: var(--card);
     border-top: 1px solid var(--borda);
     z-index: 10;
   }
@@ -132,7 +141,7 @@
   }
   .modal-overlay.hidden { display: none; }
   .modal-box {
-    background: #fff; width: 100%; max-width: 480px;
+    background: var(--card); width: 100%; max-width: 480px;
     border-radius: 18px 18px 0 0;
     padding: 20px; max-height: 88vh; overflow-y: auto;
   }
@@ -161,7 +170,10 @@
 
 <header>
   <h1>🌱 Controle da Horta</h1>
-  <button id="btnBackup">Backup</button>
+  <div style="display:flex;gap:8px">
+    <button id="btnTema">🌙</button>
+    <button id="btnBackup">Backup</button>
+  </div>
 </header>
 
 <!-- ===================== INÍCIO ===================== -->
@@ -253,6 +265,9 @@
     <div class="card"><span class="label">Gasto total (histórico)</span><span class="valor" id="insumosGastoTotal">R$ 0,00</span></div>
   </div>
 
+  <h2 class="titulo" style="margin-top:0">Lucro mensal (últimos 6 meses)</h2>
+  <canvas id="graficoLucroMensal" style="width:100%;height:170px;display:block;background:var(--card);border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.04);margin-bottom:18px"></canvas>
+
   <div class="toolbar">
     <input type="search" id="buscaInsumo" placeholder="Pesquisar gasto...">
     <button class="primario" style="width:auto" id="btnNovoInsumo">+ Novo</button>
@@ -268,9 +283,13 @@
     <button type="button" class="fantasma" data-periodo="90">90 dias</button>
     <button type="button" class="fantasma" data-periodo="tudo">Tudo</button>
   </div>
-  <canvas id="graficoDesempenhoCultura" style="width:100%;height:190px;display:block;background:#fff;border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.04)"></canvas>
+  <canvas id="graficoDesempenhoCultura" style="width:100%;height:190px;display:block;background:var(--card);border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.04)"></canvas>
   <div id="legendaDesempenho" style="display:flex;flex-wrap:wrap;gap:12px;font-size:0.76rem;color:var(--texto-suave);margin:8px 0 16px"></div>
   <div class="lista" id="rankingCulturas" style="margin-bottom:20px"></div>
+
+  <h2 class="titulo">Previsão de colheita x vendas</h2>
+  <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-6px">Compara o que está a caminho de colher com a média de vendas recente de cada cultura.</p>
+  <div class="lista" id="listaPrevisaoColheita" style="margin-bottom:20px"></div>
 
   <div class="toolbar toolbar-secondary" id="plantioFiltros" style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
     <button type="button" class="fantasma active" data-filtro="todos">Todos</button>
@@ -481,6 +500,11 @@
     <label>Nome do produto
       <input type="text" id="produtoNome">
     </label>
+    <label>Foto do produto (opcional)
+      <input type="file" accept="image/*" id="produtoFotoArquivo">
+    </label>
+    <img id="produtoFotoPreview" class="hidden" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:-4px 0 12px">
+    <input type="hidden" id="produtoFoto">
     <div class="linha">
       <label>Preço de venda (R$)
         <input type="number" step="0.01" min="0" id="produtoPreco">
@@ -643,6 +667,7 @@
       <button class="fantasma" id="btnImportarBackup">Importar backup</button>
     </div>
     <input type="file" id="fileImportarBackup" accept=".json" hidden>
+    <button class="primario" id="btnGerarRelatorioPdf" style="width:100%;margin-top:10px">📄 Gerar relatório PDF do mês</button>
     <button class="fantasma" id="btnFecharBackup" style="width:100%;margin-top:10px">Fechar</button>
   </div>
 </div>
@@ -667,6 +692,17 @@ function gerarId() { return Date.now().toString(36) + Math.random().toString(36)
 function formatarMoeda(v) { return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
 function escapeHTML(s = '') { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
+// -------------------- MODO ESCURO --------------------
+function aplicarTema(tema) {
+  document.documentElement.dataset.tema = tema;
+  document.getElementById('btnTema').textContent = tema === 'escuro' ? '☀️' : '🌙';
+  localStorage.setItem('hg_tema', tema);
+}
+aplicarTema(localStorage.getItem('hg_tema') || 'claro');
+document.getElementById('btnTema').addEventListener('click', () => {
+  aplicarTema(document.documentElement.dataset.tema === 'escuro' ? 'claro' : 'escuro');
+});
+
 let toastTimer;
 function mostrarToast(msg) {
   const t = document.getElementById('toast');
@@ -685,8 +721,8 @@ function irParaAba(nome) {
   if (nome === 'estoque') renderProdutos();
   if (nome === 'clientes') renderClientes();
   if (nome === 'vendas') { preencherSelects(); renderVendasRecentes(); }
-  if (nome === 'insumos') renderInsumos();
-  if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); }
+  if (nome === 'insumos') { renderInsumos(); renderGraficoLucroMensal(); }
+  if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); renderPrevisaoColheita(); }
   if (nome === 'tarefas') renderTarefas();
   if (nome === 'financas') renderFinancas();
 }
@@ -782,8 +818,12 @@ function renderProdutos() {
   }
   lista.innerHTML = produtos.map((p) => {
     const baixo = p.estoqueAtual <= (p.estoqueMinimo || 0);
+    const miniatura = p.foto
+      ? `<img src="${p.foto}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">`
+      : `<div style="width:44px;height:44px;border-radius:8px;background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem">🌿</div>`;
     return `
       <div class="item ${baixo ? 'estoque-baixo' : ''}" data-id="${p.id}">
+        ${miniatura}
         <div class="info"><strong>${escapeHTML(p.nome)}</strong><small>${formatarMoeda(p.preco)} cada</small></div>
         <span class="valor-direita">${p.estoqueAtual}</span>
       </div>
@@ -808,6 +848,10 @@ function abrirModalProduto(id) {
     document.getElementById('produtoEstoque').value = p.estoqueAtual;
     document.getElementById('produtoEstoqueMinimo').value = p.estoqueMinimo || 0;
     document.getElementById('produtoCultura').value = p.cultura || '';
+    document.getElementById('produtoFoto').value = p.foto || '';
+    const preview = document.getElementById('produtoFotoPreview');
+    if (p.foto) { preview.src = p.foto; preview.classList.remove('hidden'); } else { preview.classList.add('hidden'); }
+    document.getElementById('produtoFotoArquivo').value = '';
     btnExcluir.classList.remove('hidden');
   } else {
     document.getElementById('tituloModalProduto').textContent = 'Novo produto';
@@ -816,12 +860,40 @@ function abrirModalProduto(id) {
     document.getElementById('produtoEstoque').value = 0;
     document.getElementById('produtoEstoqueMinimo').value = 0;
     document.getElementById('produtoCultura').value = '';
+    document.getElementById('produtoFoto').value = '';
+    document.getElementById('produtoFotoArquivo').value = '';
+    document.getElementById('produtoFotoPreview').classList.add('hidden');
     btnExcluir.classList.add('hidden');
   }
   document.getElementById('modalProduto').classList.remove('hidden');
 }
 document.getElementById('btnNovoProduto').addEventListener('click', () => abrirModalProduto(null));
 document.getElementById('btnCancelarProduto').addEventListener('click', () => document.getElementById('modalProduto').classList.add('hidden'));
+
+document.getElementById('produtoFotoArquivo').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const leitor = new FileReader();
+  leitor.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const maxLado = 480;
+      const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * escala;
+      canvas.height = img.height * escala;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      document.getElementById('produtoFoto').value = dataUrl;
+      const preview = document.getElementById('produtoFotoPreview');
+      preview.src = dataUrl;
+      preview.classList.remove('hidden');
+    };
+    img.src = leitor.result;
+  };
+  leitor.readAsDataURL(file);
+});
 
 document.getElementById('btnSalvarProduto').addEventListener('click', () => {
   const nome = document.getElementById('produtoNome').value.trim();
@@ -835,7 +907,8 @@ document.getElementById('btnSalvarProduto').addEventListener('click', () => {
     preco: parseFloat(document.getElementById('produtoPreco').value) || 0,
     estoqueAtual: parseFloat(document.getElementById('produtoEstoque').value) || 0,
     estoqueMinimo: parseFloat(document.getElementById('produtoEstoqueMinimo').value) || 0,
-    cultura: document.getElementById('produtoCultura').value.trim()
+    cultura: document.getElementById('produtoCultura').value.trim(),
+    foto: document.getElementById('produtoFoto').value || ''
   };
   const idx = produtos.findIndex((p) => p.id === produto.id);
   if (idx >= 0) produtos[idx] = produto; else produtos.push(produto);
@@ -1286,6 +1359,57 @@ function calcularDataPrevista(p) {
   return d.toISOString().slice(0, 10);
 }
 
+// -------------------- PREVISÃO DE COLHEITA x MÉDIA DE VENDAS --------------------
+function renderPrevisaoColheita() {
+  const plantios = carregar(CHAVES.plantios).filter((p) => !p.colhido);
+  const produtos = carregar(CHAVES.produtos);
+  const vendas = carregar(CHAVES.vendas);
+  const div = document.getElementById('listaPrevisaoColheita');
+
+  if (plantios.length === 0) {
+    div.innerHTML = '<p class="vazio">Nenhum plantio em andamento no momento.</p>';
+    return;
+  }
+
+  const hoje = new Date();
+  const trintaDiasAtras = new Date(hoje.getTime() - 30 * 86400000);
+
+  const ordenados = [...plantios].sort((a, b) => calcularDataPrevista(a).localeCompare(calcularDataPrevista(b)));
+
+  div.innerHTML = ordenados.map((p) => {
+    const prevista = calcularDataPrevista(p);
+    // Vendas dos últimos 30 dias dos produtos vinculados a essa cultura
+    const produtosDaCultura = produtos.filter((prod) => (prod.cultura || prod.nome) === p.cultura);
+    const idsProdutos = new Set(produtosDaCultura.map((prod) => prod.id));
+    let qtdVendidaUltimos30 = 0;
+    vendas.forEach((v) => {
+      const d = new Date(v.data);
+      if (d < trintaDiasAtras) return;
+      (v.itens || []).forEach((item) => {
+        if (idsProdutos.has(item.produtoId)) qtdVendidaUltimos30 += item.quantidade;
+      });
+    });
+    const mediaSemanal = qtdVendidaUltimos30 / (30 / 7);
+    const qtdColheita = Number(p.quantidade) || 0;
+
+    let comparativo = '';
+    if (mediaSemanal <= 0.009) {
+      comparativo = qtdColheita > 0 ? 'Sem histórico de vendas recente dessa cultura para comparar.' : '';
+    } else {
+      const semanasCobertas = qtdColheita / mediaSemanal;
+      comparativo = `Média de venda: ~${mediaSemanal.toFixed(1)}/semana · essa colheita cobre ~${semanasCobertas.toFixed(1)} semana(s)`;
+    }
+
+    return `<div class="item" style="cursor:default">
+      <div class="info">
+        <strong>${escapeHTML(p.cultura)}</strong>
+        <small>Colheita prevista: ${formatarDataBR(prevista)} · Qtd. esperada: ${qtdColheita || '?'}</small>
+        ${comparativo ? `<small style="display:block;margin-top:2px">${comparativo}</small>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function statusPlantio(p) {
   if (p.colhido) return 'colhido';
   const hoje = new Date().toISOString().slice(0, 10);
@@ -1407,6 +1531,7 @@ document.getElementById('btnSalvarPlantio').addEventListener('click', () => {
 
   document.getElementById('modalPlantio').classList.add('hidden');
   renderPlantios();
+  renderPrevisaoColheita();
   mostrarToast('Plantio salvo.');
 });
 
@@ -1416,6 +1541,7 @@ document.getElementById('btnExcluirPlantio').addEventListener('click', () => {
   salvar(CHAVES.plantios, carregar(CHAVES.plantios).filter((p) => p.id !== id));
   document.getElementById('modalPlantio').classList.add('hidden');
   renderPlantios();
+  renderPrevisaoColheita();
   mostrarToast('Plantio excluído.');
 });
 
@@ -1454,6 +1580,7 @@ document.getElementById('btnConfirmarColher').addEventListener('click', () => {
 
   document.getElementById('modalColher').classList.add('hidden');
   renderPlantios();
+  renderPrevisaoColheita();
   mostrarToast(produtoDestinoId ? 'Colheita registrada e adicionada ao estoque.' : 'Colheita registrada.');
 });
 
@@ -1749,6 +1876,72 @@ function renderDesempenhoCulturas() {
       `).join('');
 }
 
+// -------------------- GRÁFICO DE LUCRO MENSAL (últimos 6 meses) --------------------
+function renderGraficoLucroMensal() {
+  const vendas = carregar(CHAVES.vendas);
+  const insumos = carregar(CHAVES.insumos);
+
+  const meses = [];
+  const cursor = new Date();
+  cursor.setDate(1);
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(cursor.getFullYear(), cursor.getMonth() - i, 1);
+    meses.push(d.toISOString().slice(0, 7)); // "AAAA-MM"
+  }
+
+  const valores = meses.map((m) => {
+    const totalVendas = vendas.filter((v) => v.data.slice(0, 7) === m).reduce((s, v) => s + v.total, 0);
+    const totalInsumos = insumos.filter((i) => (i.data || '').slice(0, 7) === m).reduce((s, i) => s + i.valor, 0);
+    return totalVendas - totalInsumos;
+  });
+
+  const rotulos = meses.map((m) => {
+    const [ano, mes] = m.split('-');
+    return new Date(ano, mes - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+  });
+
+  desenharGraficoBarras(document.getElementById('graficoLucroMensal'), valores, rotulos);
+}
+
+function desenharGraficoBarras(canvas, valores, rotulos) {
+  const dpr = window.devicePixelRatio || 1;
+  const larguraCSS = canvas.clientWidth || 320;
+  const alturaCSS = canvas.clientHeight || 170;
+  canvas.width = larguraCSS * dpr;
+  canvas.height = alturaCSS * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, larguraCSS, alturaCSS);
+
+  const margemE = 8, margemD = 8, margemTopo = 14, margemBaixo = 34;
+  const areaLargura = larguraCSS - margemE - margemD;
+  const areaAltura = alturaCSS - margemTopo - margemBaixo;
+  const maxAbs = Math.max(1, ...valores.map((v) => Math.abs(v)));
+  const zeroY = margemTopo + areaAltura / 2;
+  const larguraBarra = (areaLargura / valores.length) * 0.55;
+  const passoX = areaLargura / valores.length;
+
+  ctx.strokeStyle = '#c8cdd4';
+  ctx.beginPath(); ctx.moveTo(margemE, zeroY); ctx.lineTo(margemE + areaLargura, zeroY); ctx.stroke();
+
+  valores.forEach((v, i) => {
+    const x = margemE + i * passoX + (passoX - larguraBarra) / 2;
+    const alturaBarra = (Math.abs(v) / maxAbs) * (areaAltura / 2);
+    const y = v >= 0 ? zeroY - alturaBarra : zeroY;
+    ctx.fillStyle = v >= 0 ? '#16a34a' : '#dc2626';
+    ctx.fillRect(x, y, larguraBarra, alturaBarra || 1);
+
+    ctx.fillStyle = '#6b7c73';
+    ctx.font = '9px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(rotulos[i], x + larguraBarra / 2, alturaCSS - 20);
+    ctx.fillStyle = '#14251b';
+    ctx.font = '9px -apple-system, sans-serif';
+    const yTexto = v >= 0 ? y - 4 : y + alturaBarra + 11;
+    ctx.fillText(formatarMoeda(v).replace('R$', 'R$').replace(/\s/, ' '), x + larguraBarra / 2, yTexto);
+  });
+}
+
 function desenharGraficoLinha(canvas, series, buckets) {
   const dpr = window.devicePixelRatio || 1;
   const larguraCSS = canvas.clientWidth || 320;
@@ -1990,6 +2183,64 @@ function exportarBackup(automatico) {
   if (!automatico) mostrarToast('Backup exportado.');
   else mostrarToast('Backup automático salvo em Downloads.');
 }
+
+// -------------------- RELATÓRIO EM PDF (resumo do mês) --------------------
+document.getElementById('btnGerarRelatorioPdf').addEventListener('click', () => {
+  if (typeof window.jspdf === 'undefined') {
+    mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const hoje = new Date();
+  const inicioMes = hoje.toISOString().slice(0, 7);
+  const nomeMes = hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+  const vendas = carregar(CHAVES.vendas).filter((v) => v.data.slice(0, 7) === inicioMes);
+  const insumos = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === inicioMes);
+  const totalVendas = vendas.reduce((s, v) => s + v.total, 0);
+  const totalInsumos = insumos.reduce((s, i) => s + i.valor, 0);
+  const lucro = totalVendas - totalInsumos;
+
+  const clientes = carregar(CHAVES.clientes);
+  const totalFiado = clientes.reduce((s, c) => s + Math.max(saldoDevedor(c.id), 0), 0);
+
+  const financeiros = carregar(CHAVES.financeiros);
+  const totalDevo = financeiros.filter((f) => f.tipo === 'devo').reduce((s, f) => s + Math.max(saldoFinanceiro(f.id), 0), 0);
+  const totalReceber = financeiros.filter((f) => f.tipo === 'receber').reduce((s, f) => s + Math.max(saldoFinanceiro(f.id), 0), 0);
+
+  let y = 20;
+  doc.setFontSize(16);
+  doc.text('Controle da Horta — Relatório Mensal', 14, y);
+  y += 8;
+  doc.setFontSize(11);
+  doc.text(`Período: ${nomeMes}`, 14, y);
+  y += 12;
+
+  doc.setFontSize(13);
+  doc.text('Resumo da horta', 14, y);
+  y += 8;
+  doc.setFontSize(11);
+  doc.text(`Vendas do mês: ${formatarMoeda(totalVendas)}`, 14, y); y += 7;
+  doc.text(`Gastos com insumos: ${formatarMoeda(totalInsumos)}`, 14, y); y += 7;
+  doc.text(`Lucro do mês: ${formatarMoeda(lucro)}`, 14, y); y += 7;
+  doc.text(`Fiado em aberto (clientes): ${formatarMoeda(totalFiado)}`, 14, y); y += 14;
+
+  doc.setFontSize(13);
+  doc.text('Finanças pessoais', 14, y);
+  y += 8;
+  doc.setFontSize(11);
+  doc.text(`Eu devo (em aberto): ${formatarMoeda(totalDevo)}`, 14, y); y += 7;
+  doc.text(`Tenho a receber: ${formatarMoeda(totalReceber)}`, 14, y); y += 14;
+
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text(`Gerado em ${hoje.toLocaleString('pt-BR')}`, 14, 285);
+
+  doc.save(`relatorio_horta_${inicioMes}.pdf`);
+  mostrarToast('Relatório PDF gerado.');
+});
 
 document.getElementById('btnImportarBackup').addEventListener('click', () => document.getElementById('fileImportarBackup').click());
 document.getElementById('fileImportarBackup').addEventListener('change', (e) => {
