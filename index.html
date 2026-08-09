@@ -215,7 +215,8 @@
     <button class="primario" style="width:auto" id="btnNovoProduto">+ Novo</button>
   </div>
   <button class="fantasma" id="btnCompartilharCatalogo" style="width:100%;margin-bottom:8px">🔗 Compartilhar catálogo com clientes</button>
-  <button class="fantasma" id="btnBannerCatalogo" style="width:100%;margin-bottom:12px">🖼️ Adicionar/trocar banner do catálogo</button>
+  <button class="fantasma" id="btnBannerCatalogo" style="width:100%;margin-bottom:8px">🖼️ Adicionar/trocar banner do catálogo</button>
+  <button class="fantasma" id="btnRemoverBannerCatalogo" style="width:100%;margin-bottom:12px">🗑️ Remover banner do catálogo</button>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
@@ -515,7 +516,8 @@
     <label>Foto do produto (opcional)
       <input type="file" accept="image/*" id="produtoFotoArquivo">
     </label>
-    <img id="produtoFotoPreview" class="hidden" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:-4px 0 12px">
+    <img id="produtoFotoPreview" class="hidden" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:-4px 0 8px">
+    <button type="button" class="fantasma hidden" id="btnRemoverFotoProduto" style="width:100%;margin-bottom:12px">🗑️ Remover foto</button>
     <input type="hidden" id="produtoFoto">
     <div class="linha">
       <label>Preço de venda (R$)
@@ -906,7 +908,8 @@ function abrirModalProduto(id) {
     document.getElementById('produtoCultura').value = p.cultura || '';
     document.getElementById('produtoFoto').value = p.foto || '';
     const preview = document.getElementById('produtoFotoPreview');
-    if (p.foto) { preview.src = p.foto; preview.classList.remove('hidden'); } else { preview.classList.add('hidden'); }
+    if (p.foto) { preview.src = p.foto; preview.classList.remove('hidden'); document.getElementById('btnRemoverFotoProduto').classList.remove('hidden'); }
+    else { preview.classList.add('hidden'); document.getElementById('btnRemoverFotoProduto').classList.add('hidden'); }
     document.getElementById('produtoFotoArquivo').value = '';
     btnExcluir.classList.remove('hidden');
   } else {
@@ -919,12 +922,19 @@ function abrirModalProduto(id) {
     document.getElementById('produtoFoto').value = '';
     document.getElementById('produtoFotoArquivo').value = '';
     document.getElementById('produtoFotoPreview').classList.add('hidden');
+    document.getElementById('btnRemoverFotoProduto').classList.add('hidden');
     btnExcluir.classList.add('hidden');
   }
   document.getElementById('modalProduto').classList.remove('hidden');
 }
 document.getElementById('btnNovoProduto').addEventListener('click', () => abrirModalProduto(null));
 document.getElementById('btnCancelarProduto').addEventListener('click', () => document.getElementById('modalProduto').classList.add('hidden'));
+document.getElementById('btnRemoverFotoProduto').addEventListener('click', () => {
+  document.getElementById('produtoFoto').value = '';
+  document.getElementById('produtoFotoArquivo').value = '';
+  document.getElementById('produtoFotoPreview').classList.add('hidden');
+  document.getElementById('btnRemoverFotoProduto').classList.add('hidden');
+});
 
 document.getElementById('produtoFotoArquivo').addEventListener('change', (e) => {
   const file = e.target.files[0];
@@ -945,6 +955,7 @@ document.getElementById('produtoFotoArquivo').addEventListener('change', (e) => 
       const preview = document.getElementById('produtoFotoPreview');
       preview.src = dataUrl;
       preview.classList.remove('hidden');
+      document.getElementById('btnRemoverFotoProduto').classList.remove('hidden');
     };
     img.src = leitor.result;
   };
@@ -2685,6 +2696,22 @@ document.getElementById('arquivoBannerCatalogo').addEventListener('change', (e) 
   };
   leitor.readAsDataURL(file);
   e.target.value = '';
+});
+
+document.getElementById('btnRemoverBannerCatalogo').addEventListener('click', () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  if (!confirm('Remover o banner do catálogo?')) return;
+  nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({
+    banner: firebase.firestore.FieldValue.delete(),
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: true }).then(() => {
+    mostrarToast('Banner removido.');
+  }).catch((err) => {
+    mostrarToast('Erro ao remover banner: ' + (err.code || err.message));
+  });
 });
 
 // ============================================================
