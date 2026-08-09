@@ -1066,7 +1066,14 @@ function abrirDetalheCliente(id) {
 
   document.getElementById('modalDetalheCliente').dataset.clienteId = id;
   document.getElementById('detalheClienteNome').textContent = cliente.nome;
-  document.getElementById('detalheClienteSaldo').textContent = formatarMoeda(saldo);
+  const saldoEl = document.getElementById('detalheClienteSaldo');
+  if (saldo > 0.009) {
+    saldoEl.textContent = '-' + formatarMoeda(saldo);
+    saldoEl.style.color = 'var(--vermelho)';
+  } else {
+    saldoEl.textContent = formatarMoeda(0);
+    saldoEl.style.color = 'var(--verde)';
+  }
   document.getElementById('detalhePagamentoValor').value = '';
 
   document.getElementById('detalheBaixaSection').classList.toggle('hidden', saldo <= 0.009);
