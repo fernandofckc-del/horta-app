@@ -100,6 +100,11 @@
     width: 100%;
     font-family: inherit;
   }
+  input:-webkit-autofill, input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--texto);
+    -webkit-box-shadow: 0 0 0px 1000px var(--card) inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
   label { display: flex; flex-direction: column; gap: 5px; font-size: 0.8rem; color: var(--texto-suave); margin-bottom: 12px; }
   .linha { display: flex; gap: 10px; }
   .linha > label { flex: 1; }
@@ -697,7 +702,7 @@
     <div id="vozConfigSection">
       <p style="font-size:0.85rem;color:var(--texto-suave)">Cole sua chave de API da Anthropic (só precisa fazer isso uma vez, fica salva neste aparelho).</p>
       <label>Chave de API (Anthropic)
-        <input type="password" id="vozApiKey" placeholder="sk-ant-...">
+        <input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" id="vozApiKey" placeholder="sk-ant-...">
       </label>
       <button class="primario" id="btnSalvarApiKeyVoz" style="width:100%">Salvar chave</button>
     </div>
