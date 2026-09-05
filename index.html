@@ -329,26 +329,76 @@
   <div class="lista" id="listaTarefas"></div>
 </main>
 
-<!-- ===================== FINANÇAS (pessoal, sem relação com a horta) ===================== -->
+<!-- ===================== FINANÇAS (pessoal) ===================== -->
 <main id="tab-financas">
-  <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:0">
-    Controle pessoal de dívidas e valores a receber. Não entra nas contas da horta.
-  </p>
-
-  <div class="grid-cards">
-    <div class="card alerta"><span class="label">Eu devo (em aberto)</span><span class="valor" id="finDashDevo">R$ 0,00</span></div>
-    <div class="card"><span class="label">Tenho a receber</span><span class="valor" id="finDashReceber">R$ 0,00</span></div>
+  <div class="toolbar toolbar-secondary" id="financasSubAbas" style="display:flex;gap:8px;margin-bottom:14px">
+    <button type="button" class="fantasma active" data-subaba-fin="renda" style="flex:1">💰 Minha Renda</button>
+    <button type="button" class="fantasma" data-subaba-fin="dividas" style="flex:1">🤝 Dívidas</button>
   </div>
 
-  <div class="toolbar" id="financasFiltros" style="gap:8px;flex-wrap:wrap">
-    <button type="button" class="fantasma active" data-filtro-fin="todos">Todos</button>
-    <button type="button" class="fantasma" data-filtro-fin="devo">Eu devo</button>
-    <button type="button" class="fantasma" data-filtro-fin="receber">A receber</button>
-    <button type="button" class="fantasma" data-filtro-fin="quitados">Quitados</button>
+  <!-- ---- PAINEL: MINHA RENDA (salário, contas fixas, cofrinho, meta) ---- -->
+  <div id="painelFinancasRenda">
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:0">
+      Visão geral do seu dinheiro: salário, lucro da horta, contas fixas e quanto você está guardando.
+    </p>
+
+    <div class="grid-cards">
+      <div class="card"><span class="label">Renda do mês (salário + lucro)</span><span class="valor" id="rendaDashRenda">R$ 0,00</span></div>
+      <div class="card alerta"><span class="label">Contas fixas do mês</span><span class="valor" id="rendaDashContas">R$ 0,00</span></div>
+      <div class="card"><span class="label">Guardado no cofrinho</span><span class="valor" id="rendaDashCofrinho">R$ 0,00</span></div>
+      <div class="card"><span class="label">Sobra disponível</span><span class="valor" id="rendaDashSobra">R$ 0,00</span></div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;margin:-8px 0 16px">
+      <button type="button" class="fantasma" id="btnConfigPessoal" style="width:auto">⚙ Salário e metas</button>
+    </div>
+
+    <h2 class="titulo">Meta de economia</h2>
+    <div id="rendaMetaVazia" class="vazio" style="display:none">Defina uma meta em "⚙ Salário e metas" para acompanhar seu progresso.</div>
+    <div id="rendaMetaBox" style="display:none;background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:20px;box-shadow:0 1px 5px rgba(0,0,0,0.04)">
+      <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:8px">
+        <strong id="rendaMetaDescricao">Meta</strong>
+        <span id="rendaMetaTexto">R$ 0,00 / R$ 0,00</span>
+      </div>
+      <div style="background:var(--borda);border-radius:8px;height:10px;overflow:hidden">
+        <div id="rendaMetaBarra" style="background:var(--verde);height:100%;width:0%"></div>
+      </div>
+    </div>
+
+    <h2 class="titulo">Contas fixas do mês</h2>
+    <button class="primario" id="btnNovaContaFixa" style="width:100%;margin-bottom:12px">+ Nova conta fixa</button>
+    <div class="lista" id="listaContasFixas" style="margin-bottom:20px"></div>
+
+    <h2 class="titulo">Cofrinho / Reserva</h2>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-6px">Dinheiro separado que não conta como "disponível para gastar".</p>
+    <div class="toolbar" style="margin-bottom:12px">
+      <button class="primario" id="btnGuardarCofrinho" style="width:auto;flex:1">+ Guardar</button>
+      <button class="fantasma" id="btnRetirarCofrinho" style="width:auto;flex:1">− Retirar</button>
+    </div>
+    <div class="lista" id="listaCofrinho"></div>
   </div>
 
-  <button class="primario" id="btnNovoFinanceiro" style="width:100%;margin-bottom:12px">+ Novo registro</button>
-  <div class="lista" id="listaFinancas"></div>
+  <!-- ---- PAINEL: DÍVIDAS (quem devo / quem me deve) ---- -->
+  <div id="painelFinancasDividas" style="display:none">
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:0">
+      Controle pessoal de dívidas e valores a receber. Não entra nas contas da horta.
+    </p>
+
+    <div class="grid-cards">
+      <div class="card alerta"><span class="label">Eu devo (em aberto)</span><span class="valor" id="finDashDevo">R$ 0,00</span></div>
+      <div class="card"><span class="label">Tenho a receber</span><span class="valor" id="finDashReceber">R$ 0,00</span></div>
+    </div>
+
+    <div class="toolbar" id="financasFiltros" style="gap:8px;flex-wrap:wrap">
+      <button type="button" class="fantasma active" data-filtro-fin="todos">Todos</button>
+      <button type="button" class="fantasma" data-filtro-fin="devo">Eu devo</button>
+      <button type="button" class="fantasma" data-filtro-fin="receber">A receber</button>
+      <button type="button" class="fantasma" data-filtro-fin="quitados">Quitados</button>
+    </div>
+
+    <button class="primario" id="btnNovoFinanceiro" style="width:100%;margin-bottom:12px">+ Novo registro</button>
+    <div class="lista" id="listaFinancas"></div>
+  </div>
 </main>
 
 <nav class="bottom-nav">
@@ -600,6 +650,74 @@
   </div>
 </div>
 
+<!-- ===================== MODAL: CONFIGURAÇÃO PESSOAL (salário e metas) ===================== -->
+<div id="modalConfigPessoal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>Salário e metas</h3>
+    <label>Salário mensal (R$)
+      <input type="number" step="0.01" min="0" id="cfgSalario">
+    </label>
+    <label>Dia do mês que recebe
+      <input type="number" min="1" max="31" id="cfgDiaRecebimento">
+    </label>
+    <label>% sugerida de reserva sobre a renda do mês
+      <input type="number" min="0" max="100" id="cfgPercentualReserva">
+    </label>
+    <label>Meta de economia — valor (R$)
+      <input type="number" step="0.01" min="0" id="cfgMetaValor">
+    </label>
+    <label>Meta de economia — descrição
+      <input type="text" id="cfgMetaDescricao" placeholder="Ex: Comprar equipamento, reserva de emergência...">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarConfigPessoal">Cancelar</button>
+      <button class="primario" id="btnSalvarConfigPessoal">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: CONTA FIXA ===================== -->
+<div id="modalContaFixa" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalContaFixa">Nova conta fixa</h3>
+    <input type="hidden" id="contaFixaId">
+    <label>Descrição
+      <input type="text" id="contaFixaNome" placeholder="Ex: Aluguel, energia, internet...">
+    </label>
+    <div class="linha">
+      <label>Valor (R$)
+        <input type="number" step="0.01" min="0.01" id="contaFixaValor">
+      </label>
+      <label>Dia de vencimento
+        <input type="number" min="1" max="31" id="contaFixaDia">
+      </label>
+    </div>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarContaFixa">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirContaFixa">Excluir</button>
+      <button class="primario" id="btnSalvarContaFixa">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: MOVIMENTO DO COFRINHO ===================== -->
+<div id="modalCofrinhoMov" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalCofrinhoMov">Guardar no cofrinho</h3>
+    <input type="hidden" id="cofrinhoMovTipo">
+    <label>Valor (R$)
+      <input type="number" step="0.01" min="0.01" id="cofrinhoMovValor">
+    </label>
+    <label>Observação (opcional)
+      <input type="text" id="cofrinhoMovObs">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarCofrinhoMov">Cancelar</button>
+      <button class="primario" id="btnSalvarCofrinhoMov">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MODAL: FINANCEIRO (cadastro/edição) ===================== -->
 <div id="modalFinanceiro" class="modal-overlay hidden">
   <div class="modal-box">
@@ -739,7 +857,10 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros' };
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov' };
+const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
+function carregarConfigPessoal() { return JSON.parse(localStorage.getItem(CHAVE_CONFIG_PESSOAL) || '{"salario":0,"diaRecebimento":5,"percentualReserva":10,"metaValor":0,"metaDescricao":""}'); }
+function salvarConfigPessoal(obj) { localStorage.setItem(CHAVE_CONFIG_PESSOAL, JSON.stringify(obj)); }
 const CHAVE_RESPONSAVEL = 'hg_responsavel';
 function carregarResponsavel() { return JSON.parse(localStorage.getItem(CHAVE_RESPONSAVEL) || '{"nome":"","telefone":""}'); }
 function salvarResponsavel(obj) { localStorage.setItem(CHAVE_RESPONSAVEL, JSON.stringify(obj)); if (typeof agendarAtualizacaoCatalogo === 'function') agendarAtualizacaoCatalogo(); }
@@ -782,7 +903,10 @@ function irParaAba(nome) {
   if (nome === 'insumos') { renderInsumos(); renderGraficoLucroMensal(); }
   if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); renderPrevisaoColheita(); }
   if (nome === 'tarefas') renderTarefas();
-  if (nome === 'financas') renderFinancas();
+  if (nome === 'financas') {
+    const subabaDividasAtiva = document.getElementById('painelFinancasDividas').style.display !== 'none';
+    if (subabaDividasAtiva) renderFinancas(); else renderFinancasRenda();
+  }
 }
 document.querySelectorAll('.bottom-nav button').forEach((b) => b.addEventListener('click', () => irParaAba(b.dataset.tab)));
 
@@ -2233,6 +2357,211 @@ document.getElementById('btnRegistrarPagamentoFinanceiro').addEventListener('cli
 });
 
 // ============================================================
+// SUB-ABAS DA TELA FINANÇAS (Minha Renda / Dívidas)
+// ============================================================
+document.querySelectorAll('#financasSubAbas button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#financasSubAbas button').forEach((x) => x.classList.remove('active'));
+    b.classList.add('active');
+    const alvo = b.dataset.subabaFin;
+    document.getElementById('painelFinancasRenda').style.display = alvo === 'renda' ? '' : 'none';
+    document.getElementById('painelFinancasDividas').style.display = alvo === 'dividas' ? '' : 'none';
+    if (alvo === 'renda') renderFinancasRenda();
+    else renderFinancas();
+  });
+});
+
+// ============================================================
+// MINHA RENDA (salário, contas fixas, cofrinho, meta de economia)
+// ============================================================
+function lucroHortaMesAtual() {
+  const inicioMes = new Date().toISOString().slice(0, 7);
+  const vendasMes = carregar(CHAVES.vendas).filter((v) => v.data.slice(0, 7) === inicioMes).reduce((s, v) => s + v.total, 0);
+  const insumosMes = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === inicioMes).reduce((s, i) => s + i.valor, 0);
+  return vendasMes - insumosMes;
+}
+
+function saldoCofrinho() {
+  return carregar(CHAVES.cofrinhoMov).reduce((s, m) => s + (m.tipo === 'deposito' ? m.valor : -m.valor), 0);
+}
+
+function renderFinancasRenda() {
+  const cfg = carregarConfigPessoal();
+  const mesAtual = new Date().toISOString().slice(0, 7);
+  const lucroHorta = lucroHortaMesAtual();
+  const rendaMes = (cfg.salario || 0) + lucroHorta;
+
+  const contasFixas = carregar(CHAVES.contasFixas);
+  const totalContasFixas = contasFixas.reduce((s, c) => s + c.valor, 0);
+  const cofrinho = saldoCofrinho();
+  const sobra = rendaMes - totalContasFixas;
+
+  document.getElementById('rendaDashRenda').textContent = formatarMoeda(rendaMes);
+  document.getElementById('rendaDashContas').textContent = formatarMoeda(totalContasFixas);
+  document.getElementById('rendaDashCofrinho').textContent = formatarMoeda(cofrinho);
+  document.getElementById('rendaDashSobra').textContent = formatarMoeda(sobra);
+
+  // Meta de economia
+  if (cfg.metaValor && cfg.metaValor > 0) {
+    document.getElementById('rendaMetaVazia').style.display = 'none';
+    document.getElementById('rendaMetaBox').style.display = '';
+    const pct = Math.min(100, Math.round((cofrinho / cfg.metaValor) * 100));
+    document.getElementById('rendaMetaDescricao').textContent = cfg.metaDescricao || 'Meta';
+    document.getElementById('rendaMetaTexto').textContent = `${formatarMoeda(cofrinho)} / ${formatarMoeda(cfg.metaValor)}`;
+    document.getElementById('rendaMetaBarra').style.width = pct + '%';
+  } else {
+    document.getElementById('rendaMetaVazia').style.display = '';
+    document.getElementById('rendaMetaBox').style.display = 'none';
+  }
+
+  // Contas fixas
+  const pagas = carregar(CHAVES.contasFixasPagas).filter((p) => p.mes === mesAtual).map((p) => p.contaId);
+  const listaContas = document.getElementById('listaContasFixas');
+  if (contasFixas.length === 0) {
+    listaContas.innerHTML = '<p class="vazio">Nenhuma conta fixa cadastrada.</p>';
+  } else {
+    listaContas.innerHTML = [...contasFixas].sort((a, b) => (a.dia || 0) - (b.dia || 0)).map((c) => {
+      const paga = pagas.includes(c.id);
+      return `<div class="item">
+        <div class="info" onclick="abrirModalContaFixa('${c.id}')" style="cursor:pointer">
+          <strong>${escapeHTML(c.nome)}</strong><small>Vence dia ${c.dia || '-'}${paga ? ' · paga este mês' : ''}</small>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="valor-direita" style="${paga ? 'color:var(--texto-suave)' : ''}">${formatarMoeda(c.valor)}</div>
+          <input type="checkbox" ${paga ? 'checked' : ''} onclick="event.stopPropagation(); toggleContaFixaPaga('${c.id}')" title="Marcar como paga este mês">
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Cofrinho - histórico
+  const movs = [...carregar(CHAVES.cofrinhoMov)].sort((a, b) => b.data.localeCompare(a.data));
+  const listaCofrinho = document.getElementById('listaCofrinho');
+  if (movs.length === 0) {
+    listaCofrinho.innerHTML = '<p class="vazio">Nenhuma movimentação ainda.</p>';
+  } else {
+    listaCofrinho.innerHTML = movs.map((m) => `<div class="item">
+      <div class="info"><strong>${m.tipo === 'deposito' ? 'Guardado' : 'Retirado'}</strong><small>${new Date(m.data).toLocaleDateString('pt-BR')}${m.obs ? ' · ' + escapeHTML(m.obs) : ''}</small></div>
+      <div class="valor-direita" style="${m.tipo === 'deposito' ? 'color:var(--verde-escuro)' : 'color:var(--vermelho)'}">${m.tipo === 'deposito' ? '+' : '−'} ${formatarMoeda(m.valor)}</div>
+    </div>`).join('');
+  }
+}
+
+function toggleContaFixaPaga(contaId) {
+  const mesAtual = new Date().toISOString().slice(0, 7);
+  let pagas = carregar(CHAVES.contasFixasPagas);
+  const existente = pagas.find((p) => p.contaId === contaId && p.mes === mesAtual);
+  if (existente) {
+    pagas = pagas.filter((p) => p !== existente);
+  } else {
+    pagas.push({ id: gerarId(), contaId, mes: mesAtual });
+  }
+  salvar(CHAVES.contasFixasPagas, pagas);
+  renderFinancasRenda();
+}
+
+// --- Configuração pessoal (salário e metas) ---
+document.getElementById('btnConfigPessoal').addEventListener('click', () => {
+  const cfg = carregarConfigPessoal();
+  document.getElementById('cfgSalario').value = cfg.salario || '';
+  document.getElementById('cfgDiaRecebimento').value = cfg.diaRecebimento || '';
+  document.getElementById('cfgPercentualReserva').value = cfg.percentualReserva || '';
+  document.getElementById('cfgMetaValor').value = cfg.metaValor || '';
+  document.getElementById('cfgMetaDescricao').value = cfg.metaDescricao || '';
+  document.getElementById('modalConfigPessoal').classList.remove('hidden');
+});
+document.getElementById('btnCancelarConfigPessoal').addEventListener('click', () => document.getElementById('modalConfigPessoal').classList.add('hidden'));
+document.getElementById('btnSalvarConfigPessoal').addEventListener('click', () => {
+  salvarConfigPessoal({
+    salario: parseFloat(document.getElementById('cfgSalario').value) || 0,
+    diaRecebimento: parseInt(document.getElementById('cfgDiaRecebimento').value) || 0,
+    percentualReserva: parseFloat(document.getElementById('cfgPercentualReserva').value) || 0,
+    metaValor: parseFloat(document.getElementById('cfgMetaValor').value) || 0,
+    metaDescricao: document.getElementById('cfgMetaDescricao').value.trim()
+  });
+  document.getElementById('modalConfigPessoal').classList.add('hidden');
+  renderFinancasRenda();
+  mostrarToast('Configuração salva.');
+});
+
+// --- Contas fixas ---
+function abrirModalContaFixa(id) {
+  document.getElementById('contaFixaId').value = id || '';
+  document.getElementById('btnExcluirContaFixa').classList.toggle('hidden', !id);
+  if (id) {
+    const c = carregar(CHAVES.contasFixas).find((x) => x.id === id);
+    document.getElementById('tituloModalContaFixa').textContent = 'Editar conta fixa';
+    document.getElementById('contaFixaNome').value = c.nome;
+    document.getElementById('contaFixaValor').value = c.valor;
+    document.getElementById('contaFixaDia').value = c.dia || '';
+  } else {
+    document.getElementById('tituloModalContaFixa').textContent = 'Nova conta fixa';
+    document.getElementById('contaFixaNome').value = '';
+    document.getElementById('contaFixaValor').value = '';
+    document.getElementById('contaFixaDia').value = '';
+  }
+  document.getElementById('modalContaFixa').classList.remove('hidden');
+}
+document.getElementById('btnNovaContaFixa').addEventListener('click', () => abrirModalContaFixa());
+document.getElementById('btnCancelarContaFixa').addEventListener('click', () => document.getElementById('modalContaFixa').classList.add('hidden'));
+
+document.getElementById('btnSalvarContaFixa').addEventListener('click', () => {
+  const nome = document.getElementById('contaFixaNome').value.trim();
+  const valor = parseFloat(document.getElementById('contaFixaValor').value);
+  if (!nome) { mostrarToast('Informe a descrição.'); return; }
+  if (!valor || valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
+  const idExistente = document.getElementById('contaFixaId').value;
+  const contas = carregar(CHAVES.contasFixas);
+  const conta = {
+    id: idExistente || gerarId(),
+    nome,
+    valor,
+    dia: parseInt(document.getElementById('contaFixaDia').value) || null
+  };
+  const idx = contas.findIndex((c) => c.id === conta.id);
+  if (idx >= 0) contas[idx] = conta; else contas.push(conta);
+  salvar(CHAVES.contasFixas, contas);
+  document.getElementById('modalContaFixa').classList.add('hidden');
+  renderFinancasRenda();
+  mostrarToast('Conta fixa salva.');
+});
+
+document.getElementById('btnExcluirContaFixa').addEventListener('click', () => {
+  const id = document.getElementById('contaFixaId').value;
+  if (!confirm('Excluir esta conta fixa?')) return;
+  salvar(CHAVES.contasFixas, carregar(CHAVES.contasFixas).filter((c) => c.id !== id));
+  salvar(CHAVES.contasFixasPagas, carregar(CHAVES.contasFixasPagas).filter((p) => p.contaId !== id));
+  document.getElementById('modalContaFixa').classList.add('hidden');
+  renderFinancasRenda();
+  mostrarToast('Conta fixa excluída.');
+});
+
+// --- Cofrinho (guardar / retirar) ---
+function abrirModalCofrinhoMov(tipo) {
+  document.getElementById('cofrinhoMovTipo').value = tipo;
+  document.getElementById('tituloModalCofrinhoMov').textContent = tipo === 'deposito' ? 'Guardar no cofrinho' : 'Retirar do cofrinho';
+  document.getElementById('cofrinhoMovValor').value = '';
+  document.getElementById('cofrinhoMovObs').value = '';
+  document.getElementById('modalCofrinhoMov').classList.remove('hidden');
+}
+document.getElementById('btnGuardarCofrinho').addEventListener('click', () => abrirModalCofrinhoMov('deposito'));
+document.getElementById('btnRetirarCofrinho').addEventListener('click', () => abrirModalCofrinhoMov('saque'));
+document.getElementById('btnCancelarCofrinhoMov').addEventListener('click', () => document.getElementById('modalCofrinhoMov').classList.add('hidden'));
+
+document.getElementById('btnSalvarCofrinhoMov').addEventListener('click', () => {
+  const tipo = document.getElementById('cofrinhoMovTipo').value;
+  const valor = parseFloat(document.getElementById('cofrinhoMovValor').value);
+  if (!valor || valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
+  if (tipo === 'saque' && valor > saldoCofrinho() + 0.009) { mostrarToast('Valor maior que o saldo guardado.'); return; }
+  const movs = carregar(CHAVES.cofrinhoMov);
+  movs.push({ id: gerarId(), tipo, valor, data: new Date().toISOString(), obs: document.getElementById('cofrinhoMovObs').value.trim() });
+  salvar(CHAVES.cofrinhoMov, movs);
+  document.getElementById('modalCofrinhoMov').classList.add('hidden');
+  renderFinancasRenda();
+  mostrarToast(tipo === 'deposito' ? 'Guardado no cofrinho.' : 'Retirado do cofrinho.');
+});
+
+// ============================================================
 // BACKUP (exportar / importar tudo em um JSON)
 // ============================================================
 document.getElementById('btnBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.remove('hidden'));
@@ -2244,6 +2573,7 @@ function exportarBackup(automatico) {
   const dump = {};
   Object.values(CHAVES).forEach((chave) => { dump[chave] = carregar(chave); });
   dump[CHAVE_RESPONSAVEL] = carregarResponsavel();
+  dump[CHAVE_CONFIG_PESSOAL] = carregarConfigPessoal();
   dump._exportadoEm = new Date().toISOString();
   const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -2454,6 +2784,7 @@ document.getElementById('fileImportarBackup').addEventListener('change', (e) => 
         if (Array.isArray(dump[chave])) salvar(chave, dump[chave]);
       });
       if (dump[CHAVE_RESPONSAVEL]) salvarResponsavel(dump[CHAVE_RESPONSAVEL]);
+      if (dump[CHAVE_CONFIG_PESSOAL]) salvarConfigPessoal(dump[CHAVE_CONFIG_PESSOAL]);
       localStorage.setItem('hg_ultimo_backup', new Date().toISOString());
       atualizarBannerBackup();
       mostrarToast('Backup importado com sucesso!');
@@ -2515,6 +2846,7 @@ function empacotarDump() {
   const dump = {};
   Object.values(CHAVES).forEach((chave) => { dump[chave] = carregar(chave); });
   dump[CHAVE_RESPONSAVEL] = carregarResponsavel();
+  dump[CHAVE_CONFIG_PESSOAL] = carregarConfigPessoal();
   return dump;
 }
 
@@ -2523,6 +2855,7 @@ function aplicarDump(dump) {
     if (Array.isArray(dump[chave])) salvar(chave, dump[chave]);
   });
   if (dump[CHAVE_RESPONSAVEL]) salvarResponsavel(dump[CHAVE_RESPONSAVEL]);
+  if (dump[CHAVE_CONFIG_PESSOAL]) salvarConfigPessoal(dump[CHAVE_CONFIG_PESSOAL]);
 }
 
 function atualizarUiNuvem(user) {
