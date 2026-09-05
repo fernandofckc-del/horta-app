@@ -39,7 +39,7 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
     background: var(--bg);
     color: var(--texto);
-    padding-bottom: 78px;
+    padding-bottom: 16px;
   }
   header {
     position: sticky; top: 0; z-index: 10;
@@ -141,15 +141,21 @@
   }
   .bottom-nav button span { font-size: 1.2rem; }
   .bottom-nav button.active { color: var(--verde-escuro); font-weight: 600; }
+  .bottom-nav { display: none; }
 
   /* ---- MENU DE ÍCONES DA TELA INICIAL ---- */
-  .tela-inicio-bg {
-    margin: -16px -16px 18px;
-    padding: 28px 16px 34px;
+  body.tela-inicio-ativa {
     background-image: linear-gradient(rgba(10,20,10,0.25), rgba(10,20,10,0.55)), url('fundo-inicio.jpg');
     background-size: cover;
-    background-position: center;
-    border-radius: 0 0 26px 26px;
+    background-position: center top;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+  body.tela-inicio-ativa main#tab-inicio { background: transparent; }
+  .tela-inicio-bg {
+    margin: -16px -16px 0;
+    padding: 28px 16px 34px;
+    min-height: calc(100vh - 90px);
   }
   .menu-inicio-grid {
     display: grid;
@@ -220,7 +226,7 @@
   .hidden { display: none !important; }
 </style>
 </head>
-<body>
+<body class="tela-inicio-ativa">
 
 <header>
   <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.0.0</span></h1>
@@ -293,6 +299,7 @@
 
 <!-- ===================== ESTOQUE ===================== -->
 <main id="tab-estoque">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
   <div class="toolbar">
     <input type="search" id="buscaProduto" placeholder="Pesquisar produto...">
     <button class="primario" style="width:auto" id="btnNovoProduto">+ Novo</button>
@@ -306,6 +313,7 @@
 
 <!-- ===================== CLIENTES ===================== -->
 <main id="tab-clientes">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
   <div class="toolbar">
     <input type="search" id="buscaCliente" placeholder="Pesquisar cliente...">
     <button class="primario" style="width:auto" id="btnNovoCliente">+ Novo</button>
@@ -315,6 +323,7 @@
 
 <!-- ===================== VENDAS ===================== -->
 <main id="tab-vendas">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
   <h2 class="titulo" style="margin-top:0">Nova venda</h2>
 
   <label>Cliente
@@ -356,6 +365,7 @@
 
 <!-- ===================== INSUMOS (gastos) ===================== -->
 <main id="tab-insumos">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
   <div class="grid-cards">
     <div class="card alerta"><span class="label">Gasto este mês</span><span class="valor" id="insumosGastoMes">R$ 0,00</span></div>
     <div class="card"><span class="label">Gasto total (histórico)</span><span class="valor" id="insumosGastoTotal">R$ 0,00</span></div>
@@ -373,6 +383,7 @@
 
 <!-- ===================== PLANTIO ===================== -->
 <main id="tab-plantio">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
   <h2 class="titulo" style="margin-top:0">Desempenho de vendas por cultura</h2>
   <div class="toolbar" id="desempenhoFiltros" style="gap:8px;margin-bottom:8px">
     <button type="button" class="fantasma active" data-periodo="30">30 dias</button>
@@ -399,6 +410,7 @@
 
 <!-- ===================== TAREFAS (delegar atividades) ===================== -->
 <main id="tab-tarefas">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
   <div class="toolbar">
     <button class="fantasma" id="btnConfigResponsavel" style="width:auto">⚙ Responsável</button>
     <button class="primario" style="width:auto;margin-left:auto" id="btnNovaTarefa">+ Nova tarefa</button>
@@ -414,6 +426,7 @@
 
 <!-- ===================== FINANÇAS (pessoal) ===================== -->
 <main id="tab-financas">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
   <div class="toolbar toolbar-secondary" id="financasSubAbas" style="display:flex;gap:8px;margin-bottom:14px">
     <button type="button" class="fantasma active" data-subaba-fin="renda" style="flex:1">💰 Minha Renda</button>
     <button type="button" class="fantasma" data-subaba-fin="dividas" style="flex:1">🤝 Dívidas</button>
@@ -1017,6 +1030,7 @@ function irParaAba(nome) {
   document.querySelectorAll('main').forEach((m) => m.classList.remove('active'));
   document.getElementById('tab-' + nome).classList.add('active');
   document.querySelectorAll('.bottom-nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === nome));
+  document.body.classList.toggle('tela-inicio-ativa', nome === 'inicio');
   if (nome === 'inicio') mostrarMenuInicio();
   if (nome === 'estoque') renderProdutos();
   if (nome === 'clientes') renderClientes();
@@ -1035,10 +1049,12 @@ document.querySelectorAll('.bottom-nav button').forEach((b) => b.addEventListene
 function mostrarMenuInicio() {
   document.getElementById('painelInicioMenu').style.display = '';
   document.getElementById('painelInicioDashboard').style.display = 'none';
+  document.body.classList.add('tela-inicio-ativa');
 }
 function mostrarDashboardInicio() {
   document.getElementById('painelInicioMenu').style.display = 'none';
   document.getElementById('painelInicioDashboard').style.display = '';
+  document.body.classList.remove('tela-inicio-ativa');
   renderDashboard();
 }
 document.querySelectorAll('#painelInicioMenu .icone-item').forEach((b) => {
