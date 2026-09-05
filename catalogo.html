@@ -50,6 +50,7 @@
   .produto .info { padding: 10px 12px; }
   .produto .info strong { display: block; font-size: 0.92rem; margin-bottom: 4px; }
   .produto .info span.preco { color: var(--verde-escuro); font-weight: 700; }
+  .produto .info span.sem-estoque-tag { display: block; margin-top: 6px; font-size: 0.74rem; color: #b91c1c; font-weight: 600; }
   .vazio { text-align: center; color: var(--texto-suave); padding: 40px 16px; }
   .whatsapp {
     display: block; text-align: center; text-decoration: none;
@@ -70,9 +71,19 @@
   }
   .carrinho-barra .total { font-weight: 700; font-size: 1.05rem; }
   .carrinho-barra button {
-    background: #25d366; color: #fff; border: none; padding: 12px 18px; border-radius: 12px;
-    font-weight: 600; cursor: pointer; white-space: nowrap;
+    background: #25d366; color: #fff; border: none; padding: 12px 16px; border-radius: 12px;
+    font-weight: 600; cursor: pointer; white-space: nowrap; font-size: 0.88rem;
   }
+  .carrinho-barra button.btn-pagar { background: var(--verde); }
+  .carrinho-barra button:disabled { opacity: 0.6; }
+  .status-pagamento {
+    max-width: 640px; margin: 12px auto 0; padding: 12px 16px; border-radius: 12px;
+    font-size: 0.9rem; font-weight: 600; text-align: center;
+  }
+  .status-pagamento.sucesso { background: #dcfce7; color: #166534; }
+  .status-pagamento.pendente { background: #fef9c3; color: #854d0e; }
+  .status-pagamento.falha { background: #fee2e2; color: #991b1b; }
+  .status-pagamento.hidden { display: none; }
   footer { text-align: center; font-size: 0.72rem; color: var(--texto-suave); padding: 20px; }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -91,8 +102,13 @@
 
 <div id="carrinhoBarra" class="carrinho-barra" style="display:none">
   <span class="total" id="carrinhoTotal">R$ 0,00</span>
-  <button id="btnFinalizarPedido">📲 Finalizar pedido pelo WhatsApp</button>
+  <div style="display:flex;gap:8px">
+    <button id="btnPagarOnline" class="btn-pagar">💳 Pagar com PIX/Cartão</button>
+    <button id="btnFinalizarPedido">📲 WhatsApp</button>
+  </div>
 </div>
+
+<div id="statusPagamento" class="status-pagamento hidden"></div>
 
 <footer>Feito com Controle da Horta</footer>
 
@@ -129,7 +145,8 @@ function atualizarCarrinhoBarra() {
 
 function mudarQtd(idx, delta) {
   const atual = carrinho[idx] || 0;
-  const novo = Math.max(0, atual + delta);
+  const max = itensCatalogo[idx] ? (itensCatalogo[idx].estoqueAtual || 0) : 0;
+  const novo = Math.min(max, Math.max(0, atual + delta));
   carrinho[idx] = novo;
   document.getElementById('qtd-' + idx).textContent = novo;
   atualizarCarrinhoBarra();
@@ -148,6 +165,55 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
   const numero = telefoneVendedor ? (telefoneVendedor.length <= 11 ? '55' + telefoneVendedor : telefoneVendedor) : '';
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
+
+const CRIAR_PAGAMENTO_URL = 'https://us-central1-horta-app-6a4ca.cloudfunctions.net/criarPagamento';
+
+document.getElementById('btnPagarOnline').addEventListener('click', async () => {
+  const itensPedido = Object.entries(carrinho)
+    .filter(([, qtd]) => qtd > 0)
+    .map(([idx, qtd]) => ({ produtoId: itensCatalogo[idx].id, quantidade: qtd }));
+  if (itensPedido.length === 0) return;
+
+  const btn = document.getElementById('btnPagarOnline');
+  btn.disabled = true;
+  btn.textContent = 'Gerando pagamento...';
+  try {
+    const resp = await fetch(CRIAR_PAGAMENTO_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, itens: itensPedido })
+    });
+    const dados = await resp.json();
+    if (!resp.ok || !dados.init_point) {
+      alert(dados.erro || 'Não foi possível gerar o pagamento. Tente novamente.');
+      btn.disabled = false;
+      btn.textContent = '💳 Pagar com PIX/Cartão';
+      return;
+    }
+    location.href = dados.init_point;
+  } catch (err) {
+    alert('Erro de conexão ao gerar o pagamento.');
+    btn.disabled = false;
+    btn.textContent = '💳 Pagar com PIX/Cartão';
+  }
+});
+
+// Mensagem ao voltar do checkout do Mercado Pago (?status=sucesso|pendente|falha)
+const statusRetorno = params.get('status');
+if (statusRetorno) {
+  const el = document.getElementById('statusPagamento');
+  el.classList.remove('hidden');
+  if (statusRetorno === 'sucesso') {
+    el.classList.add('sucesso');
+    el.textContent = '✅ Pagamento aprovado! Seu pedido foi registrado.';
+  } else if (statusRetorno === 'pendente') {
+    el.classList.add('pendente');
+    el.textContent = '⏳ Pagamento em análise. Assim que for aprovado, o pedido é confirmado automaticamente.';
+  } else {
+    el.classList.add('falha');
+    el.textContent = '❌ O pagamento não foi concluído. Você pode tentar novamente.';
+  }
+}
 
 if (!uid) {
   conteudo.textContent = 'Link inválido.';
@@ -170,22 +236,25 @@ if (!uid) {
 
     const grid = document.createElement('div');
     grid.className = 'grid';
-    grid.innerHTML = itensCatalogo.map((p, idx) => `
+    grid.innerHTML = itensCatalogo.map((p, idx) => {
+      const semEstoque = !(p.estoqueAtual > 0);
+      return `
       <div class="produto">
         ${p.foto ? `<div class="foto-wrap"><img src="${p.foto}" alt="${escapeHTML(p.nome)}"></div>` : `<div class="sem-foto">🌿</div>`}
         <div class="info">
           <strong>${escapeHTML(p.nome)}</strong>
           <span class="preco">${formatarMoeda(p.preco)}</span>
-          ${telefoneVendedor ? `
+          ${semEstoque ? `<span class="sem-estoque-tag">Sem estoque no momento</span>` : (telefoneVendedor ? `
             <div class="qtd-controle">
               <button onclick="mudarQtd(${idx}, -1)">−</button>
               <span id="qtd-${idx}">0</span>
               <button onclick="mudarQtd(${idx}, 1)">+</button>
             </div>
-          ` : ''}
+          ` : '')}
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
     conteudo.className = '';
     conteudo.innerHTML = '';
     conteudo.appendChild(grid);
