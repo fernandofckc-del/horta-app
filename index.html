@@ -142,6 +142,52 @@
   .bottom-nav button span { font-size: 1.2rem; }
   .bottom-nav button.active { color: var(--verde-escuro); font-weight: 600; }
 
+  /* ---- MENU DE ÍCONES DA TELA INICIAL ---- */
+  .tela-inicio-bg {
+    margin: -16px -16px 18px;
+    padding: 28px 16px 34px;
+    background-image: linear-gradient(rgba(10,20,10,0.25), rgba(10,20,10,0.55)), url('fundo-inicio.jpg');
+    background-size: cover;
+    background-position: center;
+    border-radius: 0 0 26px 26px;
+  }
+  .menu-inicio-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 26px 10px;
+    justify-items: center;
+  }
+  .icone-item {
+    background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 0; width: 100%;
+  }
+  .icone-app {
+    width: 78px; height: 78px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.1rem;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.65), rgba(255,255,255,0) 42%),
+      var(--cor-icone, #666);
+    box-shadow:
+      0 0 0 3px rgba(255,255,255,0.18),
+      0 6px 14px rgba(0,0,0,0.4),
+      inset 0 -7px 10px rgba(0,0,0,0.28),
+      inset 0 5px 7px rgba(255,255,255,0.4);
+  }
+  .icone-legenda {
+    color: #fff; font-size: 0.82rem; font-weight: 700;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.65);
+  }
+  .cor-inicio   { --cor-icone: #2f80ed; }
+  .cor-vendas   { --cor-icone: #22c55e; }
+  .cor-estoque  { --cor-icone: #7c3aed; }
+  .cor-plantio  { --cor-icone: #ef4444; }
+  .cor-tarefas  { --cor-icone: #f59e0b; }
+  .cor-insumos  { --cor-icone: #14b8a6; }
+  .cor-clientes { --cor-icone: #ec4899; }
+  .cor-financas { --cor-icone: #b45309; }
+
   .modal-overlay {
     position: fixed; inset: 0; z-index: 50;
     background: rgba(0,0,0,0.45);
@@ -177,7 +223,7 @@
 <body>
 
 <header>
-  <h1>🌱 Controle da Horta</h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.0.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -191,21 +237,58 @@
     <div class="info"><strong>⚠️ Faça seu backup</strong><small id="bannerBackupTexto"></small></div>
   </div>
 
-  <div class="grid-cards">
-    <div class="card alerta"><span class="label">Fiado em aberto</span><span class="valor" id="dashFiado">R$ 0,00</span></div>
-    <div class="card"><span class="label">Valor em estoque</span><span class="valor" id="dashEstoque">R$ 0,00</span></div>
-    <div class="card alerta"><span class="label">Produtos em falta</span><span class="valor" id="dashFalta">0</span></div>
-    <div class="card"><span class="label">Vendas hoje</span><span class="valor" id="dashVendasHoje">R$ 0,00</span></div>
-    <div class="card"><span class="label">Lucro do mês (vendas − insumos)</span><span class="valor" id="dashLucroMes">R$ 0,00</span></div>
-    <div class="card alerta"><span class="label">Prontos para colher</span><span class="valor" id="dashProntosColher">0</span></div>
-    <div class="card alerta"><span class="label">Tarefas atrasadas</span><span class="valor" id="dashTarefasAtrasadas">0</span></div>
+  <!-- ---- MENU DE ÍCONES (tela inicial) ---- -->
+  <div id="painelInicioMenu">
+    <div class="tela-inicio-bg">
+      <div class="menu-inicio-grid">
+        <button class="icone-item" data-ir="inicio">
+          <span class="icone-app cor-inicio">🏠</span><span class="icone-legenda">Início</span>
+        </button>
+        <button class="icone-item" data-ir="vendas">
+          <span class="icone-app cor-vendas">🛒</span><span class="icone-legenda">Vendas</span>
+        </button>
+        <button class="icone-item" data-ir="estoque">
+          <span class="icone-app cor-estoque">🌿</span><span class="icone-legenda">Estoque</span>
+        </button>
+        <button class="icone-item" data-ir="plantio">
+          <span class="icone-app cor-plantio">📅</span><span class="icone-legenda">Plantio</span>
+        </button>
+        <button class="icone-item" data-ir="tarefas">
+          <span class="icone-app cor-tarefas">📋</span><span class="icone-legenda">Tarefas</span>
+        </button>
+        <button class="icone-item" data-ir="insumos">
+          <span class="icone-app cor-insumos">💰</span><span class="icone-legenda">Insumos</span>
+        </button>
+        <button class="icone-item" data-ir="clientes">
+          <span class="icone-app cor-clientes">👤</span><span class="icone-legenda">Clientes</span>
+        </button>
+        <button class="icone-item" data-ir="financas">
+          <span class="icone-app cor-financas">💳</span><span class="icone-legenda">Finanças</span>
+        </button>
+      </div>
+    </div>
   </div>
 
-  <h2 class="titulo">Quem está devendo</h2>
-  <div class="lista" id="listaDevedores"></div>
+  <!-- ---- PAINEL COM OS NÚMEROS (abre ao tocar no ícone Início) ---- -->
+  <div id="painelInicioDashboard" style="display:none">
+    <button type="button" class="fantasma" id="btnVoltarMenuInicio" style="width:auto;margin-bottom:14px">← Voltar ao menu</button>
 
-  <h2 class="titulo">Tarefas pendentes</h2>
-  <div class="lista" id="listaTarefasDashboard"></div>
+    <div class="grid-cards">
+      <div class="card alerta"><span class="label">Fiado em aberto</span><span class="valor" id="dashFiado">R$ 0,00</span></div>
+      <div class="card"><span class="label">Valor em estoque</span><span class="valor" id="dashEstoque">R$ 0,00</span></div>
+      <div class="card alerta"><span class="label">Produtos em falta</span><span class="valor" id="dashFalta">0</span></div>
+      <div class="card"><span class="label">Vendas hoje</span><span class="valor" id="dashVendasHoje">R$ 0,00</span></div>
+      <div class="card"><span class="label">Lucro do mês (vendas − insumos)</span><span class="valor" id="dashLucroMes">R$ 0,00</span></div>
+      <div class="card alerta"><span class="label">Prontos para colher</span><span class="valor" id="dashProntosColher">0</span></div>
+      <div class="card alerta"><span class="label">Tarefas atrasadas</span><span class="valor" id="dashTarefasAtrasadas">0</span></div>
+    </div>
+
+    <h2 class="titulo">Quem está devendo</h2>
+    <div class="lista" id="listaDevedores"></div>
+
+    <h2 class="titulo">Tarefas pendentes</h2>
+    <div class="lista" id="listaTarefasDashboard"></div>
+  </div>
 </main>
 
 <!-- ===================== ESTOQUE ===================== -->
@@ -375,7 +458,16 @@
       <button class="primario" id="btnGuardarCofrinho" style="width:auto;flex:1">+ Guardar</button>
       <button class="fantasma" id="btnRetirarCofrinho" style="width:auto;flex:1">− Retirar</button>
     </div>
-    <div class="lista" id="listaCofrinho"></div>
+    <div class="lista" id="listaCofrinho" style="margin-bottom:20px"></div>
+
+    <h2 class="titulo">Meus gastos</h2>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-6px">Gastos pessoais do dia a dia, por categoria (comida, transporte, etc.). Separado dos gastos da horta.</p>
+    <div class="grid-cards">
+      <div class="card alerta"><span class="label">Gasto pessoal este mês</span><span class="valor" id="gastoPessoalMesTotal">R$ 0,00</span></div>
+    </div>
+    <div class="lista" id="resumoCategoriasGasto" style="margin-bottom:12px"></div>
+    <button class="primario" id="btnNovoGastoPessoal" style="width:100%;margin-bottom:12px">+ Novo gasto</button>
+    <div class="lista" id="listaGastosPessoais"></div>
   </div>
 
   <!-- ---- PAINEL: DÍVIDAS (quem devo / quem me deve) ---- -->
@@ -718,6 +810,33 @@
   </div>
 </div>
 
+<!-- ===================== MODAL: GASTO PESSOAL ===================== -->
+<div id="modalGastoPessoal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalGastoPessoal">Novo gasto</h3>
+    <input type="hidden" id="gastoPessoalId">
+    <label>Descrição
+      <input type="text" id="gastoPessoalNome" placeholder="Ex: Mercado, gasolina, remédio...">
+    </label>
+    <div class="linha">
+      <label>Categoria
+        <select id="gastoPessoalCategoria"></select>
+      </label>
+      <label>Valor (R$)
+        <input type="number" step="0.01" min="0.01" id="gastoPessoalValor">
+      </label>
+    </div>
+    <label>Data
+      <input type="date" id="gastoPessoalData">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarGastoPessoal">Cancelar</button>
+      <button class="perigo hidden" id="btnExcluirGastoPessoal">Excluir</button>
+      <button class="primario" id="btnSalvarGastoPessoal">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MODAL: FINANCEIRO (cadastro/edição) ===================== -->
 <div id="modalFinanceiro" class="modal-overlay hidden">
   <div class="modal-box">
@@ -857,7 +976,9 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov' };
+const APP_VERSION = '2.0.0';
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais' };
+const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
 function carregarConfigPessoal() { return JSON.parse(localStorage.getItem(CHAVE_CONFIG_PESSOAL) || '{"salario":0,"diaRecebimento":5,"percentualReserva":10,"metaValor":0,"metaDescricao":""}'); }
 function salvarConfigPessoal(obj) { localStorage.setItem(CHAVE_CONFIG_PESSOAL, JSON.stringify(obj)); }
@@ -896,7 +1017,7 @@ function irParaAba(nome) {
   document.querySelectorAll('main').forEach((m) => m.classList.remove('active'));
   document.getElementById('tab-' + nome).classList.add('active');
   document.querySelectorAll('.bottom-nav button').forEach((b) => b.classList.toggle('active', b.dataset.tab === nome));
-  if (nome === 'inicio') renderDashboard();
+  if (nome === 'inicio') mostrarMenuInicio();
   if (nome === 'estoque') renderProdutos();
   if (nome === 'clientes') renderClientes();
   if (nome === 'vendas') { preencherSelects(); renderVendasRecentes(); }
@@ -909,6 +1030,25 @@ function irParaAba(nome) {
   }
 }
 document.querySelectorAll('.bottom-nav button').forEach((b) => b.addEventListener('click', () => irParaAba(b.dataset.tab)));
+
+// -------------------- MENU DE ÍCONES DA TELA INICIAL --------------------
+function mostrarMenuInicio() {
+  document.getElementById('painelInicioMenu').style.display = '';
+  document.getElementById('painelInicioDashboard').style.display = 'none';
+}
+function mostrarDashboardInicio() {
+  document.getElementById('painelInicioMenu').style.display = 'none';
+  document.getElementById('painelInicioDashboard').style.display = '';
+  renderDashboard();
+}
+document.querySelectorAll('#painelInicioMenu .icone-item').forEach((b) => {
+  b.addEventListener('click', () => {
+    const alvo = b.dataset.ir;
+    if (alvo === 'inicio') mostrarDashboardInicio();
+    else irParaAba(alvo);
+  });
+});
+document.getElementById('btnVoltarMenuInicio').addEventListener('click', mostrarMenuInicio);
 
 // -------------------- SALDO DEVEDOR DE CADA CLIENTE --------------------
 function saldoDevedor(clienteId) {
@@ -2402,7 +2542,8 @@ function renderFinancasRenda() {
   const contasFixas = carregar(CHAVES.contasFixas);
   const totalContasFixas = contasFixas.reduce((s, c) => s + c.valor, 0);
   const cofrinho = saldoCofrinho();
-  const sobra = rendaMes - totalContasFixas;
+  const gastosPessoaisMes = carregar(CHAVES.gastosPessoais).filter((g) => (g.data || '').slice(0, 7) === mesAtual).reduce((s, g) => s + g.valor, 0);
+  const sobra = rendaMes - totalContasFixas - gastosPessoaisMes;
 
   document.getElementById('rendaDashRenda').textContent = formatarMoeda(rendaMes);
   document.getElementById('rendaDashContas').textContent = formatarMoeda(totalContasFixas);
@@ -2451,6 +2592,34 @@ function renderFinancasRenda() {
     listaCofrinho.innerHTML = movs.map((m) => `<div class="item">
       <div class="info"><strong>${m.tipo === 'deposito' ? 'Guardado' : 'Retirado'}</strong><small>${new Date(m.data).toLocaleDateString('pt-BR')}${m.obs ? ' · ' + escapeHTML(m.obs) : ''}</small></div>
       <div class="valor-direita" style="${m.tipo === 'deposito' ? 'color:var(--verde-escuro)' : 'color:var(--vermelho)'}">${m.tipo === 'deposito' ? '+' : '−'} ${formatarMoeda(m.valor)}</div>
+    </div>`).join('');
+  }
+
+  // Gastos pessoais
+  document.getElementById('gastoPessoalMesTotal').textContent = formatarMoeda(gastosPessoaisMes);
+
+  const gastosMes = carregar(CHAVES.gastosPessoais).filter((g) => (g.data || '').slice(0, 7) === mesAtual);
+  const porCategoria = {};
+  gastosMes.forEach((g) => { porCategoria[g.categoria] = (porCategoria[g.categoria] || 0) + g.valor; });
+  const resumoCat = document.getElementById('resumoCategoriasGasto');
+  const categorias = Object.keys(porCategoria).sort((a, b) => porCategoria[b] - porCategoria[a]);
+  if (categorias.length === 0) {
+    resumoCat.innerHTML = '';
+  } else {
+    resumoCat.innerHTML = categorias.map((cat) => `<div class="item">
+      <div class="info"><strong>${escapeHTML(cat)}</strong></div>
+      <div class="valor-direita">${formatarMoeda(porCategoria[cat])}</div>
+    </div>`).join('');
+  }
+
+  const todosGastos = [...carregar(CHAVES.gastosPessoais)].sort((a, b) => (b.data || '').localeCompare(a.data || '')).slice(0, 20);
+  const listaGastos = document.getElementById('listaGastosPessoais');
+  if (todosGastos.length === 0) {
+    listaGastos.innerHTML = '<p class="vazio">Nenhum gasto registrado ainda.</p>';
+  } else {
+    listaGastos.innerHTML = todosGastos.map((g) => `<div class="item" onclick="abrirModalGastoPessoal('${g.id}')">
+      <div class="info"><strong>${escapeHTML(g.nome)}</strong><small>${escapeHTML(g.categoria)} · ${g.data ? new Date(g.data + 'T00:00:00').toLocaleDateString('pt-BR') : ''}</small></div>
+      <div class="valor-direita">${formatarMoeda(g.valor)}</div>
     </div>`).join('');
   }
 }
@@ -2567,6 +2736,66 @@ document.getElementById('btnSalvarCofrinhoMov').addEventListener('click', () => 
   document.getElementById('modalCofrinhoMov').classList.add('hidden');
   renderFinancasRenda();
   mostrarToast(tipo === 'deposito' ? 'Guardado no cofrinho.' : 'Retirado do cofrinho.');
+});
+
+// --- Gastos pessoais (por categoria) ---
+function preencherCategoriasGastoPessoal() {
+  const select = document.getElementById('gastoPessoalCategoria');
+  select.innerHTML = CATEGORIAS_GASTO_PESSOAL.map((c) => `<option value="${c}">${c}</option>`).join('');
+}
+preencherCategoriasGastoPessoal();
+
+function abrirModalGastoPessoal(id) {
+  document.getElementById('gastoPessoalId').value = id || '';
+  document.getElementById('btnExcluirGastoPessoal').classList.toggle('hidden', !id);
+  if (id) {
+    const g = carregar(CHAVES.gastosPessoais).find((x) => x.id === id);
+    document.getElementById('tituloModalGastoPessoal').textContent = 'Editar gasto';
+    document.getElementById('gastoPessoalNome').value = g.nome;
+    document.getElementById('gastoPessoalCategoria').value = g.categoria;
+    document.getElementById('gastoPessoalValor').value = g.valor;
+    document.getElementById('gastoPessoalData').value = g.data;
+  } else {
+    document.getElementById('tituloModalGastoPessoal').textContent = 'Novo gasto';
+    document.getElementById('gastoPessoalNome').value = '';
+    document.getElementById('gastoPessoalCategoria').value = CATEGORIAS_GASTO_PESSOAL[0];
+    document.getElementById('gastoPessoalValor').value = '';
+    document.getElementById('gastoPessoalData').value = new Date().toISOString().slice(0, 10);
+  }
+  document.getElementById('modalGastoPessoal').classList.remove('hidden');
+}
+document.getElementById('btnNovoGastoPessoal').addEventListener('click', () => abrirModalGastoPessoal());
+document.getElementById('btnCancelarGastoPessoal').addEventListener('click', () => document.getElementById('modalGastoPessoal').classList.add('hidden'));
+
+document.getElementById('btnSalvarGastoPessoal').addEventListener('click', () => {
+  const nome = document.getElementById('gastoPessoalNome').value.trim();
+  const valor = parseFloat(document.getElementById('gastoPessoalValor').value);
+  if (!nome) { mostrarToast('Informe a descrição.'); return; }
+  if (!valor || valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
+  const idExistente = document.getElementById('gastoPessoalId').value;
+  const gastos = carregar(CHAVES.gastosPessoais);
+  const gasto = {
+    id: idExistente || gerarId(),
+    nome,
+    categoria: document.getElementById('gastoPessoalCategoria').value,
+    valor,
+    data: document.getElementById('gastoPessoalData').value || new Date().toISOString().slice(0, 10)
+  };
+  const idx = gastos.findIndex((g) => g.id === gasto.id);
+  if (idx >= 0) gastos[idx] = gasto; else gastos.push(gasto);
+  salvar(CHAVES.gastosPessoais, gastos);
+  document.getElementById('modalGastoPessoal').classList.add('hidden');
+  renderFinancasRenda();
+  mostrarToast('Gasto salvo.');
+});
+
+document.getElementById('btnExcluirGastoPessoal').addEventListener('click', () => {
+  const id = document.getElementById('gastoPessoalId').value;
+  if (!confirm('Excluir este gasto?')) return;
+  salvar(CHAVES.gastosPessoais, carregar(CHAVES.gastosPessoais).filter((g) => g.id !== id));
+  document.getElementById('modalGastoPessoal').classList.add('hidden');
+  renderFinancasRenda();
+  mostrarToast('Gasto excluído.');
 });
 
 // ============================================================
