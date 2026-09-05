@@ -1164,7 +1164,11 @@ function abrirModalCliente(id) {
 }
 document.getElementById('btnNovoCliente').addEventListener('click', () => abrirModalCliente(null));
 document.getElementById('btnCancelarCliente').addEventListener('click', () => document.getElementById('modalCliente').classList.add('hidden'));
-document.getElementById('btnEditarClienteDetalhe').addEventListener('click', () => abrirModalCliente(document.getElementById('modalDetalheCliente').dataset.clienteId));
+document.getElementById('btnEditarClienteDetalhe').addEventListener('click', () => {
+  const id = document.getElementById('modalDetalheCliente').dataset.clienteId;
+  document.getElementById('modalDetalheCliente').classList.add('hidden');
+  abrirModalCliente(id);
+});
 
 document.getElementById('btnSalvarCliente').addEventListener('click', () => {
   const nome = document.getElementById('clienteNome').value.trim();
@@ -2340,7 +2344,11 @@ function abrirDetalheFinanceiro(id) {
 }
 
 document.getElementById('btnFecharDetalheFinanceiro').addEventListener('click', () => document.getElementById('modalDetalheFinanceiro').classList.add('hidden'));
-document.getElementById('btnEditarFinanceiroDetalhe').addEventListener('click', () => abrirModalFinanceiro(document.getElementById('modalDetalheFinanceiro').dataset.financeiroId));
+document.getElementById('btnEditarFinanceiroDetalhe').addEventListener('click', () => {
+  const id = document.getElementById('modalDetalheFinanceiro').dataset.financeiroId;
+  document.getElementById('modalDetalheFinanceiro').classList.add('hidden');
+  abrirModalFinanceiro(id);
+});
 
 document.getElementById('btnRegistrarPagamentoFinanceiro').addEventListener('click', () => {
   const registroId = document.getElementById('modalDetalheFinanceiro').dataset.financeiroId;
