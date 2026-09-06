@@ -63,19 +63,50 @@
     background: var(--bg); font-size: 1rem; font-weight: 700; color: var(--texto); cursor: pointer;
   }
   .qtd-controle span { font-weight: 700; min-width: 20px; text-align: center; }
+  .produto .acoes-produto { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .produto .acoes-produto button {
+    border: none; border-radius: 10px; padding: 9px; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  }
+  .produto .btn-add-carrinho { background: var(--bg); color: var(--verde-escuro); border: 1px solid var(--verde) !important; }
+  .produto .btn-comprar-agora { background: var(--verde); color: #fff; }
   .carrinho-barra {
     position: sticky; bottom: 0; left: 0; right: 0;
     background: var(--card); border-top: 1px solid var(--borda);
     padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.08);
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.08); cursor: pointer;
   }
   .carrinho-barra .total { font-weight: 700; font-size: 1.05rem; }
-  .carrinho-barra button {
-    background: #25d366; color: #fff; border: none; padding: 12px 16px; border-radius: 12px;
-    font-weight: 600; cursor: pointer; white-space: nowrap; font-size: 0.88rem;
+  .carrinho-barra .ver-carrinho { color: var(--verde-escuro); font-weight: 700; font-size: 0.9rem; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 50;
   }
-  .carrinho-barra button.btn-pagar { background: var(--verde); }
-  .carrinho-barra button:disabled { opacity: 0.6; }
+  .modal-overlay.hidden { display: none; }
+  .modal-box {
+    background: var(--card); border-radius: 18px 18px 0 0; padding: 18px 16px 22px;
+    width: 100%; max-width: 640px; max-height: 80vh; overflow-y: auto;
+  }
+  .modal-box h3 { margin: 0 0 12px; }
+  .item-carrinho {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--borda);
+  }
+  .item-carrinho .info strong { display: block; font-size: 0.9rem; }
+  .item-carrinho .info small { color: var(--texto-suave); }
+  .item-carrinho .remover {
+    background: none; border: none; color: #b91c1c; font-size: 1.1rem; cursor: pointer; padding: 4px 8px;
+  }
+  .carrinho-total-modal {
+    display: flex; justify-content: space-between; font-weight: 700; font-size: 1.05rem;
+    margin: 14px 0;
+  }
+  .carrinho-acoes { display: flex; gap: 8px; }
+  .carrinho-acoes button {
+    flex: 1; border: none; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; font-size: 0.85rem;
+  }
+  .carrinho-acoes .btn-pagar { background: var(--verde); color: #fff; }
+  .carrinho-acoes .btn-whats { background: #25d366; color: #fff; }
+  .carrinho-acoes button:disabled { opacity: 0.6; }
   .status-pagamento {
     max-width: 640px; margin: 12px auto 0; padding: 12px 16px; border-radius: 12px;
     font-size: 0.9rem; font-weight: 600; text-align: center;
@@ -102,9 +133,22 @@
 
 <div id="carrinhoBarra" class="carrinho-barra" style="display:none">
   <span class="total" id="carrinhoTotal">R$ 0,00</span>
-  <div style="display:flex;gap:8px">
-    <button id="btnPagarOnline" class="btn-pagar">💳 Pagar com PIX/Cartão</button>
-    <button id="btnFinalizarPedido">📲 WhatsApp</button>
+  <span class="ver-carrinho">🛒 Ver carrinho →</span>
+</div>
+
+<div id="modalCarrinho" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalCarrinho">Seu carrinho</h3>
+    <div id="listaCarrinhoModal"></div>
+    <div class="carrinho-total-modal">
+      <span>Total</span>
+      <span id="totalCarrinhoModal">R$ 0,00</span>
+    </div>
+    <div class="carrinho-acoes">
+      <button id="btnPagarOnline" class="btn-pagar">💳 PIX/Cartão</button>
+      <button id="btnFinalizarPedido" class="btn-whats">📲 WhatsApp</button>
+    </div>
+    <button id="btnFecharCarrinho" style="width:100%;margin-top:10px;background:none;border:none;color:var(--texto-suave);padding:10px;font-size:0.85rem;cursor:pointer">Continuar comprando</button>
   </div>
 </div>
 
@@ -133,7 +177,13 @@ const conteudo = document.getElementById('conteudo');
 
 let itensCatalogo = [];
 let telefoneVendedor = '';
-const carrinho = {}; // { indice: quantidade }
+const carrinho = {}; // { indice: quantidade } — itens já adicionados ao carrinho
+const selecionado = {}; // { indice: quantidade } — quantidade escolhida no seletor, antes de adicionar
+
+// itensCheckout é o que o modal do carrinho realmente processa.
+// Pode ser o carrinho persistente ("Ver carrinho") ou uma compra avulsa ("Comprar agora").
+let itensCheckout = {};
+let checkoutEhCarrinho = true;
 
 function atualizarCarrinhoBarra() {
   const barra = document.getElementById('carrinhoBarra');
@@ -143,24 +193,74 @@ function atualizarCarrinhoBarra() {
   document.getElementById('carrinhoTotal').textContent = formatarMoeda(total);
 }
 
-function mudarQtd(idx, delta) {
-  const atual = carrinho[idx] || 0;
+function mudarQtdSelecionada(idx, delta) {
   const max = itensCatalogo[idx] ? (itensCatalogo[idx].estoqueAtual || 0) : 0;
-  const novo = Math.min(max, Math.max(0, atual + delta));
-  carrinho[idx] = novo;
+  const atual = selecionado[idx] || 1;
+  const novo = Math.min(max, Math.max(1, atual + delta));
+  selecionado[idx] = novo;
   document.getElementById('qtd-' + idx).textContent = novo;
+}
+
+function adicionarAoCarrinho(idx) {
+  const p = itensCatalogo[idx];
+  const qtd = selecionado[idx] || 1;
+  const max = p.estoqueAtual || 0;
+  const jaNoCarrinho = carrinho[idx] || 0;
+  const novaQtd = Math.min(max, jaNoCarrinho + qtd);
+  if (novaQtd <= jaNoCarrinho) return;
+  carrinho[idx] = novaQtd;
   atualizarCarrinhoBarra();
 }
 
+function renderModalCarrinho() {
+  const container = document.getElementById('listaCarrinhoModal');
+  const entradas = Object.entries(itensCheckout).filter(([, qtd]) => qtd > 0);
+  if (entradas.length === 0) {
+    container.innerHTML = '<p class="vazio" style="padding:20px 0">Seu carrinho está vazio.</p>';
+  } else {
+    container.innerHTML = entradas.map(([idx, qtd]) => {
+      const p = itensCatalogo[idx];
+      return `
+        <div class="item-carrinho">
+          <div class="info"><strong>${escapeHTML(p.nome)}</strong><small>${qtd}x ${formatarMoeda(p.preco)}</small></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <strong>${formatarMoeda(p.preco * qtd)}</strong>
+            <button class="remover" data-remover-idx="${idx}">✕</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    container.querySelectorAll('[data-remover-idx]').forEach((btn) => btn.addEventListener('click', () => {
+      const idx = btn.dataset.removerIdx;
+      delete itensCheckout[idx];
+      if (checkoutEhCarrinho) { delete carrinho[idx]; atualizarCarrinhoBarra(); }
+      renderModalCarrinho();
+    }));
+  }
+  const total = Object.entries(itensCheckout).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? itensCatalogo[idx].preco * qtd : 0), 0);
+  document.getElementById('totalCarrinhoModal').textContent = formatarMoeda(total);
+}
+
+function abrirModalCarrinho(itens, ehCarrinho) {
+  itensCheckout = { ...itens };
+  checkoutEhCarrinho = ehCarrinho;
+  document.getElementById('tituloModalCarrinho').textContent = ehCarrinho ? 'Seu carrinho' : 'Confirmar compra';
+  renderModalCarrinho();
+  document.getElementById('modalCarrinho').classList.remove('hidden');
+}
+
+document.getElementById('carrinhoBarra').addEventListener('click', () => abrirModalCarrinho(carrinho, true));
+document.getElementById('btnFecharCarrinho').addEventListener('click', () => document.getElementById('modalCarrinho').classList.add('hidden'));
+
 document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
-  const linhas = Object.entries(carrinho)
+  const linhas = Object.entries(itensCheckout)
     .filter(([, qtd]) => qtd > 0)
     .map(([idx, qtd]) => {
       const p = itensCatalogo[idx];
       return `${qtd}x ${p.nome} — ${formatarMoeda(p.preco * qtd)}`;
     });
   if (linhas.length === 0) return;
-  const total = Object.entries(carrinho).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? itensCatalogo[idx].preco * qtd : 0), 0);
+  const total = Object.entries(itensCheckout).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? itensCatalogo[idx].preco * qtd : 0), 0);
   const mensagem = `Olá! Quero fazer um pedido:\n\n${linhas.join('\n')}\n\nTotal: ${formatarMoeda(total)}`;
   const numero = telefoneVendedor ? (telefoneVendedor.length <= 11 ? '55' + telefoneVendedor : telefoneVendedor) : '';
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
@@ -169,7 +269,7 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
 const CRIAR_PAGAMENTO_URL = 'https://us-central1-horta-app-6a4ca.cloudfunctions.net/criarPagamento';
 
 document.getElementById('btnPagarOnline').addEventListener('click', async () => {
-  const itensPedido = Object.entries(carrinho)
+  const itensPedido = Object.entries(itensCheckout)
     .filter(([, qtd]) => qtd > 0)
     .map(([idx, qtd]) => ({ produtoId: itensCatalogo[idx].id, quantidade: qtd }));
   if (itensPedido.length === 0) return;
@@ -187,14 +287,14 @@ document.getElementById('btnPagarOnline').addEventListener('click', async () => 
     if (!resp.ok || !dados.init_point) {
       alert(dados.erro || 'Não foi possível gerar o pagamento. Tente novamente.');
       btn.disabled = false;
-      btn.textContent = '💳 Pagar com PIX/Cartão';
+      btn.textContent = '💳 PIX/Cartão';
       return;
     }
     location.href = dados.init_point;
   } catch (err) {
     alert('Erro de conexão ao gerar o pagamento.');
     btn.disabled = false;
-    btn.textContent = '💳 Pagar com PIX/Cartão';
+    btn.textContent = '💳 PIX/Cartão';
   }
 });
 
@@ -238,6 +338,7 @@ if (!uid) {
     grid.className = 'grid';
     grid.innerHTML = itensCatalogo.map((p, idx) => {
       const semEstoque = !(p.estoqueAtual > 0);
+      if (!semEstoque) selecionado[idx] = 1;
       return `
       <div class="produto">
         ${p.foto ? `<div class="foto-wrap"><img src="${p.foto}" alt="${escapeHTML(p.nome)}"></div>` : `<div class="sem-foto">🌿</div>`}
@@ -246,9 +347,13 @@ if (!uid) {
           <span class="preco">${formatarMoeda(p.preco)}</span>
           ${semEstoque ? `<span class="sem-estoque-tag">Sem estoque no momento</span>` : (telefoneVendedor ? `
             <div class="qtd-controle">
-              <button onclick="mudarQtd(${idx}, -1)">−</button>
-              <span id="qtd-${idx}">0</span>
-              <button onclick="mudarQtd(${idx}, 1)">+</button>
+              <button data-menos-idx="${idx}">−</button>
+              <span id="qtd-${idx}">1</span>
+              <button data-mais-idx="${idx}">+</button>
+            </div>
+            <div class="acoes-produto">
+              <button class="btn-add-carrinho" data-add-idx="${idx}">🛒 Adicionar ao carrinho</button>
+              <button class="btn-comprar-agora" data-comprar-idx="${idx}">⚡ Comprar agora</button>
             </div>
           ` : '')}
         </div>
@@ -258,6 +363,15 @@ if (!uid) {
     conteudo.className = '';
     conteudo.innerHTML = '';
     conteudo.appendChild(grid);
+
+    grid.querySelectorAll('[data-menos-idx]').forEach((btn) => btn.addEventListener('click', () => mudarQtdSelecionada(btn.dataset.menosIdx, -1)));
+    grid.querySelectorAll('[data-mais-idx]').forEach((btn) => btn.addEventListener('click', () => mudarQtdSelecionada(btn.dataset.maisIdx, 1)));
+    grid.querySelectorAll('[data-add-idx]').forEach((btn) => btn.addEventListener('click', () => adicionarAoCarrinho(btn.dataset.addIdx)));
+    grid.querySelectorAll('[data-comprar-idx]').forEach((btn) => btn.addEventListener('click', () => {
+      const idx = btn.dataset.comprarIdx;
+      const qtd = selecionado[idx] || 1;
+      abrirModalCarrinho({ [idx]: qtd }, false);
+    }));
 
     if (!telefoneVendedor) {
       document.getElementById('carrinhoBarra').style.display = 'none';
