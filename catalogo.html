@@ -144,6 +144,9 @@
       <span>Total</span>
       <span id="totalCarrinhoModal">R$ 0,00</span>
     </div>
+    <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:6px">📍 Endereço de entrega (opcional)</label>
+    <textarea id="enderecoEntregaInput" placeholder="Rua, número, bairro, ponto de referência..." style="width:100%;min-height:56px;padding:10px;border-radius:10px;border:1px solid var(--borda);font-family:inherit;font-size:0.85rem;margin-bottom:8px;resize:vertical"></textarea>
+    <button id="btnUsarLocalizacao" style="width:100%;background:var(--bg);border:1px solid var(--borda);color:var(--texto);padding:10px;border-radius:10px;font-weight:600;font-size:0.82rem;cursor:pointer;margin-bottom:14px">📍 Usar minha localização atual</button>
     <div class="carrinho-acoes">
       <button id="btnPagarOnline" class="btn-pagar">💳 PIX/Cartão</button>
       <button id="btnFinalizarPedido" class="btn-whats">📲 WhatsApp</button>
@@ -252,6 +255,30 @@ function abrirModalCarrinho(itens, ehCarrinho) {
 document.getElementById('carrinhoBarra').addEventListener('click', () => abrirModalCarrinho(carrinho, true));
 document.getElementById('btnFecharCarrinho').addEventListener('click', () => document.getElementById('modalCarrinho').classList.add('hidden'));
 
+document.getElementById('btnUsarLocalizacao').addEventListener('click', () => {
+  if (!navigator.geolocation) {
+    alert('Seu navegador não suporta localização automática. Digite o endereço no campo acima.');
+    return;
+  }
+  const btn = document.getElementById('btnUsarLocalizacao');
+  btn.disabled = true;
+  btn.textContent = 'Obtendo localização...';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const link = `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`;
+      const campo = document.getElementById('enderecoEntregaInput');
+      campo.value = (campo.value.trim() ? campo.value.trim() + '\n' : '') + `📍 Localização: ${link}`;
+      btn.disabled = false;
+      btn.textContent = '📍 Usar minha localização atual';
+    },
+    () => {
+      alert('Não foi possível obter sua localização. Verifique se o GPS/localização está ativado, ou digite o endereço manualmente.');
+      btn.disabled = false;
+      btn.textContent = '📍 Usar minha localização atual';
+    }
+  );
+});
+
 document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
   const linhas = Object.entries(itensCheckout)
     .filter(([, qtd]) => qtd > 0)
@@ -261,7 +288,9 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
     });
   if (linhas.length === 0) return;
   const total = Object.entries(itensCheckout).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? itensCatalogo[idx].preco * qtd : 0), 0);
-  const mensagem = `Olá! Quero fazer um pedido:\n\n${linhas.join('\n')}\n\nTotal: ${formatarMoeda(total)}`;
+  const endereco = document.getElementById('enderecoEntregaInput').value.trim();
+  let mensagem = `Olá! Quero fazer um pedido:\n\n${linhas.join('\n')}\n\nTotal: ${formatarMoeda(total)}`;
+  if (endereco) mensagem += `\n\nEndereço de entrega:\n${endereco}`;
   const numero = telefoneVendedor ? (telefoneVendedor.length <= 11 ? '55' + telefoneVendedor : telefoneVendedor) : '';
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
