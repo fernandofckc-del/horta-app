@@ -229,7 +229,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.2.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.4.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -435,14 +435,27 @@
   <!-- ---- PAINEL: MINHA RENDA (salário, contas fixas, cofrinho, meta) ---- -->
   <div id="painelFinancasRenda">
     <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:0">
-      Visão geral do seu dinheiro: salário, lucro da horta, contas fixas e quanto você está guardando.
+      Visão geral do seu dinheiro: salário, lucro da horta, contas fixas, dívidas e quanto você está guardando.
     </p>
+
+    <div class="card" style="margin-bottom:14px;text-align:center">
+      <span class="label">Situação total (já contando dívidas e a receber)</span>
+      <span class="valor" id="rendaDashSituacao" style="font-size:1.6rem">R$ 0,00</span>
+    </div>
+
+    <h2 class="titulo">Projeção mês a mês</h2>
+    <p style="font-size:0.76rem;color:var(--texto-suave);margin-top:-6px">
+      Se salário, contas e gastos continuarem parecidos, é assim que sua situação tende a evoluir (sem contar juros de dívida).
+    </p>
+    <canvas id="graficoProjecaoFinanceira" style="width:100%;height:190px;display:block;background:var(--card);border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.04);margin-bottom:18px"></canvas>
 
     <div class="grid-cards">
       <div class="card"><span class="label">Renda do mês (salário + lucro)</span><span class="valor" id="rendaDashRenda">R$ 0,00</span></div>
       <div class="card alerta"><span class="label">Contas fixas do mês</span><span class="valor" id="rendaDashContas">R$ 0,00</span></div>
       <div class="card"><span class="label">Guardado no cofrinho</span><span class="valor" id="rendaDashCofrinho">R$ 0,00</span></div>
-      <div class="card"><span class="label">Sobra disponível</span><span class="valor" id="rendaDashSobra">R$ 0,00</span></div>
+      <div class="card"><span class="label">Sobra disponível (sem dívidas)</span><span class="valor" id="rendaDashSobra">R$ 0,00</span></div>
+      <div class="card alerta"><span class="label">Eu devo (dívidas)</span><span class="valor" id="rendaDashDevo">R$ 0,00</span></div>
+      <div class="card"><span class="label">Tenho a receber</span><span class="valor" id="rendaDashReceber">R$ 0,00</span></div>
     </div>
 
     <div style="display:flex;justify-content:flex-end;margin:-8px 0 16px">
@@ -989,7 +1002,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.2.0';
+const APP_VERSION = '2.4.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -2549,6 +2562,13 @@ function saldoCofrinho() {
   return carregar(CHAVES.cofrinhoMov).reduce((s, m) => s + (m.tipo === 'deposito' ? m.valor : -m.valor), 0);
 }
 
+function totaisDividasPessoais() {
+  const registros = carregar(CHAVES.financeiros).map((r) => ({ ...r, saldo: saldoFinanceiro(r.id) }));
+  const totalDevo = registros.filter((r) => r.tipo === 'devo' && r.saldo > 0.009).reduce((s, r) => s + r.saldo, 0);
+  const totalReceber = registros.filter((r) => r.tipo === 'receber' && r.saldo > 0.009).reduce((s, r) => s + r.saldo, 0);
+  return { totalDevo, totalReceber };
+}
+
 function renderFinancasRenda() {
   const cfg = carregarConfigPessoal();
   const mesAtual = new Date().toISOString().slice(0, 7);
@@ -2559,12 +2579,19 @@ function renderFinancasRenda() {
   const totalContasFixas = contasFixas.reduce((s, c) => s + c.valor, 0);
   const cofrinho = saldoCofrinho();
   const gastosPessoaisMes = carregar(CHAVES.gastosPessoais).filter((g) => (g.data || '').slice(0, 7) === mesAtual).reduce((s, g) => s + g.valor, 0);
+  const { totalDevo, totalReceber } = totaisDividasPessoais();
   const sobra = rendaMes - totalContasFixas - gastosPessoaisMes;
+  const situacaoTotal = sobra - totalDevo + totalReceber;
 
   document.getElementById('rendaDashRenda').textContent = formatarMoeda(rendaMes);
   document.getElementById('rendaDashContas').textContent = formatarMoeda(totalContasFixas);
   document.getElementById('rendaDashCofrinho').textContent = formatarMoeda(cofrinho);
   document.getElementById('rendaDashSobra').textContent = formatarMoeda(sobra);
+  document.getElementById('rendaDashDevo').textContent = formatarMoeda(totalDevo);
+  document.getElementById('rendaDashReceber').textContent = formatarMoeda(totalReceber);
+  const elSituacao = document.getElementById('rendaDashSituacao');
+  elSituacao.textContent = formatarMoeda(situacaoTotal);
+  elSituacao.style.color = situacaoTotal < 0 ? 'var(--vermelho)' : 'var(--verde-escuro)';
 
   // Meta de economia
   if (cfg.metaValor && cfg.metaValor > 0) {
@@ -2638,6 +2665,20 @@ function renderFinancasRenda() {
       <div class="valor-direita">${formatarMoeda(g.valor)}</div>
     </div>`).join('');
   }
+
+  // Projeção mês a mês: parte da situação total de hoje e soma o fluxo mensal recorrente
+  const netMensal = rendaMes - totalContasFixas - gastosPessoaisMes;
+  const projecao = [situacaoTotal];
+  for (let i = 1; i <= 6; i++) projecao.push(projecao[i - 1] + netMensal);
+
+  const cursorMes = new Date();
+  const rotulosProjecao = ['Hoje'];
+  for (let i = 1; i <= 6; i++) {
+    const d = new Date(cursorMes.getFullYear(), cursorMes.getMonth() + i, 1);
+    rotulosProjecao.push(d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
+  }
+
+  desenharGraficoBarras(document.getElementById('graficoProjecaoFinanceira'), projecao, rotulosProjecao);
 }
 
 function toggleContaFixaPaga(contaId) {
