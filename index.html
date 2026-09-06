@@ -229,7 +229,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.4.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.4.1</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -240,7 +240,7 @@
 <!-- ===================== INÍCIO ===================== -->
 <main id="tab-inicio" class="active">
   <div class="item hidden" id="bannerBackup" style="background:#fef3c7;margin-bottom:14px;cursor:pointer">
-    <div class="info"><strong>⚠️ Faça seu backup</strong><small id="bannerBackupTexto"></small></div>
+    <div class="info"><strong style="color:#78350f">⚠️ Faça seu backup</strong><small id="bannerBackupTexto" style="color:#92400e"></small></div>
   </div>
 
   <!-- ---- MENU DE ÍCONES (tela inicial) ---- -->
@@ -1002,7 +1002,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.4.1';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -2274,6 +2274,10 @@ function renderGraficoLucroMensal() {
   desenharGraficoBarras(document.getElementById('graficoLucroMensal'), valores, rotulos);
 }
 
+function corTema(variavelCss) {
+  return getComputedStyle(document.documentElement).getPropertyValue(variavelCss).trim() || '#6b7c73';
+}
+
 function desenharGraficoBarras(canvas, valores, rotulos) {
   const dpr = window.devicePixelRatio || 1;
   const larguraCSS = canvas.clientWidth || 320;
@@ -2292,8 +2296,11 @@ function desenharGraficoBarras(canvas, valores, rotulos) {
   const larguraBarra = (areaLargura / valores.length) * 0.55;
   const passoX = areaLargura / valores.length;
 
-  ctx.strokeStyle = '#c8cdd4';
+  ctx.strokeStyle = corTema('--borda');
   ctx.beginPath(); ctx.moveTo(margemE, zeroY); ctx.lineTo(margemE + areaLargura, zeroY); ctx.stroke();
+
+  const corLabel = corTema('--texto-suave');
+  const corValor = corTema('--texto');
 
   valores.forEach((v, i) => {
     const x = margemE + i * passoX + (passoX - larguraBarra) / 2;
@@ -2302,11 +2309,56 @@ function desenharGraficoBarras(canvas, valores, rotulos) {
     ctx.fillStyle = v >= 0 ? '#16a34a' : '#dc2626';
     ctx.fillRect(x, y, larguraBarra, alturaBarra || 1);
 
-    ctx.fillStyle = '#6b7c73';
+    ctx.fillStyle = corLabel;
     ctx.font = '9px -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(rotulos[i], x + larguraBarra / 2, alturaCSS - 20);
-    ctx.fillStyle = '#14251b';
+    ctx.fillStyle = corValor;
+    ctx.font = '9px -apple-system, sans-serif';
+    const yTexto = v >= 0 ? y - 4 : y + alturaBarra + 11;
+    ctx.fillText(formatarMoeda(v).replace('R$', 'R$').replace(/\s/, ' '), x + larguraBarra / 2, yTexto);
+  });
+}
+
+// Igual ao gráfico de barras, mas colore pela VARIAÇÃO em relação ao mês anterior
+// (subiu = verde, caiu = vermelho) em vez de pelo sinal do valor total.
+function desenharGraficoBarrasVariacao(canvas, valores, rotulos) {
+  const dpr = window.devicePixelRatio || 1;
+  const larguraCSS = canvas.clientWidth || 320;
+  const alturaCSS = canvas.clientHeight || 190;
+  canvas.width = larguraCSS * dpr;
+  canvas.height = alturaCSS * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, larguraCSS, alturaCSS);
+
+  const margemE = 8, margemD = 8, margemTopo = 14, margemBaixo = 34;
+  const areaLargura = larguraCSS - margemE - margemD;
+  const areaAltura = alturaCSS - margemTopo - margemBaixo;
+  const maxAbs = Math.max(1, ...valores.map((v) => Math.abs(v)));
+  const zeroY = margemTopo + areaAltura / 2;
+  const larguraBarra = (areaLargura / valores.length) * 0.55;
+  const passoX = areaLargura / valores.length;
+
+  ctx.strokeStyle = corTema('--borda');
+  ctx.beginPath(); ctx.moveTo(margemE, zeroY); ctx.lineTo(margemE + areaLargura, zeroY); ctx.stroke();
+
+  const corLabel = corTema('--texto-suave');
+  const corValor = corTema('--texto');
+
+  valores.forEach((v, i) => {
+    const x = margemE + i * passoX + (passoX - larguraBarra) / 2;
+    const alturaBarra = (Math.abs(v) / maxAbs) * (areaAltura / 2);
+    const y = v >= 0 ? zeroY - alturaBarra : zeroY;
+    const melhorou = i === 0 ? v >= 0 : v >= valores[i - 1];
+    ctx.fillStyle = melhorou ? '#16a34a' : '#dc2626';
+    ctx.fillRect(x, y, larguraBarra, alturaBarra || 1);
+
+    ctx.fillStyle = corLabel;
+    ctx.font = '9px -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(rotulos[i], x + larguraBarra / 2, alturaCSS - 20);
+    ctx.fillStyle = corValor;
     ctx.font = '9px -apple-system, sans-serif';
     const yTexto = v >= 0 ? y - 4 : y + alturaBarra + 11;
     ctx.fillText(formatarMoeda(v).replace('R$', 'R$').replace(/\s/, ' '), x + larguraBarra / 2, yTexto);
@@ -2324,7 +2376,7 @@ function desenharGraficoLinha(canvas, series, buckets) {
   ctx.clearRect(0, 0, larguraCSS, alturaCSS);
 
   if (series.length === 0 || buckets.length === 0) {
-    ctx.fillStyle = '#6b7c73';
+    ctx.fillStyle = corTema('--texto-suave');
     ctx.font = '12px -apple-system, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('Sem vendas suficientes para mostrar o gráfico', larguraCSS / 2, alturaCSS / 2);
@@ -2356,7 +2408,7 @@ function desenharGraficoLinha(canvas, series, buckets) {
     });
   });
 
-  ctx.fillStyle = '#6b7c73';
+  ctx.fillStyle = corTema('--texto-suave');
   ctx.font = '10px -apple-system, sans-serif';
   ctx.textAlign = 'center';
   const passoRotulo = Math.max(1, Math.ceil(buckets.length / 6));
@@ -2678,7 +2730,7 @@ function renderFinancasRenda() {
     rotulosProjecao.push(d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
   }
 
-  desenharGraficoBarras(document.getElementById('graficoProjecaoFinanceira'), projecao, rotulosProjecao);
+  desenharGraficoBarrasVariacao(document.getElementById('graficoProjecaoFinanceira'), projecao, rotulosProjecao);
 }
 
 function toggleContaFixaPaga(contaId) {
