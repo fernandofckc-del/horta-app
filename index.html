@@ -229,7 +229,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.4.1</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.5.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -314,6 +314,10 @@
 <!-- ===================== CLIENTES ===================== -->
 <main id="tab-clientes">
   <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
+
+  <h2 class="titulo" style="margin-top:0">🏆 Ranking de clientes</h2>
+  <div class="lista" id="listaRankingClientes" style="margin-bottom:18px"></div>
+
   <div class="toolbar">
     <input type="search" id="buscaCliente" placeholder="Pesquisar cliente...">
     <button class="primario" style="width:auto" id="btnNovoCliente">+ Novo</button>
@@ -441,6 +445,14 @@
     <div class="card" style="margin-bottom:14px;text-align:center">
       <span class="label">Situação total (já contando dívidas e a receber)</span>
       <span class="valor" id="rendaDashSituacao" style="font-size:1.6rem">R$ 0,00</span>
+    </div>
+
+    <div class="card alerta" id="cardMetaVendas" style="margin-bottom:14px;text-align:center;display:none">
+      <span class="label">Preciso vender esse mês pra fechar no zero (contas + gastos + dívidas)</span>
+      <span class="valor" id="rendaDashMetaVendas" style="font-size:1.4rem">R$ 0,00</span>
+    </div>
+    <div class="card" id="cardSemMetaVendas" style="margin-bottom:14px;text-align:center;display:none">
+      <span class="label">🎉 Você já está coberto este mês, considerando tudo</span>
     </div>
 
     <h2 class="titulo">Projeção mês a mês</h2>
@@ -1002,7 +1014,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.4.1';
+const APP_VERSION = '2.5.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -1046,7 +1058,7 @@ function irParaAba(nome) {
   document.body.classList.toggle('tela-inicio-ativa', nome === 'inicio');
   if (nome === 'inicio') mostrarMenuInicio();
   if (nome === 'estoque') renderProdutos();
-  if (nome === 'clientes') renderClientes();
+  if (nome === 'clientes') { renderClientes(); renderRankingClientes(); }
   if (nome === 'vendas') { preencherSelects(); renderVendasRecentes(); }
   if (nome === 'insumos') { renderInsumos(); renderGraficoLucroMensal(); }
   if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); renderPrevisaoColheita(); }
@@ -1132,10 +1144,17 @@ function renderDashboard() {
     lista.innerHTML = devedores.map((c) => `
       <div class="item devendo" data-id="${c.id}">
         <div class="info"><strong>${escapeHTML(c.nome)}</strong></div>
-        <span class="valor-direita">${formatarMoeda(c.saldo)}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="valor-direita">${formatarMoeda(c.saldo)}</span>
+          ${c.telefone ? `<button type="button" class="fantasma" style="width:auto;padding:6px 10px;font-size:0.78rem" data-cobrar-id="${c.id}">📲</button>` : ''}
+        </div>
       </div>
     `).join('');
     lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirDetalheCliente(el.dataset.id)));
+    lista.querySelectorAll('[data-cobrar-id]').forEach((btn) => btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      cobrarClienteWhatsapp(btn.dataset.cobrarId);
+    }));
   }
 
   const listaTarefasDash = document.getElementById('listaTarefasDashboard');
@@ -1291,6 +1310,53 @@ document.getElementById('btnExcluirProduto').addEventListener('click', () => {
 // ============================================================
 // CLIENTES
 // ============================================================
+function renderRankingClientes() {
+  const clientes = carregar(CHAVES.clientes);
+  const vendas = carregar(CHAVES.vendas);
+
+  const dados = clientes.map((c) => {
+    const vendasCliente = vendas.filter((v) => v.clienteId === c.id);
+    const totalComprado = vendasCliente.reduce((s, v) => s + v.total, 0);
+    const totalFiadoGerado = vendasCliente.filter((v) => v.formaPagamento === 'Fiado').reduce((s, v) => s + v.total, 0);
+    return { nome: c.nome, totalComprado, totalFiadoGerado };
+  }).filter((c) => c.totalComprado > 0);
+
+  const container = document.getElementById('listaRankingClientes');
+  if (dados.length === 0) {
+    container.innerHTML = '<p class="vazio">Ainda sem vendas suficientes para montar o ranking.</p>';
+    return;
+  }
+
+  const top = [...dados].sort((a, b) => b.totalComprado - a.totalComprado).slice(0, 5);
+  const medalhas = ['🥇', '🥈', '🥉', '4º', '5º'];
+  container.innerHTML = top.map((c, i) => `
+    <div class="item">
+      <div class="info"><strong>${medalhas[i]} ${escapeHTML(c.nome)}</strong>${c.totalFiadoGerado > 0.009 ? `<small style="color:var(--vermelho)">Fiado gerado: ${formatarMoeda(c.totalFiadoGerado)}</small>` : ''}</div>
+      <span class="valor-direita">${formatarMoeda(c.totalComprado)}</span>
+    </div>
+  `).join('');
+}
+
+function cobrarClienteWhatsapp(clienteId) {
+  const cliente = carregar(CHAVES.clientes).find((c) => c.id === clienteId);
+  if (!cliente || !cliente.telefone) { mostrarToast('Cadastre o telefone do cliente para cobrar pelo WhatsApp.'); return; }
+  const saldo = saldoDevedor(clienteId);
+  if (saldo <= 0.009) return;
+
+  const vendasFiadoAbertas = carregar(CHAVES.vendas)
+    .filter((v) => v.clienteId === clienteId && v.formaPagamento === 'Fiado')
+    .sort((a, b) => new Date(a.data) - new Date(b.data));
+  let diasTexto = '';
+  if (vendasFiadoAbertas.length > 0) {
+    const dias = Math.floor((Date.now() - new Date(vendasFiadoAbertas[0].data)) / 86400000);
+    if (dias > 0) diasTexto = ` (em aberto há ${dias} dia${dias > 1 ? 's' : ''})`;
+  }
+
+  const mensagem = `Olá ${cliente.nome}! Tudo bem? Passando pra lembrar do fiado da horta, que está em ${formatarMoeda(saldo)}${diasTexto}. Qualquer dia que puder acertar, me avisa. Obrigado! 🌱`;
+  const telefone = cliente.telefone.length <= 11 ? '55' + cliente.telefone : cliente.telefone;
+  window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
+}
+
 function renderClientes() {
   const termo = document.getElementById('buscaCliente').value.trim().toLowerCase();
   const clientes = carregar(CHAVES.clientes).filter((c) => !termo || c.nome.toLowerCase().includes(termo));
@@ -1305,11 +1371,18 @@ function renderClientes() {
     return `
       <div class="item ${saldo > 0.009 ? 'devendo' : ''}" data-id="${c.id}">
         <div class="info"><strong>${escapeHTML(c.nome)}</strong><small>${c.telefone || 'sem telefone'}</small></div>
-        <span class="valor-direita">${saldo > 0.009 ? formatarMoeda(saldo) : ''}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="valor-direita">${saldo > 0.009 ? formatarMoeda(saldo) : ''}</span>
+          ${saldo > 0.009 && c.telefone ? `<button type="button" class="fantasma" style="width:auto;padding:6px 10px;font-size:0.78rem" data-cobrar-id="${c.id}">📲</button>` : ''}
+        </div>
       </div>
     `;
   }).join('');
   lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirDetalheCliente(el.dataset.id)));
+  lista.querySelectorAll('[data-cobrar-id]').forEach((btn) => btn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    cobrarClienteWhatsapp(btn.dataset.cobrarId);
+  }));
 }
 document.getElementById('buscaCliente').addEventListener('input', renderClientes);
 
@@ -1444,11 +1517,7 @@ document.getElementById('btnRegistrarPagamento').addEventListener('click', () =>
 
 document.getElementById('btnCobrarWhatsapp').addEventListener('click', () => {
   const clienteId = document.getElementById('modalDetalheCliente').dataset.clienteId;
-  const cliente = carregar(CHAVES.clientes).find((c) => c.id === clienteId);
-  const saldo = saldoDevedor(clienteId);
-  const mensagem = `Olá ${cliente.nome}! Tudo bem? Passando pra lembrar do fiado da horta, que está em ${formatarMoeda(saldo)}. Qualquer dia que puder acertar, me avisa. Obrigado! 🌱`;
-  const telefone = cliente.telefone.length <= 11 ? '55' + cliente.telefone : cliente.telefone;
-  window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
+  cobrarClienteWhatsapp(clienteId);
 });
 
 document.getElementById('btnEnviarExtrato').addEventListener('click', () => {
@@ -2644,6 +2713,11 @@ function renderFinancasRenda() {
   const elSituacao = document.getElementById('rendaDashSituacao');
   elSituacao.textContent = formatarMoeda(situacaoTotal);
   elSituacao.style.color = situacaoTotal < 0 ? 'var(--vermelho)' : 'var(--verde-escuro)';
+
+  const metaVendas = Math.max(0, -situacaoTotal);
+  document.getElementById('cardMetaVendas').style.display = metaVendas > 0.009 ? '' : 'none';
+  document.getElementById('cardSemMetaVendas').style.display = metaVendas > 0.009 ? 'none' : '';
+  if (metaVendas > 0.009) document.getElementById('rendaDashMetaVendas').textContent = formatarMoeda(metaVendas);
 
   // Meta de economia
   if (cfg.metaValor && cfg.metaValor > 0) {
