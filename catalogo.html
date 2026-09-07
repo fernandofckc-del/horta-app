@@ -115,6 +115,17 @@
   .status-pagamento.pendente { background: #fef9c3; color: #854d0e; }
   .status-pagamento.falha { background: #fee2e2; color: #991b1b; }
   .status-pagamento.hidden { display: none; }
+  .faixa-entrega {
+    max-width: 640px; margin: 0 auto; padding: 14px 16px; background: var(--card);
+    border-left: 4px solid var(--verde); border-radius: 0 0 12px 12px; margin-bottom: 4px;
+  }
+  .faixa-entrega.hidden { display: none; }
+  .faixa-entrega.liberado { border-left-color: #16a34a; }
+  .faixa-entrega .titulo-entrega { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+  .faixa-entrega .trilho-entrega { height: 8px; border-radius: 4px; background: rgba(124,58,237,0.15); overflow: hidden; margin-bottom: 6px; }
+  .faixa-entrega .barra-entrega { height: 100%; background: var(--verde); border-radius: 4px; transition: width .3s; }
+  .faixa-entrega.liberado .barra-entrega { background: #16a34a; }
+  .faixa-entrega .detalhe-entrega { font-size: 0.78rem; color: var(--texto-suave); }
   footer { text-align: center; font-size: 0.72rem; color: var(--texto-suave); padding: 20px; }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -126,6 +137,12 @@
   <h1>🌱 Catálogo da Horta</h1>
   <p>Confira os produtos disponíveis</p>
 </header>
+
+<div id="faixaEntrega" class="faixa-entrega hidden">
+  <div class="titulo-entrega" id="tituloFaixaEntrega"></div>
+  <div class="trilho-entrega"><div class="barra-entrega" id="barraFaixaEntrega" style="width:0%"></div></div>
+  <div class="detalhe-entrega" id="detalheFaixaEntrega"></div>
+</div>
 
 <main>
   <div id="conteudo" class="vazio">Carregando catálogo...</div>
@@ -180,8 +197,38 @@ const conteudo = document.getElementById('conteudo');
 
 let itensCatalogo = [];
 let telefoneVendedor = '';
+let entregaConfig = { ativo: false, minimoItensCliente: 0, minimoPedidos: 0, recado: '' };
+let entregaContador = 0;
 function precoFinal(p) {
   return (p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco) ? p.precoPromocional : p.preco;
+}
+
+function renderFaixaEntrega() {
+  const faixa = document.getElementById('faixaEntrega');
+  if (!entregaConfig.ativo || (!entregaConfig.minimoPedidos && !entregaConfig.minimoItensCliente && !entregaConfig.recado)) {
+    faixa.classList.add('hidden');
+    return;
+  }
+  faixa.classList.remove('hidden');
+  const liberado = !entregaConfig.minimoPedidos || entregaContador >= entregaConfig.minimoPedidos;
+  faixa.classList.toggle('liberado', liberado);
+
+  if (entregaConfig.minimoPedidos > 0) {
+    document.getElementById('tituloFaixaEntrega').textContent = liberado
+      ? '✅ Entrega confirmada para esta rodada'
+      : `🚚 Faltam ${entregaConfig.minimoPedidos - entregaContador} pedido${(entregaConfig.minimoPedidos - entregaContador) > 1 ? 's' : ''} para a entrega sair`;
+    const pct = Math.min(100, Math.round((entregaContador / entregaConfig.minimoPedidos) * 100));
+    document.getElementById('barraFaixaEntrega').style.width = pct + '%';
+    document.getElementById('barraFaixaEntrega').parentElement.style.display = '';
+  } else {
+    document.getElementById('tituloFaixaEntrega').textContent = '🚚 Informação de entrega';
+    document.getElementById('barraFaixaEntrega').parentElement.style.display = 'none';
+  }
+
+  const partes = [];
+  if (entregaConfig.minimoItensCliente > 1) partes.push(`Pedido mínimo: ${entregaConfig.minimoItensCliente} itens`);
+  if (entregaConfig.recado) partes.push(entregaConfig.recado);
+  document.getElementById('detalheFaixaEntrega').textContent = partes.join(' · ');
 }
 const carrinho = {}; // { indice: quantidade } — itens já adicionados ao carrinho
 const selecionado = {}; // { indice: quantidade } — quantidade escolhida no seletor, antes de adicionar
@@ -282,7 +329,41 @@ document.getElementById('btnUsarLocalizacao').addEventListener('click', () => {
   );
 });
 
+function totalItensCheckout() {
+  return Object.values(itensCheckout).reduce((s, q) => s + q, 0);
+}
+
+function verificarMinimoItens() {
+  if (entregaConfig.ativo && entregaConfig.minimoItensCliente > 0) {
+    const total = totalItensCheckout();
+    if (total < entregaConfig.minimoItensCliente) {
+      alert(`Pedido mínimo de ${entregaConfig.minimoItensCliente} itens. Você tem ${total} no carrinho — adicione mais ${entregaConfig.minimoItensCliente - total}.`);
+      return false;
+    }
+  }
+  return true;
+}
+
+async function registrarPedidoEIncrementar(itensPedido, total, endereco, origem) {
+  try {
+    await db.collection('pedidos').add({
+      uid,
+      itens: itensPedido,
+      total,
+      endereco: endereco || '',
+      origem,
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('contadores').doc(uid).set({
+      pedidosRodada: firebase.firestore.FieldValue.increment(1)
+    }, { merge: true });
+  } catch (err) {
+    // Não bloqueia o pedido do cliente se o registro falhar — só não conta pra rodada.
+  }
+}
+
 document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
+  if (!verificarMinimoItens()) return;
   const linhas = Object.entries(itensCheckout)
     .filter(([, qtd]) => qtd > 0)
     .map(([idx, qtd]) => {
@@ -290,17 +371,22 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
       return `${qtd}x ${p.nome} — ${formatarMoeda(precoFinal(p) * qtd)}`;
     });
   if (linhas.length === 0) return;
+  const itensPedido = Object.entries(itensCheckout).filter(([, qtd]) => qtd > 0).map(([idx, qtd]) => ({
+    produtoId: itensCatalogo[idx].id, nome: itensCatalogo[idx].nome, quantidade: qtd, precoUnitario: precoFinal(itensCatalogo[idx])
+  }));
   const total = Object.entries(itensCheckout).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? precoFinal(itensCatalogo[idx]) * qtd : 0), 0);
   const endereco = document.getElementById('enderecoEntregaInput').value.trim();
   let mensagem = `Olá! Quero fazer um pedido:\n\n${linhas.join('\n')}\n\nTotal: ${formatarMoeda(total)}`;
   if (endereco) mensagem += `\n\nEndereço de entrega:\n${endereco}`;
   const numero = telefoneVendedor ? (telefoneVendedor.length <= 11 ? '55' + telefoneVendedor : telefoneVendedor) : '';
+  registrarPedidoEIncrementar(itensPedido, total, endereco, 'whatsapp');
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
 
 const CRIAR_PAGAMENTO_URL = 'https://us-central1-horta-app-6a4ca.cloudfunctions.net/criarPagamento';
 
 document.getElementById('btnPagarOnline').addEventListener('click', async () => {
+  if (!verificarMinimoItens()) return;
   const itensPedido = Object.entries(itensCheckout)
     .filter(([, qtd]) => qtd > 0)
     .map(([idx, qtd]) => ({ produtoId: itensCatalogo[idx].id, quantidade: qtd }));
@@ -358,6 +444,15 @@ if (!uid) {
     const dados = doc.data();
     itensCatalogo = dados.itens;
     telefoneVendedor = dados.telefone || '';
+    entregaConfig = dados.entrega || entregaConfig;
+
+    if (entregaConfig.ativo) {
+      db.collection('contadores').doc(uid).onSnapshot((snap) => {
+        entregaContador = (snap.exists && snap.data().pedidosRodada) || 0;
+        renderFaixaEntrega();
+      });
+    }
+    renderFaixaEntrega();
 
     if (dados.banner) {
       const img = document.createElement('img');

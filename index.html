@@ -247,7 +247,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.8.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.9.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -324,7 +324,8 @@
   </div>
   <button class="fantasma" id="btnCompartilharCatalogo" style="width:100%;margin-bottom:8px">🔗 Compartilhar catálogo com clientes</button>
   <button class="fantasma" id="btnBannerCatalogo" style="width:100%;margin-bottom:8px">🖼️ Adicionar/trocar banner do catálogo</button>
-  <button class="fantasma" id="btnRemoverBannerCatalogo" style="width:100%;margin-bottom:12px">🗑️ Remover banner do catálogo</button>
+  <button class="fantasma" id="btnRemoverBannerCatalogo" style="width:100%;margin-bottom:8px">🗑️ Remover banner do catálogo</button>
+  <button class="fantasma" id="btnEntregaMinima" style="width:100%;margin-bottom:12px">🚚 Entrega mínima</button>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
@@ -734,6 +735,41 @@
 </div>
 
 <!-- ===================== MODAL: PRODUTO ===================== -->
+<!-- ===================== MODAL: ENTREGA MÍNIMA ===================== -->
+<div id="modalEntregaMinima" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>🚚 Entrega mínima</h3>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-8px">
+      Duas regras, as duas opcionais: quantos itens cada cliente precisa pedir, e quantos pedidos precisam se acumular pra você sair pra entregar.
+    </p>
+
+    <div class="card" style="text-align:center;margin-bottom:14px">
+      <span class="label">Pedidos nesta rodada</span>
+      <span class="valor" id="entregaContadorAtual" style="font-size:1.8rem">0</span>
+    </div>
+    <button class="fantasma" id="btnZerarContagemEntrega" style="width:100%;margin-bottom:16px">🔄 Zerar contagem (entrega saiu)</button>
+
+    <label style="display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:10px">
+      <input type="checkbox" id="entregaAtiva" style="width:18px;height:18px">
+      Regra ativa (bloqueia pedido no catálogo abaixo do mínimo)
+    </label>
+    <label>Mínimo de itens no carrinho por cliente
+      <input type="number" min="1" step="1" id="entregaMinimoItens" placeholder="Ex: 3 (deixe vazio pra não exigir)">
+    </label>
+    <label>Mínimo de pedidos acumulados pra a entrega sair
+      <input type="number" min="1" step="1" id="entregaMinimoPedidos" placeholder="Ex: 5 (deixe vazio pra não exigir)">
+    </label>
+    <label>Recado no catálogo (opcional)
+      <input type="text" maxlength="80" id="entregaRecado" placeholder="Ex: Entregas às terças e sextas">
+    </label>
+
+    <div class="acoes">
+      <button class="fantasma" id="btnFecharEntregaMinima">Fechar</button>
+      <button class="primario" id="btnSalvarEntregaMinima">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div id="modalProduto" class="modal-overlay hidden">
   <div class="modal-box">
     <h3 id="tituloModalProduto">Novo produto</h3>
@@ -1065,7 +1101,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.8.0';
+const APP_VERSION = '2.9.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -3661,6 +3697,69 @@ document.getElementById('btnBannerCatalogo').addEventListener('click', () => {
     return;
   }
   document.getElementById('arquivoBannerCatalogo').click();
+});
+
+// ============================================================
+// ENTREGA MÍNIMA (config em catalogos/{uid}.entrega, contador em contadores/{uid})
+// ============================================================
+let pararOuvirContadorEntrega = null;
+
+document.getElementById('btnEntregaMinima').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  const uid = nuvemAuth.currentUser.uid;
+
+  try {
+    const doc = await nuvemDb.collection('catalogos').doc(uid).get();
+    const entrega = (doc.exists && doc.data().entrega) || {};
+    document.getElementById('entregaAtiva').checked = !!entrega.ativo;
+    document.getElementById('entregaMinimoItens').value = entrega.minimoItensCliente || '';
+    document.getElementById('entregaMinimoPedidos').value = entrega.minimoPedidos || '';
+    document.getElementById('entregaRecado').value = entrega.recado || '';
+  } catch (err) {
+    mostrarToast('Erro ao carregar configuração: ' + (err.code || err.message));
+  }
+
+  if (pararOuvirContadorEntrega) pararOuvirContadorEntrega();
+  pararOuvirContadorEntrega = nuvemDb.collection('contadores').doc(uid).onSnapshot((snap) => {
+    document.getElementById('entregaContadorAtual').textContent = (snap.exists && snap.data().pedidosRodada) || 0;
+  });
+
+  document.getElementById('modalEntregaMinima').classList.remove('hidden');
+});
+
+document.getElementById('btnFecharEntregaMinima').addEventListener('click', () => {
+  if (pararOuvirContadorEntrega) { pararOuvirContadorEntrega(); pararOuvirContadorEntrega = null; }
+  document.getElementById('modalEntregaMinima').classList.add('hidden');
+});
+
+document.getElementById('btnSalvarEntregaMinima').addEventListener('click', async () => {
+  const uid = nuvemAuth.currentUser.uid;
+  const entrega = {
+    ativo: document.getElementById('entregaAtiva').checked,
+    minimoItensCliente: parseInt(document.getElementById('entregaMinimoItens').value, 10) || 0,
+    minimoPedidos: parseInt(document.getElementById('entregaMinimoPedidos').value, 10) || 0,
+    recado: document.getElementById('entregaRecado').value.trim()
+  };
+  try {
+    await nuvemDb.collection('catalogos').doc(uid).set({ entrega }, { merge: true });
+    mostrarToast('Configuração salva. O catálogo já atualiza sozinho.');
+  } catch (err) {
+    mostrarToast('Erro ao salvar: ' + (err.code || err.message));
+  }
+});
+
+document.getElementById('btnZerarContagemEntrega').addEventListener('click', async () => {
+  if (!confirm('Zerar a contagem de pedidos desta rodada?')) return;
+  const uid = nuvemAuth.currentUser.uid;
+  try {
+    await nuvemDb.collection('contadores').doc(uid).set({ pedidosRodada: 0 }, { merge: true });
+    mostrarToast('Contagem zerada.');
+  } catch (err) {
+    mostrarToast('Erro ao zerar: ' + (err.code || err.message));
+  }
 });
 
 document.getElementById('arquivoBannerCatalogo').addEventListener('change', (e) => {
