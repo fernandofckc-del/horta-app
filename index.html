@@ -247,7 +247,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.7.1</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.8.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -755,6 +755,9 @@
         <input type="number" step="0.01" id="produtoEstoque">
       </label>
     </div>
+    <label>Preço promocional (opcional — aparece no catálogo com o preço normal riscado)
+      <input type="number" step="0.01" min="0" id="produtoPrecoPromocional" placeholder="Deixe em branco pra não ter promoção">
+    </label>
     <label>Estoque mínimo (avisar quando chegar nesse valor)
       <input type="number" step="0.01" id="produtoEstoqueMinimo" value="0">
     </label>
@@ -1062,7 +1065,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.7.1';
+const APP_VERSION = '2.8.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -1263,6 +1266,7 @@ function abrirModalProduto(id) {
     document.getElementById('tituloModalProduto').textContent = 'Editar produto';
     document.getElementById('produtoNome').value = p.nome;
     document.getElementById('produtoPreco').value = p.preco;
+    document.getElementById('produtoPrecoPromocional').value = p.precoPromocional || '';
     document.getElementById('produtoEstoque').value = p.estoqueAtual;
     document.getElementById('produtoEstoqueMinimo').value = p.estoqueMinimo || 0;
     document.getElementById('produtoCultura').value = p.cultura || '';
@@ -1276,6 +1280,7 @@ function abrirModalProduto(id) {
     document.getElementById('tituloModalProduto').textContent = 'Novo produto';
     document.getElementById('produtoNome').value = '';
     document.getElementById('produtoPreco').value = '';
+    document.getElementById('produtoPrecoPromocional').value = '';
     document.getElementById('produtoEstoque').value = 0;
     document.getElementById('produtoEstoqueMinimo').value = 0;
     document.getElementById('produtoCultura').value = '';
@@ -1328,10 +1333,12 @@ document.getElementById('btnSalvarProduto').addEventListener('click', () => {
   const idExistente = document.getElementById('produtoId').value;
   const produtos = carregar(CHAVES.produtos);
 
+  const precoPromocional = parseFloat(document.getElementById('produtoPrecoPromocional').value);
   const produto = {
     id: idExistente || gerarId(),
     nome,
     preco: parseFloat(document.getElementById('produtoPreco').value) || 0,
+    precoPromocional: (precoPromocional > 0 && precoPromocional < (parseFloat(document.getElementById('produtoPreco').value) || 0)) ? precoPromocional : null,
     estoqueAtual: parseFloat(document.getElementById('produtoEstoque').value) || 0,
     estoqueMinimo: parseFloat(document.getElementById('produtoEstoqueMinimo').value) || 0,
     cultura: document.getElementById('produtoCultura').value.trim(),
@@ -3614,7 +3621,7 @@ async function atualizarCatalogoNaNuvem() {
   if (!nuvemAuth || !nuvemAuth.currentUser) return;
   const produtos = carregar(CHAVES.produtos);
   const responsavel = carregarResponsavel();
-  const itensCatalogo = produtos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, foto: p.foto || '', estoqueAtual: p.estoqueAtual || 0 }));
+  const itensCatalogo = produtos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, precoPromocional: p.precoPromocional || null, foto: p.foto || '', estoqueAtual: p.estoqueAtual || 0 }));
   try {
     await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({
       itens: itensCatalogo,
