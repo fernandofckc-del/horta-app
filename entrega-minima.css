@@ -1,0 +1,171 @@
+/* =============================================================
+ * entrega-minima.css  —  Controle da Horta
+ * Herda as variáveis do app quando existirem; se não, usa os
+ * fallbacks abaixo. Funciona em claro e escuro sem ajuste.
+ * ============================================================= */
+
+.em-faixa,
+.em-painel {
+  --em-verde:    var(--cor-primaria, #2f7d4f);
+  --em-liberado: var(--cor-sucesso,  #1f9254);
+  --em-texto:    var(--cor-texto,    #1c2622);
+  --em-suave:    var(--cor-texto-suave, #5d6b64);
+  --em-fundo:    var(--cor-superficie, #ffffff);
+  --em-borda:    var(--cor-borda, rgba(0, 0, 0, .12));
+}
+
+/* ---------------- faixa do catálogo ---------------- */
+
+.em-faixa {
+  background: var(--em-fundo);
+  border: 1px solid var(--em-borda);
+  border-left: 4px solid var(--em-verde);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin: 0 0 18px;
+}
+
+.em-faixa.em-liberado { border-left-color: var(--em-liberado); }
+
+.em-titulo {
+  margin: 0 0 10px;
+  font-size: 1.02rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--em-texto);
+}
+
+.em-detalhe {
+  margin: 8px 0 0;
+  font-size: .85rem;
+  line-height: 1.45;
+  color: var(--em-suave);
+}
+
+/* ---------------- barra de progresso ---------------- */
+
+.em-trilho {
+  height: 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--em-verde) 16%, transparent);
+  overflow: hidden;
+}
+
+.em-barra {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--em-verde);
+  transition: width .45s cubic-bezier(.4, 0, .2, 1);
+}
+
+.em-liberado .em-barra { background: var(--em-liberado); }
+
+@media (prefers-reduced-motion: reduce) {
+  .em-barra { transition: none; }
+}
+
+/* ---------------- painel do admin ---------------- */
+
+.em-painel {
+  background: var(--em-fundo);
+  border: 1px solid var(--em-borda);
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.em-painel-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.em-painel-topo h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--em-texto);
+}
+
+.em-switch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: .88rem;
+  color: var(--em-suave);
+  cursor: pointer;
+}
+
+.em-switch input { width: 18px; height: 18px; accent-color: var(--em-verde); }
+
+.em-agora {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--em-texto);
+}
+
+.em-campos {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+
+@media (min-width: 520px) {
+  .em-campos { grid-template-columns: 1fr 1fr; }
+  .em-campos label:last-child { grid-column: 1 / -1; }
+}
+
+.em-campos label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: .84rem;
+  color: var(--em-suave);
+}
+
+.em-campos input {
+  padding: 11px 12px;
+  font-size: 1rem;
+  font: inherit;
+  color: var(--em-texto);
+  background: transparent;
+  border: 1px solid var(--em-borda);
+  border-radius: 8px;
+}
+
+.em-campos input:focus-visible {
+  outline: 2px solid var(--em-verde);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.em-salvar {
+  width: 100%;
+  padding: 13px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--em-verde);
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.em-salvar:disabled { opacity: .55; cursor: default; }
+
+.em-salvar:focus-visible {
+  outline: 2px solid var(--em-texto);
+  outline-offset: 2px;
+}
+
+.em-aviso {
+  margin: 10px 0 0;
+  min-height: 1.2em;
+  font-size: .85rem;
+  color: var(--em-suave);
+}
