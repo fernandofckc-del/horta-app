@@ -214,14 +214,24 @@
   .resumo-caixa { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; display: flex; justify-content: space-between; margin: 10px 0; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
   .badge.andamento { background: #fef3c7; color: #b45309; }
-  .marcador-bancada {
-    position: absolute; transform: translate(-50%, -50%);
-    width: 34px; height: 34px; border-radius: 50%;
-    background: rgba(124,58,237,0.92); color: #fff; border: 2px solid #fff;
-    font-weight: 700; font-size: 0.95rem; cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  .mapa-horta-area {
+    position: relative; width: 100%; padding-bottom: 75%; border-radius: 14px; margin-bottom: 12px;
+    background-color: var(--bg);
+    background-image: linear-gradient(var(--borda) 1px, transparent 1px), linear-gradient(90deg, var(--borda) 1px, transparent 1px);
+    background-size: 10% 10%;
+    overflow: hidden; touch-action: none;
   }
-  .marcador-bancada.tem-plantio { background: rgba(22,163,74,0.92); }
+  .bancada-retangulo {
+    position: absolute; box-sizing: border-box;
+    background: rgba(124,58,237,0.25); border: 2px solid #7c3aed; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1rem; color: var(--texto); cursor: grab; user-select: none;
+  }
+  .bancada-retangulo.tem-plantio { background: rgba(22,163,74,0.25); border-color: #16a34a; }
+  .bancada-retangulo .alca-resize {
+    position: absolute; right: -6px; bottom: -6px; width: 20px; height: 20px;
+    background: #7c3aed; border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize;
+  }
   .badge.pronto { background: #dcfce7; color: #15803d; }
   .badge.atrasado { background: #fee2e2; color: #b91c1c; }
   .badge.colhido { background: #e5e7eb; color: #4b5563; }
@@ -237,7 +247,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.7.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.7.1</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -643,17 +653,12 @@
 <div id="modalMapaHorta" class="modal-overlay hidden">
   <div class="modal-box">
     <h3>🗺️ Mapa da Horta</h3>
-    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-8px">Toque numa bancada pra ver o que está plantado nela.</p>
-    <div id="mapaHortaImagem" style="position:relative;width:100%;padding-bottom:75%;border-radius:14px;background:var(--bg) center/cover no-repeat;background-image:url('mapa-horta.jpg');margin-bottom:12px;overflow:hidden">
-      <!-- Marcadores das 7 bancadas: posições provisórias em % (ajusto certinho quando você mandar a foto) -->
-      <button type="button" class="marcador-bancada" data-bancada="1" style="left:15%;top:25%">1</button>
-      <button type="button" class="marcador-bancada" data-bancada="2" style="left:38%;top:22%">2</button>
-      <button type="button" class="marcador-bancada" data-bancada="3" style="left:62%;top:25%">3</button>
-      <button type="button" class="marcador-bancada" data-bancada="4" style="left:85%;top:22%">4</button>
-      <button type="button" class="marcador-bancada" data-bancada="5" style="left:25%;top:68%">5</button>
-      <button type="button" class="marcador-bancada" data-bancada="6" style="left:50%;top:72%">6</button>
-      <button type="button" class="marcador-bancada" data-bancada="7" style="left:75%;top:68%">7</button>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-8px" id="mapaHortaInstrucao">Toque numa bancada pra ver o que está plantado nela.</p>
+    <div class="toolbar" style="margin-bottom:10px">
+      <button type="button" class="fantasma" id="btnEditarMapaHorta" style="width:auto;flex:1">✏️ Editar bancadas</button>
+      <button type="button" class="primario hidden" id="btnSalvarMapaHorta" style="width:auto;flex:1">💾 Salvar layout</button>
     </div>
+    <div id="mapaHortaImagem" class="mapa-horta-area"></div>
     <div id="detalheBancada" style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:14px">
       <p class="vazio" style="margin:0">Toque numa bancada acima.</p>
     </div>
@@ -1057,8 +1062,8 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.7.0';
-const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais' };
+const APP_VERSION = '2.7.1';
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
 function carregarConfigPessoal() { return JSON.parse(localStorage.getItem(CHAVE_CONFIG_PESSOAL) || '{"salario":0,"diaRecebimento":5,"percentualReserva":10,"metaValor":0,"metaDescricao":""}'); }
@@ -1910,37 +1915,152 @@ document.querySelectorAll('#plantioFiltros [data-filtro]').forEach((btn) => {
   });
 });
 
-// -------------------- MAPA DA HORTA (bancadas) --------------------
-function abrirMapaHorta() {
-  document.querySelectorAll('.marcador-bancada').forEach((btn) => {
-    const n = btn.dataset.bancada;
-    const temPlantio = carregar(CHAVES.plantios).some((p) => String(p.bancada) === n && !p.colhido);
-    btn.classList.toggle('tem-plantio', temPlantio);
+// -------------------- MAPA DA HORTA (bancadas desenhadas à mão) --------------------
+const LAYOUT_BANCADAS_PADRAO = [
+  { numero: 1, left: 3, top: 5, width: 27, height: 38 },
+  { numero: 2, left: 36, top: 5, width: 27, height: 38 },
+  { numero: 3, left: 69, top: 5, width: 27, height: 38 },
+  { numero: 4, left: 3, top: 48, width: 21, height: 45 },
+  { numero: 5, left: 27, top: 48, width: 21, height: 45 },
+  { numero: 6, left: 51, top: 48, width: 21, height: 45 },
+  { numero: 7, left: 75, top: 48, width: 21, height: 45 }
+];
+
+function carregarLayoutMapa() {
+  const salvo = carregar(CHAVES.mapaBancadas);
+  return salvo.length > 0 ? salvo : LAYOUT_BANCADAS_PADRAO;
+}
+
+let editandoMapa = false;
+
+function renderMapaHorta() {
+  const container = document.getElementById('mapaHortaImagem');
+  const layout = carregarLayoutMapa();
+  const plantios = carregar(CHAVES.plantios);
+
+  container.innerHTML = layout.map((b) => {
+    const temPlantio = plantios.some((p) => String(p.bancada) === String(b.numero) && !p.colhido);
+    return `
+      <div class="bancada-retangulo ${temPlantio ? 'tem-plantio' : ''}" data-bancada="${b.numero}"
+           style="left:${b.left}%;top:${b.top}%;width:${b.width}%;height:${b.height}%">
+        ${b.numero}
+        ${editandoMapa ? '<div class="alca-resize"></div>' : ''}
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.bancada-retangulo').forEach((el) => {
+    if (editandoMapa) {
+      ativarArrastarRedimensionar(el, container);
+    } else {
+      el.addEventListener('click', () => mostrarDetalheBancada(el.dataset.bancada));
+    }
   });
+}
+
+function ativarArrastarRedimensionar(el, container) {
+  const alca = el.querySelector('.alca-resize');
+
+  el.addEventListener('pointerdown', (ev) => {
+    if (ev.target === alca) return;
+    ev.preventDefault();
+    el.setPointerCapture(ev.pointerId);
+    const rectContainer = container.getBoundingClientRect();
+    const inicioX = ev.clientX, inicioY = ev.clientY;
+    const leftInicial = parseFloat(el.style.left), topInicial = parseFloat(el.style.top);
+
+    function mover(e2) {
+      const deltaXPct = ((e2.clientX - inicioX) / rectContainer.width) * 100;
+      const deltaYPct = ((e2.clientY - inicioY) / rectContainer.height) * 100;
+      el.style.left = Math.min(100 - parseFloat(el.style.width), Math.max(0, leftInicial + deltaXPct)) + '%';
+      el.style.top = Math.min(100 - parseFloat(el.style.height), Math.max(0, topInicial + deltaYPct)) + '%';
+    }
+    function soltar() {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+    }
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+  });
+
+  if (alca) {
+    alca.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      alca.setPointerCapture(ev.pointerId);
+      const rectContainer = container.getBoundingClientRect();
+      const inicioX = ev.clientX, inicioY = ev.clientY;
+      const larguraInicial = parseFloat(el.style.width), alturaInicial = parseFloat(el.style.height);
+
+      function mover(e2) {
+        const deltaXPct = ((e2.clientX - inicioX) / rectContainer.width) * 100;
+        const deltaYPct = ((e2.clientY - inicioY) / rectContainer.height) * 100;
+        const leftAtual = parseFloat(el.style.left), topAtual = parseFloat(el.style.top);
+        el.style.width = Math.max(8, Math.min(100 - leftAtual, larguraInicial + deltaXPct)) + '%';
+        el.style.height = Math.max(8, Math.min(100 - topAtual, alturaInicial + deltaYPct)) + '%';
+      }
+      function soltar() {
+        window.removeEventListener('pointermove', mover);
+        window.removeEventListener('pointerup', soltar);
+      }
+      window.addEventListener('pointermove', mover);
+      window.addEventListener('pointerup', soltar);
+    });
+  }
+}
+
+function mostrarDetalheBancada(numero) {
+  const plantiosAtivos = carregar(CHAVES.plantios).filter((p) => String(p.bancada) === String(numero) && !p.colhido);
+  const container = document.getElementById('detalheBancada');
+  if (plantiosAtivos.length === 0) {
+    container.innerHTML = `<p class="vazio" style="margin:0"><strong>Bancada ${numero}:</strong> sem plantio ativo no momento.</p>`;
+    return;
+  }
+  container.innerHTML = `<strong style="display:block;margin-bottom:8px">Bancada ${numero}</strong>` + plantiosAtivos.map((p) => {
+    const diasDesde = Math.floor((Date.now() - new Date(p.dataPlantio)) / 86400000);
+    const diasRestantes = p.diasCiclo - diasDesde;
+    const status = diasRestantes <= 0 ? 'Pronto para colher' : `Faltam ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`;
+    return `<div class="item" style="background:var(--card)">
+      <div class="info"><strong>${escapeHTML(p.cultura)}</strong><small>Plantado em ${new Date(p.dataPlantio + 'T00:00:00').toLocaleDateString('pt-BR')} · ${status}</small></div>
+    </div>`;
+  }).join('');
+}
+
+function abrirMapaHorta() {
+  editandoMapa = false;
+  document.getElementById('btnSalvarMapaHorta').classList.add('hidden');
+  document.getElementById('btnEditarMapaHorta').textContent = '✏️ Editar bancadas';
+  document.getElementById('mapaHortaInstrucao').textContent = 'Toque numa bancada pra ver o que está plantado nela.';
   document.getElementById('detalheBancada').innerHTML = '<p class="vazio" style="margin:0">Toque numa bancada acima.</p>';
+  renderMapaHorta();
   document.getElementById('modalMapaHorta').classList.remove('hidden');
 }
 document.getElementById('btnMapaHorta').addEventListener('click', abrirMapaHorta);
 document.getElementById('btnFecharMapaHorta').addEventListener('click', () => document.getElementById('modalMapaHorta').classList.add('hidden'));
 
-document.querySelectorAll('.marcador-bancada').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const n = btn.dataset.bancada;
-    const plantiosAtivos = carregar(CHAVES.plantios).filter((p) => String(p.bancada) === n && !p.colhido);
-    const container = document.getElementById('detalheBancada');
-    if (plantiosAtivos.length === 0) {
-      container.innerHTML = `<p class="vazio" style="margin:0"><strong>Bancada ${n}:</strong> sem plantio ativo no momento.</p>`;
-      return;
-    }
-    container.innerHTML = `<strong style="display:block;margin-bottom:8px">Bancada ${n}</strong>` + plantiosAtivos.map((p) => {
-      const diasDesde = Math.floor((Date.now() - new Date(p.dataPlantio)) / 86400000);
-      const diasRestantes = p.diasCiclo - diasDesde;
-      const status = diasRestantes <= 0 ? 'Pronto para colher' : `Faltam ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`;
-      return `<div class="item" style="background:var(--card)">
-        <div class="info"><strong>${escapeHTML(p.cultura)}</strong><small>Plantado em ${new Date(p.dataPlantio + 'T00:00:00').toLocaleDateString('pt-BR')} · ${status}</small></div>
-      </div>`;
-    }).join('');
-  });
+document.getElementById('btnEditarMapaHorta').addEventListener('click', () => {
+  editandoMapa = true;
+  document.getElementById('btnEditarMapaHorta').classList.add('hidden');
+  document.getElementById('btnSalvarMapaHorta').classList.remove('hidden');
+  document.getElementById('mapaHortaInstrucao').textContent = 'Arraste pra mover, use a bolinha do canto pra mudar o tamanho.';
+  renderMapaHorta();
+});
+
+document.getElementById('btnSalvarMapaHorta').addEventListener('click', () => {
+  const layout = [...document.querySelectorAll('.bancada-retangulo')].map((el) => ({
+    numero: parseInt(el.dataset.bancada, 10),
+    left: parseFloat(el.style.left),
+    top: parseFloat(el.style.top),
+    width: parseFloat(el.style.width),
+    height: parseFloat(el.style.height)
+  }));
+  salvar(CHAVES.mapaBancadas, layout);
+  editandoMapa = false;
+  document.getElementById('btnEditarMapaHorta').classList.remove('hidden');
+  document.getElementById('btnSalvarMapaHorta').classList.add('hidden');
+  document.getElementById('mapaHortaInstrucao').textContent = 'Toque numa bancada pra ver o que está plantado nela.';
+  renderMapaHorta();
+  mostrarToast('Mapa salvo.');
 });
 
 function renderPlantios() {
