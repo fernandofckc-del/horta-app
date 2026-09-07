@@ -214,6 +214,14 @@
   .resumo-caixa { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; display: flex; justify-content: space-between; margin: 10px 0; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
   .badge.andamento { background: #fef3c7; color: #b45309; }
+  .marcador-bancada {
+    position: absolute; transform: translate(-50%, -50%);
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(124,58,237,0.92); color: #fff; border: 2px solid #fff;
+    font-weight: 700; font-size: 0.95rem; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  }
+  .marcador-bancada.tem-plantio { background: rgba(22,163,74,0.92); }
   .badge.pronto { background: #dcfce7; color: #15803d; }
   .badge.atrasado { background: #fee2e2; color: #b91c1c; }
   .badge.colhido { background: #e5e7eb; color: #4b5563; }
@@ -229,7 +237,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.6.1</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.7.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -388,6 +396,7 @@
 <!-- ===================== PLANTIO ===================== -->
 <main id="tab-plantio">
   <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
+  <button type="button" class="fantasma" id="btnMapaHorta" style="width:100%;margin-bottom:14px">🗺️ Mapa da Horta</button>
   <h2 class="titulo" style="margin-top:0">Desempenho de vendas por cultura</h2>
   <div class="toolbar" id="desempenhoFiltros" style="gap:8px;margin-bottom:8px">
     <button type="button" class="fantasma active" data-periodo="30">30 dias</button>
@@ -630,6 +639,28 @@
   </div>
 </div>
 
+<!-- ===================== MODAL: MAPA DA HORTA ===================== -->
+<div id="modalMapaHorta" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>🗺️ Mapa da Horta</h3>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-8px">Toque numa bancada pra ver o que está plantado nela.</p>
+    <div id="mapaHortaImagem" style="position:relative;width:100%;padding-bottom:75%;border-radius:14px;background:var(--bg) center/cover no-repeat;background-image:url('mapa-horta.jpg');margin-bottom:12px;overflow:hidden">
+      <!-- Marcadores das 7 bancadas: posições provisórias em % (ajusto certinho quando você mandar a foto) -->
+      <button type="button" class="marcador-bancada" data-bancada="1" style="left:15%;top:25%">1</button>
+      <button type="button" class="marcador-bancada" data-bancada="2" style="left:38%;top:22%">2</button>
+      <button type="button" class="marcador-bancada" data-bancada="3" style="left:62%;top:25%">3</button>
+      <button type="button" class="marcador-bancada" data-bancada="4" style="left:85%;top:22%">4</button>
+      <button type="button" class="marcador-bancada" data-bancada="5" style="left:25%;top:68%">5</button>
+      <button type="button" class="marcador-bancada" data-bancada="6" style="left:50%;top:72%">6</button>
+      <button type="button" class="marcador-bancada" data-bancada="7" style="left:75%;top:68%">7</button>
+    </div>
+    <div id="detalheBancada" style="background:var(--bg);border-radius:12px;padding:12px;margin-bottom:14px">
+      <p class="vazio" style="margin:0">Toque numa bancada acima.</p>
+    </div>
+    <button class="fantasma" id="btnFecharMapaHorta" style="width:100%">Fechar</button>
+  </div>
+</div>
+
 <!-- ===================== MODAL: PLANTIO ===================== -->
 <div id="modalPlantio" class="modal-overlay hidden">
   <div class="modal-box">
@@ -648,6 +679,18 @@
     </div>
     <label>Quantidade (nº de mudas/vasos)
       <input type="number" min="0" id="plantioQuantidade">
+    </label>
+    <label>Bancada
+      <select id="plantioBancada">
+        <option value="">Sem bancada definida</option>
+        <option value="1">Bancada 1</option>
+        <option value="2">Bancada 2</option>
+        <option value="3">Bancada 3</option>
+        <option value="4">Bancada 4</option>
+        <option value="5">Bancada 5</option>
+        <option value="6">Bancada 6</option>
+        <option value="7">Bancada 7</option>
+      </select>
     </label>
     <label>Observação
       <input type="text" id="plantioObservacao">
@@ -1014,7 +1057,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.6.1';
+const APP_VERSION = '2.7.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -1867,6 +1910,39 @@ document.querySelectorAll('#plantioFiltros [data-filtro]').forEach((btn) => {
   });
 });
 
+// -------------------- MAPA DA HORTA (bancadas) --------------------
+function abrirMapaHorta() {
+  document.querySelectorAll('.marcador-bancada').forEach((btn) => {
+    const n = btn.dataset.bancada;
+    const temPlantio = carregar(CHAVES.plantios).some((p) => String(p.bancada) === n && !p.colhido);
+    btn.classList.toggle('tem-plantio', temPlantio);
+  });
+  document.getElementById('detalheBancada').innerHTML = '<p class="vazio" style="margin:0">Toque numa bancada acima.</p>';
+  document.getElementById('modalMapaHorta').classList.remove('hidden');
+}
+document.getElementById('btnMapaHorta').addEventListener('click', abrirMapaHorta);
+document.getElementById('btnFecharMapaHorta').addEventListener('click', () => document.getElementById('modalMapaHorta').classList.add('hidden'));
+
+document.querySelectorAll('.marcador-bancada').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const n = btn.dataset.bancada;
+    const plantiosAtivos = carregar(CHAVES.plantios).filter((p) => String(p.bancada) === n && !p.colhido);
+    const container = document.getElementById('detalheBancada');
+    if (plantiosAtivos.length === 0) {
+      container.innerHTML = `<p class="vazio" style="margin:0"><strong>Bancada ${n}:</strong> sem plantio ativo no momento.</p>`;
+      return;
+    }
+    container.innerHTML = `<strong style="display:block;margin-bottom:8px">Bancada ${n}</strong>` + plantiosAtivos.map((p) => {
+      const diasDesde = Math.floor((Date.now() - new Date(p.dataPlantio)) / 86400000);
+      const diasRestantes = p.diasCiclo - diasDesde;
+      const status = diasRestantes <= 0 ? 'Pronto para colher' : `Faltam ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`;
+      return `<div class="item" style="background:var(--card)">
+        <div class="info"><strong>${escapeHTML(p.cultura)}</strong><small>Plantado em ${new Date(p.dataPlantio + 'T00:00:00').toLocaleDateString('pt-BR')} · ${status}</small></div>
+      </div>`;
+    }).join('');
+  });
+});
+
 function renderPlantios() {
   let plantios = carregar(CHAVES.plantios);
   if (plantioFiltroAtivo !== 'todos') plantios = plantios.filter((p) => statusPlantio(p) === plantioFiltroAtivo);
@@ -1911,6 +1987,7 @@ function abrirModalPlantio(id) {
     document.getElementById('plantioDataPlantio').value = p.dataPlantio;
     document.getElementById('plantioDiasCiclo').value = p.diasCiclo;
     document.getElementById('plantioQuantidade').value = p.quantidade || '';
+    document.getElementById('plantioBancada').value = p.bancada || '';
     document.getElementById('plantioObservacao').value = p.observacao || '';
     document.getElementById('plantioTarefaAutoWrap').classList.add('hidden');
     btnExcluir.classList.remove('hidden');
@@ -1920,6 +1997,7 @@ function abrirModalPlantio(id) {
     document.getElementById('plantioDataPlantio').value = new Date().toISOString().slice(0, 10);
     document.getElementById('plantioDiasCiclo').value = '';
     document.getElementById('plantioQuantidade').value = '';
+    document.getElementById('plantioBancada').value = '';
     document.getElementById('plantioObservacao').value = '';
     document.getElementById('plantioTarefaAutoWrap').classList.remove('hidden');
     document.getElementById('plantioCriarTarefa').checked = true;
@@ -1946,6 +2024,7 @@ document.getElementById('btnSalvarPlantio').addEventListener('click', () => {
     dataPlantio,
     diasCiclo,
     quantidade: parseInt(document.getElementById('plantioQuantidade').value, 10) || 0,
+    bancada: document.getElementById('plantioBancada').value || null,
     observacao: document.getElementById('plantioObservacao').value.trim(),
     colhido: existente ? existente.colhido : false
   };
