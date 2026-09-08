@@ -247,7 +247,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.9.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.9.1</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -1101,7 +1101,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.9.0';
+const APP_VERSION = '2.9.1';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -3745,6 +3745,11 @@ document.getElementById('btnSalvarEntregaMinima').addEventListener('click', asyn
   };
   try {
     await nuvemDb.collection('catalogos').doc(uid).set({ entrega }, { merge: true });
+    // Garante que o contador já existe (criado com permissão de dono),
+    // pra que o cliente anônimo no catálogo sempre consiga só incrementá-lo.
+    await nuvemDb.collection('contadores').doc(uid).set({
+      pedidosRodada: firebase.firestore.FieldValue.increment(0)
+    }, { merge: true });
     mostrarToast('Configuração salva. O catálogo já atualiza sozinho.');
   } catch (err) {
     mostrarToast('Erro ao salvar: ' + (err.code || err.message));
