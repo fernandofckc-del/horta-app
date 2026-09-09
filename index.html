@@ -247,7 +247,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v2.9.1</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.0.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -326,6 +326,7 @@
   <button class="fantasma" id="btnBannerCatalogo" style="width:100%;margin-bottom:8px">🖼️ Adicionar/trocar banner do catálogo</button>
   <button class="fantasma" id="btnRemoverBannerCatalogo" style="width:100%;margin-bottom:8px">🗑️ Remover banner do catálogo</button>
   <button class="fantasma" id="btnEntregaMinima" style="width:100%;margin-bottom:12px">🚚 Entrega mínima</button>
+  <button class="fantasma" id="btnClientesCatalogo" style="width:100%;margin-bottom:12px">👥 Clientes do catálogo</button>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
@@ -734,6 +735,23 @@
   </div>
 </div>
 
+<!-- ===================== MODAL: CLIENTES DO CATÁLOGO ===================== -->
+<div id="modalClientesCatalogo" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloModalClientesCatalogo">👥 Clientes do catálogo</h3>
+    <div id="listaClientesCatalogo" class="lista"></div>
+    <button class="fantasma" id="btnFecharClientesCatalogo" style="width:100%;margin-top:12px">Fechar</button>
+  </div>
+</div>
+
+<div id="modalHistoricoCliente" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 id="tituloHistoricoCliente">Histórico</h3>
+    <div id="listaHistoricoCliente" class="lista"></div>
+    <button class="fantasma" id="btnVoltarListaClientes" style="width:100%;margin-top:12px">← Voltar</button>
+  </div>
+</div>
+
 <!-- ===================== MODAL: PRODUTO ===================== -->
 <!-- ===================== MODAL: ENTREGA MÍNIMA ===================== -->
 <div id="modalEntregaMinima" class="modal-overlay hidden">
@@ -1101,7 +1119,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '2.9.1';
+const APP_VERSION = '3.0.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -3765,6 +3783,78 @@ document.getElementById('btnZerarContagemEntrega').addEventListener('click', asy
   } catch (err) {
     mostrarToast('Erro ao zerar: ' + (err.code || err.message));
   }
+});
+
+// ============================================================
+// CLIENTES DO CATÁLOGO (cadastro por WhatsApp + histórico de pedidos)
+// ============================================================
+document.getElementById('btnClientesCatalogo').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  const uid = nuvemAuth.currentUser.uid;
+  const lista = document.getElementById('listaClientesCatalogo');
+  lista.innerHTML = '<p class="vazio">Carregando...</p>';
+  document.getElementById('modalClientesCatalogo').classList.remove('hidden');
+
+  try {
+    const snap = await nuvemDb.collection('catalogos').doc(uid).collection('clientesCadastrados')
+      .orderBy('ultimoAcesso', 'desc').get();
+    document.getElementById('tituloModalClientesCatalogo').textContent = `👥 Clientes do catálogo (${snap.size})`;
+    if (snap.empty) {
+      lista.innerHTML = '<p class="vazio">Nenhum cliente se cadastrou pelo catálogo ainda.</p>';
+      return;
+    }
+    lista.innerHTML = snap.docs.map((d) => {
+      const c = d.data();
+      const ultimo = c.ultimoAcesso ? c.ultimoAcesso.toDate().toLocaleDateString('pt-BR') : '-';
+      return `<div class="item" data-telefone="${c.telefone}">
+        <div class="info"><strong>${escapeHTML(c.telefone)}</strong><small>Último acesso: ${ultimo}</small></div>
+      </div>`;
+    }).join('');
+    lista.querySelectorAll('[data-telefone]').forEach((el) => {
+      el.addEventListener('click', () => abrirHistoricoCliente(el.dataset.telefone));
+    });
+  } catch (err) {
+    lista.innerHTML = `<p class="vazio">Erro ao carregar: ${err.code || err.message}</p>`;
+  }
+});
+document.getElementById('btnFecharClientesCatalogo').addEventListener('click', () => document.getElementById('modalClientesCatalogo').classList.add('hidden'));
+
+async function abrirHistoricoCliente(telefone) {
+  const uid = nuvemAuth.currentUser.uid;
+  document.getElementById('tituloHistoricoCliente').textContent = `Histórico — ${telefone}`;
+  const lista = document.getElementById('listaHistoricoCliente');
+  lista.innerHTML = '<p class="vazio">Carregando...</p>';
+  document.getElementById('modalClientesCatalogo').classList.add('hidden');
+  document.getElementById('modalHistoricoCliente').classList.remove('hidden');
+
+  try {
+    const snap = await nuvemDb.collection('pedidos')
+      .where('uid', '==', uid)
+      .where('clienteTelefone', '==', telefone)
+      .orderBy('criadoEm', 'desc').get();
+    if (snap.empty) {
+      lista.innerHTML = '<p class="vazio">Nenhum pedido registrado pra esse cliente ainda.</p>';
+      return;
+    }
+    lista.innerHTML = snap.docs.map((d) => {
+      const p = d.data();
+      const data = p.criadoEm ? p.criadoEm.toDate().toLocaleDateString('pt-BR') : '-';
+      const itensTexto = (p.itens || []).map((i) => `${i.quantidade}x ${i.nome}`).join(', ');
+      const origemTexto = p.origem === 'whatsapp' ? '📲 WhatsApp' : '💳 Online';
+      return `<div class="item">
+        <div class="info"><strong>${formatarMoeda(p.total)}</strong><small>${data} · ${origemTexto}<br>${escapeHTML(itensTexto)}</small></div>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    lista.innerHTML = `<p class="vazio">Erro ao carregar: ${err.code || err.message}</p>`;
+  }
+}
+document.getElementById('btnVoltarListaClientes').addEventListener('click', () => {
+  document.getElementById('modalHistoricoCliente').classList.add('hidden');
+  document.getElementById('modalClientesCatalogo').classList.remove('hidden');
 });
 
 document.getElementById('arquivoBannerCatalogo').addEventListener('change', (e) => {

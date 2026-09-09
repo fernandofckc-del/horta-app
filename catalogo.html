@@ -126,12 +126,49 @@
   .faixa-entrega .barra-entrega { height: 100%; background: var(--verde); border-radius: 4px; transition: width .3s; }
   .faixa-entrega.liberado .barra-entrega { background: #16a34a; }
   .faixa-entrega .detalhe-entrega { font-size: 0.78rem; color: var(--texto-suave); }
+  .faixa-entrega .bloco-progresso { margin-top: 10px; }
+  .faixa-entrega .bloco-progresso .rotulo-progresso { font-size: 0.78rem; font-weight: 600; margin-bottom: 4px; }
   footer { text-align: center; font-size: 0.72rem; color: var(--texto-suave); padding: 20px; }
+
+  .carrinho-barra-fixa {
+    position: fixed; bottom: 16px; right: 16px; z-index: 40;
+    background: var(--verde); color: #fff; border: none; border-radius: 999px;
+    padding: 14px 20px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25); cursor: pointer; font-weight: 700; font-size: 0.95rem;
+  }
+  .carrinho-barra-fixa .badge-qtd {
+    background: #fff; color: var(--verde); border-radius: 999px;
+    min-width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    font-size: 0.78rem; font-weight: 800; padding: 0 5px;
+  }
+  .tela-identificacao {
+    position: fixed; inset: 0; background: var(--bg); z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px; text-align: center;
+  }
+  .tela-identificacao.hidden { display: none; }
+  .tela-identificacao h2 { margin-bottom: 6px; }
+  .tela-identificacao p { color: var(--texto-suave); font-size: 0.88rem; margin-bottom: 18px; max-width: 320px; }
+  .tela-identificacao input {
+    width: 100%; max-width: 300px; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--borda); font-size: 1rem; margin-bottom: 12px; text-align: center;
+  }
+  .tela-identificacao button {
+    width: 100%; max-width: 300px; padding: 12px; border-radius: 10px; border: none;
+    background: var(--verde); color: #fff; font-weight: 700; font-size: 0.95rem; cursor: pointer;
+  }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+
+<div id="telaIdentificacao" class="tela-identificacao hidden">
+  <h2>🌱 Bem-vindo!</h2>
+  <p>Digita seu WhatsApp pra continuar. Assim o vendedor sabe quem fez o pedido, e você não precisa digitar de novo da próxima vez.</p>
+  <input type="tel" id="inputTelefoneIdentificacao" placeholder="(00) 00000-0000" inputmode="numeric">
+  <button type="button" id="btnConfirmarIdentificacao">Entrar</button>
+</div>
 
 <header id="header">
   <h1>🌱 Catálogo da Horta</h1>
@@ -142,16 +179,20 @@
   <div class="titulo-entrega" id="tituloFaixaEntrega"></div>
   <div class="trilho-entrega"><div class="barra-entrega" id="barraFaixaEntrega" style="width:0%"></div></div>
   <div class="detalhe-entrega" id="detalheFaixaEntrega"></div>
+  <div class="bloco-progresso hidden" id="blocoProgressoItens">
+    <div class="rotulo-progresso" id="rotuloProgressoItens"></div>
+    <div class="trilho-entrega"><div class="barra-entrega" id="barraProgressoItens" style="width:0%"></div></div>
+  </div>
 </div>
 
 <main>
   <div id="conteudo" class="vazio">Carregando catálogo...</div>
 </main>
 
-<div id="carrinhoBarra" class="carrinho-barra" style="display:none">
-  <span class="total" id="carrinhoTotal">R$ 0,00</span>
-  <span class="ver-carrinho">🛒 Ver carrinho →</span>
-</div>
+<button type="button" id="carrinhoBarra" class="carrinho-barra-fixa hidden">
+  🛒 <span class="badge-qtd" id="carrinhoBadgeQtd">0</span>
+  <span id="carrinhoTotal">R$ 0,00</span>
+</button>
 
 <div id="modalCarrinho" class="modal-overlay hidden">
   <div class="modal-box">
@@ -196,12 +237,54 @@ const params = new URLSearchParams(location.search);
 const uid = params.get('u');
 const conteudo = document.getElementById('conteudo');
 
+const TELEFONE_CLIENTE_KEY = 'hg_catalogo_telefone_' + uid;
+let telefoneCliente = localStorage.getItem(TELEFONE_CLIENTE_KEY) || '';
+
+function registrarClienteCatalogo(telefone) {
+  const ref = db.collection('catalogos').doc(uid).collection('clientesCadastrados').doc(telefone);
+  ref.get().then((snap) => {
+    if (snap.exists) {
+      ref.set({ ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(() => {});
+    } else {
+      ref.set({
+        telefone,
+        primeiroAcesso: firebase.firestore.FieldValue.serverTimestamp(),
+        ultimoAcesso: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(() => {});
+    }
+  }).catch(() => {});
+}
+
+function iniciarIdentificacaoCliente() {
+  if (telefoneCliente) {
+    registrarClienteCatalogo(telefoneCliente);
+    return;
+  }
+  document.getElementById('telaIdentificacao').classList.remove('hidden');
+}
+
+document.getElementById('btnConfirmarIdentificacao').addEventListener('click', () => {
+  const valor = document.getElementById('inputTelefoneIdentificacao').value.replace(/\D/g, '');
+  if (valor.length < 10) {
+    document.getElementById('inputTelefoneIdentificacao').style.borderColor = '#dc2626';
+    return;
+  }
+  telefoneCliente = valor;
+  localStorage.setItem(TELEFONE_CLIENTE_KEY, valor);
+  registrarClienteCatalogo(valor);
+  document.getElementById('telaIdentificacao').classList.add('hidden');
+});
+
 let itensCatalogo = [];
 let telefoneVendedor = '';
 let entregaConfig = { ativo: false, minimoItensCliente: 0, minimoPedidos: 0, recado: '' };
 let entregaContador = 0;
 function precoFinal(p) {
   return (p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco) ? p.precoPromocional : p.preco;
+}
+
+function totalItensCarrinho() {
+  return Object.values(carrinho).reduce((s, q) => s + q, 0);
 }
 
 function renderFaixaEntrega() {
@@ -227,10 +310,28 @@ function renderFaixaEntrega() {
   }
 
   const partes = [];
-  if (entregaConfig.minimoItensCliente > 1) partes.push(`Pedido mínimo: ${entregaConfig.minimoItensCliente} itens`);
   if (entregaConfig.recado) partes.push(entregaConfig.recado);
   document.getElementById('detalheFaixaEntrega').textContent = partes.join(' · ');
+
+  renderProgressoItens();
 }
+
+function renderProgressoItens() {
+  const bloco = document.getElementById('blocoProgressoItens');
+  if (!entregaConfig.ativo || !entregaConfig.minimoItensCliente || entregaConfig.minimoItensCliente <= 1) {
+    bloco.classList.add('hidden');
+    return;
+  }
+  bloco.classList.remove('hidden');
+  const total = totalItensCarrinho();
+  const falta = entregaConfig.minimoItensCliente - total;
+  document.getElementById('rotuloProgressoItens').textContent = falta <= 0
+    ? `✅ Mínimo de itens atingido (${total}/${entregaConfig.minimoItensCliente})`
+    : `Seu carrinho: ${total} de ${entregaConfig.minimoItensCliente} itens — faltam ${falta}`;
+  const pct = Math.min(100, Math.round((total / entregaConfig.minimoItensCliente) * 100));
+  document.getElementById('barraProgressoItens').style.width = pct + '%';
+}
+const CARRINHO_STORAGE_KEY = 'hg_catalogo_carrinho_' + uid;
 const carrinho = {}; // { indice: quantidade } — itens já adicionados ao carrinho
 const selecionado = {}; // { indice: quantidade } — quantidade escolhida no seletor, antes de adicionar
 
@@ -239,12 +340,28 @@ const selecionado = {}; // { indice: quantidade } — quantidade escolhida no se
 let itensCheckout = {};
 let checkoutEhCarrinho = true;
 
+function salvarCarrinhoLocal() {
+  try { localStorage.setItem(CARRINHO_STORAGE_KEY, JSON.stringify(carrinho)); } catch (err) { /* ignora se storage indisponível */ }
+}
+
+function restaurarCarrinhoLocal() {
+  try {
+    const salvo = JSON.parse(localStorage.getItem(CARRINHO_STORAGE_KEY) || '{}');
+    Object.keys(salvo).forEach((idx) => {
+      if (itensCatalogo[idx] && salvo[idx] > 0) carrinho[idx] = Math.min(salvo[idx], itensCatalogo[idx].estoqueAtual || 0);
+    });
+  } catch (err) { /* ignora se storage indisponível ou corrompido */ }
+}
+
 function atualizarCarrinhoBarra() {
   const barra = document.getElementById('carrinhoBarra');
   const total = Object.entries(carrinho).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? precoFinal(itensCatalogo[idx]) * qtd : 0), 0);
-  const temItens = Object.values(carrinho).some((q) => q > 0);
-  barra.style.display = temItens ? 'flex' : 'none';
+  const qtdTotal = totalItensCarrinho();
+  barra.classList.toggle('hidden', qtdTotal === 0);
+  document.getElementById('carrinhoBadgeQtd').textContent = qtdTotal;
   document.getElementById('carrinhoTotal').textContent = formatarMoeda(total);
+  salvarCarrinhoLocal();
+  renderProgressoItens();
 }
 
 function mudarQtdSelecionada(idx, delta) {
@@ -356,6 +473,7 @@ async function registrarPedidoEIncrementar(itensPedido, total, endereco, origem)
       itens: itensPedido,
       total,
       endereco: endereco || '',
+      clienteTelefone: telefoneCliente || '',
       origem,
       criadoEm: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -395,6 +513,11 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', async ()
   await registrarPedidoEIncrementar(itensPedido, total, endereco, 'whatsapp');
   btn.disabled = false;
   btn.textContent = '📲 WhatsApp';
+  if (checkoutEhCarrinho) {
+    Object.keys(carrinho).forEach((idx) => delete carrinho[idx]);
+    atualizarCarrinhoBarra();
+  }
+  document.getElementById('modalCarrinho').classList.add('hidden');
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
 
@@ -415,7 +538,7 @@ document.getElementById('btnPagarOnline').addEventListener('click', async () => 
     const resp = await fetch(CRIAR_PAGAMENTO_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, itens: itensPedido })
+      body: JSON.stringify({ uid, itens: itensPedido, clienteTelefone: telefoneCliente || '' })
     });
     const dados = await resp.json();
     if (!resp.ok || !dados.init_point) {
@@ -463,6 +586,10 @@ if (!uid) {
     itensCatalogo = dados.itens;
     telefoneVendedor = dados.telefone || '';
     entregaConfig = dados.entrega || entregaConfig;
+
+    restaurarCarrinhoLocal();
+    atualizarCarrinhoBarra();
+    iniciarIdentificacaoCliente();
 
     if (entregaConfig.ativo) {
       db.collection('contadores').doc(uid).onSnapshot((snap) => {
