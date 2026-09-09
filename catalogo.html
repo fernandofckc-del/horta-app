@@ -164,6 +164,7 @@
     <label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:6px">📍 Endereço de entrega (opcional)</label>
     <textarea id="enderecoEntregaInput" placeholder="Rua, número, bairro, ponto de referência..." style="width:100%;min-height:56px;padding:10px;border-radius:10px;border:1px solid var(--borda);font-family:inherit;font-size:0.85rem;margin-bottom:8px;resize:vertical"></textarea>
     <button id="btnUsarLocalizacao" style="width:100%;background:var(--bg);border:1px solid var(--borda);color:var(--texto);padding:10px;border-radius:10px;font-weight:600;font-size:0.82rem;cursor:pointer;margin-bottom:14px">📍 Usar minha localização atual</button>
+    <p id="avisoCarrinhoModal" class="hidden" style="background:#fee2e2;color:#991b1b;padding:10px 12px;border-radius:10px;font-size:0.82rem;font-weight:600;margin:0 0 12px"></p>
     <div class="carrinho-acoes">
       <button id="btnPagarOnline" class="btn-pagar">💳 PIX/Cartão</button>
       <button id="btnFinalizarPedido" class="btn-whats">📲 WhatsApp</button>
@@ -298,6 +299,7 @@ function abrirModalCarrinho(itens, ehCarrinho) {
   itensCheckout = { ...itens };
   checkoutEhCarrinho = ehCarrinho;
   document.getElementById('tituloModalCarrinho').textContent = ehCarrinho ? 'Seu carrinho' : 'Confirmar compra';
+  document.getElementById('avisoCarrinhoModal').classList.add('hidden');
   renderModalCarrinho();
   document.getElementById('modalCarrinho').classList.remove('hidden');
 }
@@ -334,13 +336,16 @@ function totalItensCheckout() {
 }
 
 function verificarMinimoItens() {
+  const aviso = document.getElementById('avisoCarrinhoModal');
   if (entregaConfig.ativo && entregaConfig.minimoItensCliente > 0) {
     const total = totalItensCheckout();
     if (total < entregaConfig.minimoItensCliente) {
-      alert(`Pedido mínimo de ${entregaConfig.minimoItensCliente} itens. Você tem ${total} no carrinho — adicione mais ${entregaConfig.minimoItensCliente - total}.`);
+      aviso.textContent = `Pedido mínimo de ${entregaConfig.minimoItensCliente} itens. Você tem ${total} no carrinho — adicione mais ${entregaConfig.minimoItensCliente - total}.`;
+      aviso.classList.remove('hidden');
       return false;
     }
   }
+  aviso.classList.add('hidden');
   return true;
 }
 
@@ -359,10 +364,11 @@ async function registrarPedidoEIncrementar(itensPedido, total, endereco, origem)
     }, { merge: true });
   } catch (err) {
     // Não bloqueia o pedido do cliente se o registro falhar — só não conta pra rodada.
+    console.error('Erro ao registrar pedido/contador:', err);
   }
 }
 
-document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
+document.getElementById('btnFinalizarPedido').addEventListener('click', async () => {
   if (!verificarMinimoItens()) return;
   const linhas = Object.entries(itensCheckout)
     .filter(([, qtd]) => qtd > 0)
@@ -379,7 +385,16 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', () => {
   let mensagem = `Olá! Quero fazer um pedido:\n\n${linhas.join('\n')}\n\nTotal: ${formatarMoeda(total)}`;
   if (endereco) mensagem += `\n\nEndereço de entrega:\n${endereco}`;
   const numero = telefoneVendedor ? (telefoneVendedor.length <= 11 ? '55' + telefoneVendedor : telefoneVendedor) : '';
-  registrarPedidoEIncrementar(itensPedido, total, endereco, 'whatsapp');
+
+  const btn = document.getElementById('btnFinalizarPedido');
+  btn.disabled = true;
+  btn.textContent = 'Registrando pedido...';
+  // Espera terminar de gravar ANTES de abrir o WhatsApp — se abrir o WhatsApp
+  // primeiro, o celular pode tirar essa página de primeiro plano e matar a
+  // gravação no meio do caminho, fazendo o pedido nunca contar de verdade.
+  await registrarPedidoEIncrementar(itensPedido, total, endereco, 'whatsapp');
+  btn.disabled = false;
+  btn.textContent = '📲 WhatsApp';
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
 
@@ -393,6 +408,7 @@ document.getElementById('btnPagarOnline').addEventListener('click', async () => 
   if (itensPedido.length === 0) return;
 
   const btn = document.getElementById('btnPagarOnline');
+  const aviso = document.getElementById('avisoCarrinhoModal');
   btn.disabled = true;
   btn.textContent = 'Gerando pagamento...';
   try {
@@ -403,14 +419,16 @@ document.getElementById('btnPagarOnline').addEventListener('click', async () => 
     });
     const dados = await resp.json();
     if (!resp.ok || !dados.init_point) {
-      alert(dados.erro || 'Não foi possível gerar o pagamento. Tente novamente.');
+      aviso.textContent = dados.erro || 'Não foi possível gerar o pagamento. Tente novamente.';
+      aviso.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = '💳 PIX/Cartão';
       return;
     }
     location.href = dados.init_point;
   } catch (err) {
-    alert('Erro de conexão ao gerar o pagamento.');
+    aviso.textContent = 'Erro de conexão ao gerar o pagamento.';
+    aviso.classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = '💳 PIX/Cartão';
   }
