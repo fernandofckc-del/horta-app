@@ -247,7 +247,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.0.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.1.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -327,6 +327,7 @@
   <button class="fantasma" id="btnRemoverBannerCatalogo" style="width:100%;margin-bottom:8px">🗑️ Remover banner do catálogo</button>
   <button class="fantasma" id="btnEntregaMinima" style="width:100%;margin-bottom:12px">🚚 Entrega mínima</button>
   <button class="fantasma" id="btnClientesCatalogo" style="width:100%;margin-bottom:12px">👥 Clientes do catálogo</button>
+  <button class="fantasma" id="btnTemaCatalogo" style="width:100%;margin-bottom:12px">🎨 Tema do catálogo</button>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
@@ -735,6 +736,45 @@
   </div>
 </div>
 
+<!-- ===================== MODAL: TEMA DO CATÁLOGO ===================== -->
+<div id="modalTemaCatalogo" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>🎨 Tema do catálogo</h3>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-8px">Escolha as cores que aparecem pros seus clientes no catálogo.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <button type="button" class="opcao-tema" data-tema="verde" style="border:2px solid transparent;border-radius:14px;padding:14px 10px;cursor:pointer;background:#f6faf6;text-align:center">
+        <div style="display:flex;justify-content:center;gap:4px;margin-bottom:8px">
+          <span style="width:20px;height:20px;border-radius:50%;background:#16a34a;display:inline-block"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#15803d;display:inline-block"></span>
+        </div>
+        <strong style="font-size:0.85rem">🌿 Verde Horta</strong>
+      </button>
+      <button type="button" class="opcao-tema" data-tema="roxo" style="border:2px solid transparent;border-radius:14px;padding:14px 10px;cursor:pointer;background:#f8f6fe;text-align:center">
+        <div style="display:flex;justify-content:center;gap:4px;margin-bottom:8px">
+          <span style="width:20px;height:20px;border-radius:50%;background:#7c3aed;display:inline-block"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#6d28d9;display:inline-block"></span>
+        </div>
+        <strong style="font-size:0.85rem">💜 Roxo Clássico</strong>
+      </button>
+      <button type="button" class="opcao-tema" data-tema="terroso" style="border:2px solid transparent;border-radius:14px;padding:14px 10px;cursor:pointer;background:#fdf9f5;text-align:center">
+        <div style="display:flex;justify-content:center;gap:4px;margin-bottom:8px">
+          <span style="width:20px;height:20px;border-radius:50%;background:#c2410c;display:inline-block"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#9a3412;display:inline-block"></span>
+        </div>
+        <strong style="font-size:0.85rem">🟠 Terroso</strong>
+      </button>
+      <button type="button" class="opcao-tema" data-tema="azul" style="border:2px solid transparent;border-radius:14px;padding:14px 10px;cursor:pointer;background:#f5fafd;text-align:center">
+        <div style="display:flex;justify-content:center;gap:4px;margin-bottom:8px">
+          <span style="width:20px;height:20px;border-radius:50%;background:#0284c7;display:inline-block"></span>
+          <span style="width:20px;height:20px;border-radius:50%;background:#0369a1;display:inline-block"></span>
+        </div>
+        <strong style="font-size:0.85rem">💧 Azul</strong>
+      </button>
+    </div>
+    <button class="fantasma" id="btnFecharTemaCatalogo" style="width:100%">Fechar</button>
+  </div>
+</div>
+
 <!-- ===================== MODAL: CLIENTES DO CATÁLOGO ===================== -->
 <div id="modalClientesCatalogo" class="modal-overlay hidden">
   <div class="modal-box">
@@ -1119,7 +1159,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.1.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -3788,6 +3828,42 @@ document.getElementById('btnZerarContagemEntrega').addEventListener('click', asy
 // ============================================================
 // CLIENTES DO CATÁLOGO (cadastro por WhatsApp + histórico de pedidos)
 // ============================================================
+// ============================================================
+// TEMA DO CATÁLOGO (cores)
+// ============================================================
+document.getElementById('btnTemaCatalogo').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  const uid = nuvemAuth.currentUser.uid;
+  let temaAtual = 'verde';
+  try {
+    const doc = await nuvemDb.collection('catalogos').doc(uid).get();
+    temaAtual = (doc.exists && doc.data().tema) || 'verde';
+  } catch (err) { /* mantém padrão se falhar */ }
+
+  document.querySelectorAll('.opcao-tema').forEach((btn) => {
+    btn.style.borderColor = btn.dataset.tema === temaAtual ? 'var(--verde)' : 'transparent';
+  });
+  document.getElementById('modalTemaCatalogo').classList.remove('hidden');
+});
+document.getElementById('btnFecharTemaCatalogo').addEventListener('click', () => document.getElementById('modalTemaCatalogo').classList.add('hidden'));
+
+document.querySelectorAll('.opcao-tema').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const uid = nuvemAuth.currentUser.uid;
+    document.querySelectorAll('.opcao-tema').forEach((b) => b.style.borderColor = 'transparent');
+    btn.style.borderColor = 'var(--verde)';
+    try {
+      await nuvemDb.collection('catalogos').doc(uid).set({ tema: btn.dataset.tema }, { merge: true });
+      mostrarToast('Tema do catálogo atualizado.');
+    } catch (err) {
+      mostrarToast('Erro ao salvar: ' + (err.code || err.message));
+    }
+  });
+});
+
 document.getElementById('btnClientesCatalogo').addEventListener('click', async () => {
   if (!nuvemAuth || !nuvemAuth.currentUser) {
     mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');

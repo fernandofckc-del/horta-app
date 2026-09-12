@@ -71,15 +71,26 @@
   .produto .info { padding: 12px 14px 14px; }
   .produto .info strong { display: block; font-size: 0.95rem; margin-bottom: 8px; }
   .produto .info strong::before { content: "🌱 "; }
+  .produto .preco-wrap {
+    position: relative; display: inline-block; margin: 4px 0 8px;
+  }
+  .produto .preco-wrap .fundo-rasgado {
+    position: absolute; inset: -5px -16px;
+    background-color: var(--verde-escuro);
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20220%2050'%20preserveAspectRatio='none'%3E%3Cpath%20d='M16,3%20Q26,0%2038,3%20Q60,6%2080,2%20Q110,5%20140,2%20Q165,5%20185,2%20Q200,0%20206,3%20Q222,9%20204,14%20Q225,20%20200,25%20Q224,29%20203,35%20Q221,40%20205,45%20Q198,49%20185,46%20Q160,49%20135,46%20Q108,48%2082,46%20Q55,49%2032,46%20Q18,48%2014,44%20Q-4,38%2015,32%20Q-6,26%2016,21%20Q-5,15%2014,10%20Q4,6%2016,3%20Z'%20fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20220%2050'%20preserveAspectRatio='none'%3E%3Cpath%20d='M16,3%20Q26,0%2038,3%20Q60,6%2080,2%20Q110,5%20140,2%20Q165,5%20185,2%20Q200,0%20206,3%20Q222,9%20204,14%20Q225,20%20200,25%20Q224,29%20203,35%20Q221,40%20205,45%20Q198,49%20185,46%20Q160,49%20135,46%20Q108,48%2082,46%20Q55,49%2032,46%20Q18,48%2014,44%20Q-4,38%2015,32%20Q-6,26%2016,21%20Q-5,15%2014,10%20Q4,6%2016,3%20Z'%20fill='black'/%3E%3C/svg%3E");
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    transform: rotate(-1.2deg);
+    box-shadow: 1px 2px 3px rgba(0,0,0,0.15);
+  }
   .produto .info span.preco {
+    position: relative; z-index: 1;
     display: inline-block; color: #fff; font-weight: 800; font-size: 0.95rem;
-    background: var(--verde);
-    background-image: radial-gradient(ellipse at 20% 30%, rgba(255,255,255,0.18), transparent 55%),
-                       radial-gradient(ellipse at 80% 75%, rgba(0,0,0,0.08), transparent 60%);
-    padding: 6px 16px; margin-bottom: 8px;
-    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-    transform: rotate(-1.5deg);
-    box-shadow: 1px 2px 0 rgba(0,0,0,0.08);
+    padding: 4px 4px;
+  }
+  .produto .info span.preco s {
+    color: rgba(255,255,255,0.6); font-weight: 500; font-size: 0.78em; margin-right: 5px;
   }
   .produto .info span.sem-estoque-tag {
     display: block; margin: 4px 0 8px; font-size: 0.76rem; color: #b91c1c; font-weight: 700;
@@ -278,6 +289,26 @@ function escapeHTML(s = '') { return String(s).replace(/[&<>"']/g, (c) => ({ '&'
 const params = new URLSearchParams(location.search);
 const uid = params.get('u');
 const conteudo = document.getElementById('conteudo');
+
+const TEMAS_CATALOGO = {
+  verde:   { verde: '#16a34a', verdeEscuro: '#15803d', verdeClaro: '#dcfce7', bg: '#f6faf6', bgTitulo: '#eef6ee' },
+  roxo:    { verde: '#7c3aed', verdeEscuro: '#6d28d9', verdeClaro: '#ede9fe', bg: '#f8f6fe', bgTitulo: '#f1edfd' },
+  terroso: { verde: '#c2410c', verdeEscuro: '#9a3412', verdeClaro: '#ffedd5', bg: '#fdf9f5', bgTitulo: '#fdefe4' },
+  azul:    { verde: '#0284c7', verdeEscuro: '#0369a1', verdeClaro: '#e0f2fe', bg: '#f5fafd', bgTitulo: '#e9f6ff' }
+};
+
+function aplicarTemaCatalogo(nomeTema) {
+  const t = TEMAS_CATALOGO[nomeTema] || TEMAS_CATALOGO.verde;
+  const raiz = document.documentElement.style;
+  raiz.setProperty('--verde', t.verde);
+  raiz.setProperty('--verde-escuro', t.verdeEscuro);
+  raiz.setProperty('--verde-claro', t.verdeClaro);
+  document.body.style.background = t.bg;
+  const tituloEl = document.querySelector('.titulo-catalogo');
+  if (tituloEl) tituloEl.style.background = t.bgTitulo;
+  const metaTema = document.querySelector('meta[name="theme-color"]');
+  if (metaTema) metaTema.setAttribute('content', t.verde);
+}
 
 const TELEFONE_CLIENTE_KEY = 'hg_catalogo_telefone_' + uid;
 let telefoneCliente = localStorage.getItem(TELEFONE_CLIENTE_KEY) || '';
@@ -628,6 +659,7 @@ if (!uid) {
     itensCatalogo = dados.itens;
     telefoneVendedor = dados.telefone || '';
     entregaConfig = dados.entrega || entregaConfig;
+    aplicarTemaCatalogo(dados.tema);
 
     restaurarCarrinhoLocal();
     atualizarCarrinhoBarra();
@@ -658,11 +690,14 @@ if (!uid) {
         ${p.foto ? `<div class="foto-wrap"><img src="${p.foto}" alt="${escapeHTML(p.nome)}"></div>` : `<div class="sem-foto">🌿</div>`}
         <div class="info">
           <strong>${escapeHTML(p.nome)}</strong>
-          <span class="preco">
-            ${(p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco)
-              ? `<s style="color:rgba(255,255,255,0.7);font-weight:500;font-size:0.82em;margin-right:6px">${formatarMoeda(p.preco)}</s><span style="color:#fef08a">${formatarMoeda(p.precoPromocional)}</span>`
-              : formatarMoeda(p.preco)}
-          </span>
+          <div class="preco-wrap">
+            <div class="fundo-rasgado"></div>
+            <span class="preco">
+              ${(p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco)
+                ? `<s>${formatarMoeda(p.preco)}</s>${formatarMoeda(p.precoPromocional)}`
+                : formatarMoeda(p.preco)}
+            </span>
+          </div>
           ${semEstoque ? `<span class="sem-estoque-tag">Sem estoque no momento</span>` : (telefoneVendedor ? `
             <div class="qtd-controle">
               <button data-menos-idx="${idx}">−</button>
