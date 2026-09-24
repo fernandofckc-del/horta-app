@@ -53,6 +53,11 @@
     font-weight: 800;
   }
   .titulo-catalogo p { margin: 0; color: var(--texto-suave); font-size: 0.95rem; }
+  @media (max-width: 440px) {
+    .titulo-catalogo { padding: 26px 44px 22px; }
+    .titulo-catalogo h1 { font-size: 1.3rem; }
+    .titulo-catalogo::before, .titulo-catalogo::after { font-size: 1.2rem; letter-spacing: 0; }
+  }
   main { max-width: 640px; margin: 0 auto; padding: 0 16px 16px; }
   .grid {
     display: grid;
@@ -128,6 +133,7 @@
     position: fixed; inset: 0; background: rgba(0,0,0,0.5);
     display: flex; align-items: flex-end; justify-content: center; z-index: 50;
   }
+  .hidden { display: none !important; }
   .modal-overlay.hidden { display: none; }
   .modal-box {
     background: var(--card); border-radius: 20px 20px 0 0; padding: 20px 18px 24px;
@@ -238,11 +244,13 @@
   </div>
 </div>
 
+<div id="statusPagamento" class="status-pagamento hidden"></div>
+
 <main>
   <div id="conteudo" class="vazio">Carregando catálogo...</div>
 </main>
 
-<button type="button" id="carrinhoBarra" class="carrinho-barra-fixa hidden">
+<button type="button" id="carrinhoBarra" class="carrinho-barra-fixa">
   🛒 <span class="badge-qtd" id="carrinhoBadgeQtd">0</span>
   <span id="carrinhoTotal">R$ 0,00</span>
 </button>
@@ -260,14 +268,13 @@
     <button id="btnUsarLocalizacao" style="width:100%;background:var(--bg);border:1px solid var(--borda);color:var(--texto);padding:10px;border-radius:10px;font-weight:600;font-size:0.82rem;cursor:pointer;margin-bottom:14px">📍 Usar minha localização atual</button>
     <p id="avisoCarrinhoModal" class="hidden" style="background:#fee2e2;color:#991b1b;padding:10px 12px;border-radius:10px;font-size:0.82rem;font-weight:600;margin:0 0 12px"></p>
     <div class="carrinho-acoes">
-      <button id="btnPagarOnline" class="btn-pagar">💳 PIX/Cartão</button>
+      <button id="btnPagarOnline" class="btn-pagar hidden">💳 PIX/Cartão</button>
       <button id="btnFinalizarPedido" class="btn-whats">📲 WhatsApp</button>
     </div>
     <button id="btnFecharCarrinho" style="width:100%;margin-top:10px;background:none;border:none;color:var(--texto-suave);padding:10px;font-size:0.85rem;cursor:pointer">Continuar comprando</button>
   </div>
 </div>
 
-<div id="statusPagamento" class="status-pagamento hidden"></div>
 
 <footer>Feito com Controle da Horta</footer>
 
@@ -430,7 +437,6 @@ function atualizarCarrinhoBarra() {
   const barra = document.getElementById('carrinhoBarra');
   const total = Object.entries(carrinho).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? precoFinal(itensCatalogo[idx]) * qtd : 0), 0);
   const qtdTotal = totalItensCarrinho();
-  barra.classList.toggle('hidden', qtdTotal === 0);
   document.getElementById('carrinhoBadgeQtd').textContent = qtdTotal;
   document.getElementById('carrinhoTotal').textContent = formatarMoeda(total);
   salvarCarrinhoLocal();
@@ -594,40 +600,39 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', async ()
   window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
 
-const CRIAR_PAGAMENTO_URL = 'https://us-central1-horta-app-6a4ca.cloudfunctions.net/criarPagamento';
+// Pagamento por link (Mercado Pago "Seu link"): registra o pedido primeiro
+// (pro vendedor ver na caixa de pedidos do app) e depois abre o link.
+let linkPagamento = '';
 
 document.getElementById('btnPagarOnline').addEventListener('click', async () => {
   if (!verificarMinimoItens()) return;
-  const itensPedido = Object.entries(itensCheckout)
-    .filter(([, qtd]) => qtd > 0)
-    .map(([idx, qtd]) => ({ produtoId: itensCatalogo[idx].id, quantidade: qtd }));
-  if (itensPedido.length === 0) return;
+  if (!linkPagamento) return;
+  const entradas = Object.entries(itensCheckout).filter(([, qtd]) => qtd > 0);
+  if (entradas.length === 0) return;
+  const itensPedido = entradas.map(([idx, qtd]) => ({
+    produtoId: itensCatalogo[idx].id, nome: itensCatalogo[idx].nome, quantidade: qtd, precoUnitario: precoFinal(itensCatalogo[idx])
+  }));
+  const total = entradas.reduce((s, [idx, qtd]) => s + precoFinal(itensCatalogo[idx]) * qtd, 0);
+  const endereco = document.getElementById('enderecoEntregaInput').value.trim();
 
   const btn = document.getElementById('btnPagarOnline');
-  const aviso = document.getElementById('avisoCarrinhoModal');
   btn.disabled = true;
-  btn.textContent = 'Gerando pagamento...';
-  try {
-    const resp = await fetch(CRIAR_PAGAMENTO_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, itens: itensPedido, clienteTelefone: telefoneCliente || '' })
-    });
-    const dados = await resp.json();
-    if (!resp.ok || !dados.init_point) {
-      aviso.textContent = dados.erro || 'Não foi possível gerar o pagamento. Tente novamente.';
-      aviso.classList.remove('hidden');
-      btn.disabled = false;
-      btn.textContent = '💳 PIX/Cartão';
-      return;
-    }
-    location.href = dados.init_point;
-  } catch (err) {
-    aviso.textContent = 'Erro de conexão ao gerar o pagamento.';
-    aviso.classList.remove('hidden');
-    btn.disabled = false;
-    btn.textContent = '💳 PIX/Cartão';
+  btn.textContent = 'Registrando pedido...';
+  await registrarPedidoEIncrementar(itensPedido, total, endereco, 'link');
+  btn.disabled = false;
+  btn.textContent = '💳 PIX/Cartão';
+
+  if (checkoutEhCarrinho) {
+    Object.keys(carrinho).forEach((idx) => delete carrinho[idx]);
+    atualizarCarrinhoBarra();
   }
+  document.getElementById('modalCarrinho').classList.add('hidden');
+
+  const el = document.getElementById('statusPagamento');
+  el.className = 'status-pagamento pendente';
+  el.innerHTML = `✅ Pedido registrado! Na tela do Mercado Pago, digite o valor <strong>${formatarMoeda(total)}</strong> e pague com PIX ou cartão.`;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.open(linkPagamento, '_blank');
 });
 
 // Mensagem ao voltar do checkout do Mercado Pago (?status=sucesso|pendente|falha)
@@ -660,6 +665,8 @@ if (!uid) {
     telefoneVendedor = dados.telefone || '';
     entregaConfig = dados.entrega || entregaConfig;
     aplicarTemaCatalogo(dados.tema);
+    linkPagamento = /^https:\/\//.test(dados.linkPagamento || '') ? dados.linkPagamento : '';
+    document.getElementById('btnPagarOnline').classList.toggle('hidden', !linkPagamento);
 
     restaurarCarrinhoLocal();
     atualizarCarrinhoBarra();

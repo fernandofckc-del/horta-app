@@ -242,12 +242,33 @@
   }
   .toast.hidden { opacity: 0; pointer-events: none; }
   .hidden { display: none !important; }
+  .icone-item { position: relative; }
+  .badge-icone {
+    position: absolute; top: -2px; right: 18%;
+    background: #dc2626; color: #fff; font-size: 0.72rem; font-weight: 800;
+    min-width: 22px; height: 22px; border-radius: 999px; padding: 0 6px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .badge-novos {
+    background: #dc2626; color: #fff; font-size: 0.72rem; font-weight: 800;
+    border-radius: 999px; padding: 2px 8px; margin-left: 6px;
+  }
+  .pedido-card { background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid var(--borda); }
+  .pedido-card.novo { border-left: 4px solid #dc2626; }
+  .pedido-card .topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .pedido-card .topo strong { font-size: 1.05rem; }
+  .pedido-card small { color: var(--texto-suave); display: block; margin-top: 2px; }
+  .pedido-card .itens { margin: 8px 0; font-size: 0.88rem; }
+  .pedido-card .acoes-pedido { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .pedido-card .acoes-pedido button { flex: 1; min-width: 90px; padding: 8px; font-size: 0.8rem; }
+  .pedido-card .selo-status { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--borda); margin-top: 6px; }
 </style>
 </head>
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.1.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.2.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -270,6 +291,7 @@
         </button>
         <button class="icone-item" data-ir="vendas">
           <span class="icone-app cor-vendas">🛒</span><span class="icone-legenda">Vendas</span>
+          <span class="badge-icone hidden" id="badgePedidosInicio">0</span>
         </button>
         <button class="icone-item" data-ir="estoque">
           <span class="icone-app cor-estoque">🌿</span><span class="icone-legenda">Estoque</span>
@@ -328,6 +350,7 @@
   <button class="fantasma" id="btnEntregaMinima" style="width:100%;margin-bottom:12px">🚚 Entrega mínima</button>
   <button class="fantasma" id="btnClientesCatalogo" style="width:100%;margin-bottom:12px">👥 Clientes do catálogo</button>
   <button class="fantasma" id="btnTemaCatalogo" style="width:100%;margin-bottom:12px">🎨 Tema do catálogo</button>
+  <button class="fantasma" id="btnLinkPagamento" style="width:100%;margin-bottom:12px">💳 Link de pagamento (PIX/Cartão)</button>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
@@ -349,6 +372,7 @@
 <!-- ===================== VENDAS ===================== -->
 <main id="tab-vendas">
   <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
+  <button type="button" class="fantasma" id="btnPedidosCatalogo" style="width:100%;margin-bottom:14px">📥 Pedidos do catálogo<span class="badge-novos hidden" id="badgePedidosVendas">0</span></button>
   <h2 class="titulo" style="margin-top:0">Nova venda</h2>
 
   <label>Cliente
@@ -732,6 +756,70 @@
     <div class="acoes">
       <button class="fantasma" id="btnCancelarColher">Cancelar</button>
       <button class="primario" id="btnConfirmarColher">Confirmar colheita</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: PEDIDOS DO CATÁLOGO ===================== -->
+<div id="modalPedidosCatalogo" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>📥 Pedidos do catálogo</h3>
+    <div class="toolbar" style="display:flex;gap:8px;margin-bottom:12px">
+      <button type="button" class="fantasma active" data-filtro-pedidos="novos" style="flex:1">Novos</button>
+      <button type="button" class="fantasma" data-filtro-pedidos="todos" style="flex:1">Todos</button>
+    </div>
+    <div id="listaPedidosCatalogo"></div>
+    <button class="fantasma" id="btnFecharPedidosCatalogo" style="width:100%;margin-top:6px">Fechar</button>
+  </div>
+</div>
+
+<!-- ===================== MODAL: REGISTRAR PEDIDO COMO VENDA ===================== -->
+<div id="modalRegistrarPedido" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>✅ Registrar pedido como venda</h3>
+    <input type="hidden" id="registrarPedidoId">
+    <div id="registrarPedidoResumo" style="margin-bottom:12px"></div>
+    <div id="registrarPedidoAvisos"></div>
+    <label>Cliente
+      <select id="registrarPedidoCliente"></select>
+    </label>
+    <label id="registrarPedidoNovoNomeWrap">Nome do novo cliente
+      <input type="text" id="registrarPedidoNovoNome">
+    </label>
+    <label>Forma de pagamento
+      <select id="registrarPedidoPagamento">
+        <option>Dinheiro</option>
+        <option>PIX</option>
+        <option>Cartão</option>
+        <option value="Fiado">Fiado</option>
+      </select>
+    </label>
+    <p style="font-size:0.76rem;color:var(--texto-suave);margin:4px 0 0">Ao confirmar, a venda entra em "Últimas vendas" e os itens saem do estoque.</p>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarRegistrarPedido">Cancelar</button>
+      <button class="primario" id="btnConfirmarRegistrarPedido">Confirmar venda</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: LINK DE PAGAMENTO ===================== -->
+<div id="modalLinkPagamento" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>💳 Link de pagamento</h3>
+    <p style="font-size:0.8rem;color:var(--texto-suave);margin-top:-8px">
+      Cole aqui um link de pagamento do Mercado Pago (o "Seu link", onde o cliente digita o valor e paga com PIX ou cartão).
+      Com o link salvo, aparece o botão "💳 PIX/Cartão" no carrinho do catálogo. Sem link, esse botão fica escondido.
+    </p>
+    <p style="font-size:0.78rem;margin:0 0 10px">
+      <strong>Onde pegar:</strong> app do Mercado Pago → "Cobrar" (ou "Link de pagamento") → "Seu link" → copiar.
+    </p>
+    <label>Link
+      <input type="url" id="inputLinkPagamento" placeholder="https://link.mercadopago.com.br/...">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnFecharLinkPagamento">Fechar</button>
+      <button class="perigo" id="btnRemoverLinkPagamento">Remover</button>
+      <button class="primario" id="btnSalvarLinkPagamento">Salvar</button>
     </div>
   </div>
 </div>
@@ -1159,10 +1247,15 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.1.0';
-const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas' };
+const APP_VERSION = '3.2.0';
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
+// Estado da caixa de pedidos do catálogo (declarado cedo pra estar disponível desde o início)
+let pedidosCatalogoCache = [];
+let pararOuvirPedidos = null;
+let pedidosJaCarregados = false;
+let filtroPedidos = 'novos';
 function carregarConfigPessoal() { return JSON.parse(localStorage.getItem(CHAVE_CONFIG_PESSOAL) || '{"salario":0,"diaRecebimento":5,"percentualReserva":10,"metaValor":0,"metaDescricao":""}'); }
 function salvarConfigPessoal(obj) { localStorage.setItem(CHAVE_CONFIG_PESSOAL, JSON.stringify(obj)); }
 const CHAVE_RESPONSAVEL = 'hg_responsavel';
@@ -1173,6 +1266,10 @@ function carregar(chave) { return JSON.parse(localStorage.getItem(chave) || '[]'
 function salvar(chave, dados) { localStorage.setItem(chave, JSON.stringify(dados)); }
 function gerarId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function formatarMoeda(v) { return (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+// Preço que vale agora: o promocional (se estiver ativo e for menor), senão o normal.
+function precoVigente(p) {
+  return (p && p.precoPromocional > 0 && p.precoPromocional < p.preco) ? p.precoPromocional : (p ? p.preco : 0);
+}
 function escapeHTML(s = '') { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 // -------------------- MODO ESCURO --------------------
@@ -1204,7 +1301,7 @@ function irParaAba(nome) {
   if (nome === 'inicio') mostrarMenuInicio();
   if (nome === 'estoque') renderProdutos();
   if (nome === 'clientes') { renderClientes(); renderRankingClientes(); }
-  if (nome === 'vendas') { preencherSelects(); renderVendasRecentes(); }
+  if (nome === 'vendas') { preencherSelects(); renderVendasRecentes(); atualizarBadgesPedidos(); }
   if (nome === 'insumos') { renderInsumos(); renderGraficoLucroMensal(); }
   if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); renderPrevisaoColheita(); }
   if (nome === 'tarefas') renderTarefas();
@@ -1710,7 +1807,10 @@ function preencherSelects() {
 
   const produtos = carregar(CHAVES.produtos);
   const selectProduto = document.getElementById('vendaProdutoSelect');
-  selectProduto.innerHTML = produtos.map((p) => `<option value="${p.id}">${escapeHTML(p.nome)} — ${formatarMoeda(p.preco)}</option>`).join('');
+  selectProduto.innerHTML = produtos.map((p) => {
+    const emPromo = precoVigente(p) < p.preco;
+    return `<option value="${p.id}">${escapeHTML(p.nome)} — ${formatarMoeda(precoVigente(p))}${emPromo ? ' (promoção)' : ''}</option>`;
+  }).join('');
 }
 
 document.getElementById('btnAdicionarItemVenda').addEventListener('click', () => {
@@ -1726,7 +1826,7 @@ document.getElementById('btnAdicionarItemVenda').addEventListener('click', () =>
   }
 
   if (existente) existente.quantidade += qtd;
-  else itensVendaAtual.push({ produtoId, nome: produto.nome, precoUnitario: produto.preco, quantidade: qtd });
+  else itensVendaAtual.push({ produtoId, nome: produto.nome, precoUnitario: precoVigente(produto), quantidade: qtd });
 
   renderItensVenda();
 });
@@ -1841,6 +1941,12 @@ document.getElementById('btnCancelarVendaRegistrada').addEventListener('click', 
 
   // Remove a venda (isso já reduz o saldo devedor do cliente automaticamente, se era fiado)
   salvar(CHAVES.vendas, vendas.filter((v) => v.id !== id));
+
+  // Se a venda veio de um pedido do catálogo, o pedido volta pra lista de "Novos"
+  if (venda.pedidoId) {
+    salvar(CHAVES.pedidosProcessados, carregar(CHAVES.pedidosProcessados).filter((x) => x.pedidoId !== venda.pedidoId));
+    atualizarBadgesPedidos();
+  }
 
   document.getElementById('modalVendaDetalhe').classList.add('hidden');
   renderVendasRecentes();
@@ -3637,6 +3743,7 @@ function iniciarFirebase() {
 
   nuvemAuth.onAuthStateChanged(async (user) => {
     atualizarUiNuvem(user);
+    if (user) iniciarEscutaPedidos(user.uid); else pararEscutaPedidos();
     if (!user) return;
     sincronizacaoEmAndamento = true;
     try {
@@ -3829,6 +3936,287 @@ document.getElementById('btnZerarContagemEntrega').addEventListener('click', asy
 // CLIENTES DO CATÁLOGO (cadastro por WhatsApp + histórico de pedidos)
 // ============================================================
 // ============================================================
+// PEDIDOS DO CATÁLOGO (caixa de entrada → vira venda com 1 toque)
+// Os pedidos ficam em pedidos/ no Firestore. Quais já foram tratados
+// fica numa lista local (sincronizada no backup/nuvem), porque as regras
+// do Firestore não deixam alterar um pedido depois de criado.
+// ============================================================
+
+function dataPedidoMs(p) {
+  return (p && p.criadoEm && typeof p.criadoEm.toDate === 'function') ? p.criadoEm.toDate().getTime() : Date.now();
+}
+function rotuloOrigemPedido(origem) {
+  if (origem === 'whatsapp') return '📲 WhatsApp';
+  if (origem === 'link') return '💳 Link de pagamento';
+  return '💳 Online';
+}
+function soDigitos(s) { return String(s || '').replace(/\D/g, ''); }
+function telefoneSemPais(s) {
+  const d = soDigitos(s);
+  return (d.length > 11 && d.startsWith('55')) ? d.slice(2) : d;
+}
+function formatarTelefone(s) {
+  const d = telefoneSemPais(s);
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return d || 'sem telefone';
+}
+function registroProcessado(pedidoId) {
+  return carregar(CHAVES.pedidosProcessados).find((x) => x.pedidoId === pedidoId) || null;
+}
+function pedidosNovos() {
+  return pedidosCatalogoCache.filter((p) => !registroProcessado(p.id));
+}
+
+function atualizarBadgesPedidos() {
+  const n = pedidosNovos().length;
+  [document.getElementById('badgePedidosInicio'), document.getElementById('badgePedidosVendas')].forEach((el) => {
+    if (!el) return;
+    el.textContent = n;
+    el.classList.toggle('hidden', n === 0);
+  });
+}
+
+function pararEscutaPedidos() {
+  if (pararOuvirPedidos) { pararOuvirPedidos(); pararOuvirPedidos = null; }
+  pedidosCatalogoCache = [];
+  pedidosJaCarregados = false;
+  atualizarBadgesPedidos();
+}
+
+function iniciarEscutaPedidos(uid) {
+  pararEscutaPedidos();
+  // Só um filtro de igualdade → não precisa de índice. A ordem é feita aqui.
+  pararOuvirPedidos = nuvemDb.collection('pedidos').where('uid', '==', uid).onSnapshot((snap) => {
+    const idsAntes = new Set(pedidosCatalogoCache.map((p) => p.id));
+    pedidosCatalogoCache = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((p) => p.status !== 'pendente'); // pagamento online ainda não aprovado
+    if (pedidosJaCarregados) {
+      const chegaram = pedidosCatalogoCache.filter((p) => !idsAntes.has(p.id) && !registroProcessado(p.id));
+      if (chegaram.length > 0) mostrarToast(`📥 ${chegaram.length > 1 ? chegaram.length + ' novos pedidos' : 'Novo pedido'} do catálogo!`);
+    }
+    pedidosJaCarregados = true;
+    atualizarBadgesPedidos();
+    if (!document.getElementById('modalPedidosCatalogo').classList.contains('hidden')) renderPedidosCatalogo();
+  }, () => { /* sem permissão ou offline: só não mostra a caixa */ });
+}
+
+function renderPedidosCatalogo() {
+  const lista = document.getElementById('listaPedidosCatalogo');
+  const base = filtroPedidos === 'novos' ? pedidosNovos() : pedidosCatalogoCache;
+  const pedidos = [...base].sort((a, b) => dataPedidoMs(b) - dataPedidoMs(a)).slice(0, 60);
+  if (pedidos.length === 0) {
+    lista.innerHTML = `<p class="vazio">${filtroPedidos === 'novos' ? 'Nenhum pedido novo. 🎉' : 'Nenhum pedido recebido pelo catálogo ainda.'}</p>`;
+    return;
+  }
+  lista.innerHTML = pedidos.map((p) => {
+    const reg = registroProcessado(p.id);
+    const quando = new Date(dataPedidoMs(p)).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const itens = (p.itens || []).map((i) => `• ${i.quantidade}x ${escapeHTML(i.nome || '')}`).join('<br>');
+    const endereco = p.endereco
+      ? escapeHTML(p.endereco).replace(/(https:\/\/www\.google\.com\/maps\?q=[-0-9.,]+)/g, '<a href="$1" target="_blank" rel="noopener">abrir no mapa</a>')
+      : '';
+    const acoes = reg
+      ? `<span class="selo-status">${reg.acao === 'venda' ? '✔ Venda registrada' : '🗂 Arquivado'}</span>
+         ${reg.acao === 'arquivado' ? `<div class="acoes-pedido"><button class="fantasma" data-reabrir="${p.id}">↩ Voltar para novos</button></div>` : ''}`
+      : `<div class="acoes-pedido">
+           <button class="primario" data-registrar="${p.id}" style="flex-basis:100%">✅ Registrar venda</button>
+           ${p.clienteTelefone ? `<button class="fantasma" data-whats="${p.id}">💬 WhatsApp</button>` : ''}
+           <button class="fantasma" data-arquivar="${p.id}">🗂 Arquivar</button>
+         </div>`;
+    return `<div class="pedido-card ${reg ? '' : 'novo'}">
+      <div class="topo"><strong>${formatarMoeda(p.total)}</strong><small style="margin:0">${quando}</small></div>
+      <small>${formatarTelefone(p.clienteTelefone)} · ${rotuloOrigemPedido(p.origem)}</small>
+      <div class="itens">${itens || '<em>sem itens</em>'}</div>
+      ${endereco ? `<small>📍 ${endereco.replace(/\n/g, '<br>')}</small>` : ''}
+      ${acoes}
+    </div>`;
+  }).join('');
+
+  lista.querySelectorAll('[data-registrar]').forEach((b) => b.addEventListener('click', () => abrirRegistrarPedido(b.dataset.registrar)));
+  lista.querySelectorAll('[data-arquivar]').forEach((b) => b.addEventListener('click', () => {
+    if (!confirm('Arquivar este pedido? Ele sai da lista de novos (nada muda no estoque).')) return;
+    const regs = carregar(CHAVES.pedidosProcessados);
+    regs.push({ pedidoId: b.dataset.arquivar, acao: 'arquivado', em: new Date().toISOString() });
+    salvar(CHAVES.pedidosProcessados, regs);
+    atualizarBadgesPedidos();
+    renderPedidosCatalogo();
+  }));
+  lista.querySelectorAll('[data-reabrir]').forEach((b) => b.addEventListener('click', () => {
+    salvar(CHAVES.pedidosProcessados, carregar(CHAVES.pedidosProcessados).filter((x) => x.pedidoId !== b.dataset.reabrir));
+    atualizarBadgesPedidos();
+    renderPedidosCatalogo();
+  }));
+  lista.querySelectorAll('[data-whats]').forEach((b) => b.addEventListener('click', () => {
+    const p = pedidosCatalogoCache.find((x) => x.id === b.dataset.whats);
+    if (!p) return;
+    const d = telefoneSemPais(p.clienteTelefone);
+    const msg = `Olá! Recebi seu pedido de ${formatarMoeda(p.total)} pelo catálogo. 🌱`;
+    window.open(`https://wa.me/55${d}?text=${encodeURIComponent(msg)}`, '_blank');
+  }));
+}
+
+document.getElementById('btnPedidosCatalogo').addEventListener('click', () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) para ver os pedidos do catálogo.');
+    return;
+  }
+  renderPedidosCatalogo();
+  document.getElementById('modalPedidosCatalogo').classList.remove('hidden');
+});
+document.getElementById('btnFecharPedidosCatalogo').addEventListener('click', () => document.getElementById('modalPedidosCatalogo').classList.add('hidden'));
+document.querySelectorAll('[data-filtro-pedidos]').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-filtro-pedidos]').forEach((x) => x.classList.remove('active'));
+  b.classList.add('active');
+  filtroPedidos = b.dataset.filtroPedidos;
+  renderPedidosCatalogo();
+}));
+
+function abrirRegistrarPedido(pedidoId) {
+  const p = pedidosCatalogoCache.find((x) => x.id === pedidoId);
+  if (!p) return;
+  document.getElementById('registrarPedidoId').value = pedidoId;
+
+  const produtos = carregar(CHAVES.produtos);
+  document.getElementById('registrarPedidoResumo').innerHTML = `
+    <div class="item" style="background:var(--bg)"><div class="info"><strong>${formatarMoeda(p.total)}</strong>
+    <small>${(p.itens || []).map((i) => `${i.quantidade}x ${escapeHTML(i.nome || '')}`).join(', ')}</small></div></div>`;
+
+  const avisos = [];
+  (p.itens || []).forEach((i) => {
+    const prod = produtos.find((x) => x.id === i.produtoId);
+    if (!prod) avisos.push(`"${escapeHTML(i.nome || '')}" não existe mais no estoque — a venda é registrada, mas sem dar baixa.`);
+    else if ((prod.estoqueAtual || 0) < i.quantidade) avisos.push(`"${escapeHTML(prod.nome)}": estoque ${prod.estoqueAtual}, pedido ${i.quantidade} — vai ficar negativo.`);
+  });
+  document.getElementById('registrarPedidoAvisos').innerHTML = avisos.length
+    ? `<p style="background:#fef3c7;color:#92400e;padding:8px 10px;border-radius:10px;font-size:0.8rem;margin:0 0 10px">⚠️ ${avisos.join('<br>⚠️ ')}</p>`
+    : '';
+
+  // Tenta achar o cliente pelo telefone (compara os últimos 8 dígitos, ignora DDD/+55 diferentes)
+  const clientes = carregar(CHAVES.clientes);
+  const telPedido = telefoneSemPais(p.clienteTelefone);
+  const achado = telPedido.length >= 8
+    ? clientes.find((c) => telefoneSemPais(c.telefone).length >= 8 && telefoneSemPais(c.telefone).slice(-8) === telPedido.slice(-8))
+    : null;
+
+  const select = document.getElementById('registrarPedidoCliente');
+  select.innerHTML =
+    `<option value="">Sem cliente (venda avulsa)</option>` +
+    (telPedido ? `<option value="__novo__">➕ Cadastrar novo cliente (${formatarTelefone(telPedido)})</option>` : '') +
+    clientes.map((c) => `<option value="${c.id}">${escapeHTML(c.nome)}</option>`).join('');
+  select.value = achado ? achado.id : (telPedido ? '__novo__' : '');
+  document.getElementById('registrarPedidoNovoNome').value = '';
+  document.getElementById('registrarPedidoNovoNome').placeholder = 'Ex: Maria (vizinha)';
+  atualizarCampoNovoCliente();
+
+  document.getElementById('registrarPedidoPagamento').value = p.origem === 'link' ? 'PIX' : 'Dinheiro';
+  document.getElementById('modalRegistrarPedido').classList.remove('hidden');
+}
+function atualizarCampoNovoCliente() {
+  document.getElementById('registrarPedidoNovoNomeWrap').classList.toggle('hidden', document.getElementById('registrarPedidoCliente').value !== '__novo__');
+}
+document.getElementById('registrarPedidoCliente').addEventListener('change', atualizarCampoNovoCliente);
+document.getElementById('btnCancelarRegistrarPedido').addEventListener('click', () => document.getElementById('modalRegistrarPedido').classList.add('hidden'));
+
+document.getElementById('btnConfirmarRegistrarPedido').addEventListener('click', () => {
+  const pedidoId = document.getElementById('registrarPedidoId').value;
+  const p = pedidosCatalogoCache.find((x) => x.id === pedidoId);
+  if (!p) return;
+  if (registroProcessado(pedidoId)) { mostrarToast('Esse pedido já foi registrado.'); return; }
+
+  let clienteId = document.getElementById('registrarPedidoCliente').value;
+  const formaPagamento = document.getElementById('registrarPedidoPagamento').value;
+  const clientes = carregar(CHAVES.clientes);
+
+  if (clienteId === '__novo__') {
+    const nome = document.getElementById('registrarPedidoNovoNome').value.trim();
+    if (!nome) { mostrarToast('Digite o nome do novo cliente.'); return; }
+    const novo = { id: gerarId(), nome, telefone: telefoneSemPais(p.clienteTelefone) };
+    clientes.push(novo);
+    salvar(CHAVES.clientes, clientes);
+    clienteId = novo.id;
+  }
+  if (formaPagamento === 'Fiado' && !clienteId) { mostrarToast('Venda fiado precisa de um cliente.'); return; }
+  const cliente = clienteId ? clientes.find((c) => c.id === clienteId) : null;
+
+  const produtos = carregar(CHAVES.produtos);
+  const itens = (p.itens || []).map((i) => {
+    const prod = produtos.find((x) => x.id === i.produtoId);
+    const preco = Number(i.precoUnitario) > 0 ? Number(i.precoUnitario) : precoVigente(prod);
+    return { produtoId: i.produtoId, nome: i.nome || (prod ? prod.nome : 'Produto'), precoUnitario: preco, quantidade: Number(i.quantidade) || 0 };
+  }).filter((i) => i.quantidade > 0);
+  if (itens.length === 0) { mostrarToast('Pedido sem itens válidos.'); return; }
+
+  const venda = {
+    id: gerarId(),
+    data: new Date().toISOString(),
+    clienteId: clienteId || '',
+    clienteNome: cliente ? cliente.nome : 'Venda avulsa',
+    itens,
+    total: itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0),
+    formaPagamento,
+    pedidoId
+  };
+  const vendas = carregar(CHAVES.vendas);
+  vendas.push(venda);
+  salvar(CHAVES.vendas, vendas);
+
+  itens.forEach((i) => {
+    const prod = produtos.find((x) => x.id === i.produtoId);
+    if (prod) prod.estoqueAtual -= i.quantidade;
+  });
+  salvar(CHAVES.produtos, produtos);
+
+  const regs = carregar(CHAVES.pedidosProcessados);
+  regs.push({ pedidoId, acao: 'venda', vendaId: venda.id, em: new Date().toISOString() });
+  salvar(CHAVES.pedidosProcessados, regs);
+
+  document.getElementById('modalRegistrarPedido').classList.add('hidden');
+  atualizarBadgesPedidos();
+  renderPedidosCatalogo();
+  renderVendasRecentes();
+  mostrarToast('Venda registrada e estoque atualizado.');
+});
+
+// ============================================================
+// LINK DE PAGAMENTO (Mercado Pago "Seu link") — aparece no catálogo
+// ============================================================
+document.getElementById('btnLinkPagamento').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  try {
+    const doc = await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).get();
+    document.getElementById('inputLinkPagamento').value = (doc.exists && doc.data().linkPagamento) || '';
+  } catch (err) { /* campo fica vazio */ }
+  document.getElementById('modalLinkPagamento').classList.remove('hidden');
+});
+document.getElementById('btnFecharLinkPagamento').addEventListener('click', () => document.getElementById('modalLinkPagamento').classList.add('hidden'));
+document.getElementById('btnSalvarLinkPagamento').addEventListener('click', async () => {
+  const link = document.getElementById('inputLinkPagamento').value.trim();
+  if (!/^https:\/\/\S+\.\S+/.test(link)) { mostrarToast('O link precisa começar com https://'); return; }
+  try {
+    await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({ linkPagamento: link }, { merge: true });
+    mostrarToast('Link salvo. O botão PIX/Cartão já aparece no catálogo.');
+    document.getElementById('modalLinkPagamento').classList.add('hidden');
+  } catch (err) {
+    mostrarToast('Erro ao salvar: ' + (err.code || err.message));
+  }
+});
+document.getElementById('btnRemoverLinkPagamento').addEventListener('click', async () => {
+  if (!confirm('Remover o link? O botão PIX/Cartão some do catálogo.')) return;
+  try {
+    await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({ linkPagamento: '' }, { merge: true });
+    document.getElementById('inputLinkPagamento').value = '';
+    mostrarToast('Link removido.');
+  } catch (err) {
+    mostrarToast('Erro ao remover: ' + (err.code || err.message));
+  }
+});
+
+// ============================================================
 // TEMA DO CATÁLOGO (cores)
 // ============================================================
 document.getElementById('btnTemaCatalogo').addEventListener('click', async () => {
@@ -3907,19 +4295,22 @@ async function abrirHistoricoCliente(telefone) {
   document.getElementById('modalHistoricoCliente').classList.remove('hidden');
 
   try {
+    // Só filtros de igualdade (sem orderBy): assim o Firestore não exige criar índice composto.
+    // A ordenação por data é feita aqui no aparelho.
     const snap = await nuvemDb.collection('pedidos')
       .where('uid', '==', uid)
       .where('clienteTelefone', '==', telefone)
-      .orderBy('criadoEm', 'desc').get();
+      .get();
     if (snap.empty) {
       lista.innerHTML = '<p class="vazio">Nenhum pedido registrado pra esse cliente ainda.</p>';
       return;
     }
-    lista.innerHTML = snap.docs.map((d) => {
+    const docsOrdenados = [...snap.docs].sort((a, b) => dataPedidoMs(b.data()) - dataPedidoMs(a.data()));
+    lista.innerHTML = docsOrdenados.map((d) => {
       const p = d.data();
       const data = p.criadoEm ? p.criadoEm.toDate().toLocaleDateString('pt-BR') : '-';
       const itensTexto = (p.itens || []).map((i) => `${i.quantidade}x ${i.nome}`).join(', ');
-      const origemTexto = p.origem === 'whatsapp' ? '📲 WhatsApp' : '💳 Online';
+      const origemTexto = rotuloOrigemPedido(p.origem);
       return `<div class="item">
         <div class="info"><strong>${formatarMoeda(p.total)}</strong><small>${data} · ${origemTexto}<br>${escapeHTML(itensTexto)}</small></div>
       </div>`;
