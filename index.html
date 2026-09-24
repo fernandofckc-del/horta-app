@@ -268,7 +268,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.2.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.3.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -350,7 +350,7 @@
   <button class="fantasma" id="btnEntregaMinima" style="width:100%;margin-bottom:12px">🚚 Entrega mínima</button>
   <button class="fantasma" id="btnClientesCatalogo" style="width:100%;margin-bottom:12px">👥 Clientes do catálogo</button>
   <button class="fantasma" id="btnTemaCatalogo" style="width:100%;margin-bottom:12px">🎨 Tema do catálogo</button>
-  <button class="fantasma" id="btnLinkPagamento" style="width:100%;margin-bottom:12px">💳 Link de pagamento (PIX/Cartão)</button>
+  <button class="fantasma" id="btnLinkPagamento" style="width:100%;margin-bottom:12px">💳 Pagamento (PIX e cartão)</button>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
@@ -802,23 +802,48 @@
   </div>
 </div>
 
-<!-- ===================== MODAL: LINK DE PAGAMENTO ===================== -->
+<!-- ===================== MODAL: PAGAMENTO (PIX + LINK CARTÃO) ===================== -->
 <div id="modalLinkPagamento" class="modal-overlay hidden">
   <div class="modal-box">
-    <h3>💳 Link de pagamento</h3>
-    <p style="font-size:0.8rem;color:var(--texto-suave);margin-top:-8px">
-      Cole aqui um link de pagamento do Mercado Pago (o "Seu link", onde o cliente digita o valor e paga com PIX ou cartão).
-      Com o link salvo, aparece o botão "💳 PIX/Cartão" no carrinho do catálogo. Sem link, esse botão fica escondido.
+    <h3>💳 Pagamento no catálogo</h3>
+
+    <h4 style="margin:4px 0 4px">⚡ PIX com valor já preenchido</h4>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin:0 0 10px">
+      O catálogo gera o PIX "copia e cola" e o QR Code com o valor exato do carrinho. O dinheiro cai direto na sua conta, sem taxa.
+      Os dados precisam ser iguais aos do seu banco.
     </p>
-    <p style="font-size:0.78rem;margin:0 0 10px">
-      <strong>Onde pegar:</strong> app do Mercado Pago → "Cobrar" (ou "Link de pagamento") → "Seu link" → copiar.
+    <label>Tipo de chave
+      <select id="pixTipoChave">
+        <option value="celular">Celular</option>
+        <option value="cpf">CPF</option>
+        <option value="cnpj">CNPJ</option>
+        <option value="email">E-mail</option>
+        <option value="aleatoria">Chave aleatória</option>
+      </select>
+    </label>
+    <label>Chave PIX
+      <input type="text" id="pixChave" placeholder="Deixe vazio pra não usar PIX no catálogo">
+    </label>
+    <div class="linha">
+      <label>Nome (como está no banco)
+        <input type="text" id="pixNome" maxlength="25" placeholder="Ex: Fernando Coelho">
+      </label>
+      <label>Cidade
+        <input type="text" id="pixCidade" maxlength="15" placeholder="Ex: Barra do Choca">
+      </label>
+    </div>
+
+    <h4 style="margin:14px 0 4px">💳 Cartão (link do Mercado Pago) — opcional</h4>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin:0 0 10px">
+      Pra quem quiser pagar no cartão. Aqui o cliente digita o valor na tela do Mercado Pago.
+      Onde pegar: app do Mercado Pago → "Cobrar" → "Seu link" → copiar.
     </p>
     <label>Link
-      <input type="url" id="inputLinkPagamento" placeholder="https://link.mercadopago.com.br/...">
+      <input type="url" id="inputLinkPagamento" placeholder="link.mercadopago.com.br/...">
     </label>
+
     <div class="acoes">
       <button class="fantasma" id="btnFecharLinkPagamento">Fechar</button>
-      <button class="perigo" id="btnRemoverLinkPagamento">Remover</button>
       <button class="primario" id="btnSalvarLinkPagamento">Salvar</button>
     </div>
   </div>
@@ -1247,7 +1272,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.2.0';
+const APP_VERSION = '3.3.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -3947,7 +3972,8 @@ function dataPedidoMs(p) {
 }
 function rotuloOrigemPedido(origem) {
   if (origem === 'whatsapp') return '📲 WhatsApp';
-  if (origem === 'link') return '💳 Link de pagamento';
+  if (origem === 'pix') return '⚡ PIX';
+  if (origem === 'link') return '💳 Cartão (link)';
   return '💳 Online';
 }
 function soDigitos(s) { return String(s || '').replace(/\D/g, ''); }
@@ -4110,7 +4136,7 @@ function abrirRegistrarPedido(pedidoId) {
   document.getElementById('registrarPedidoNovoNome').placeholder = 'Ex: Maria (vizinha)';
   atualizarCampoNovoCliente();
 
-  document.getElementById('registrarPedidoPagamento').value = p.origem === 'link' ? 'PIX' : 'Dinheiro';
+  document.getElementById('registrarPedidoPagamento').value = p.origem === 'pix' ? 'PIX' : (p.origem === 'link' ? 'Cartão' : 'Dinheiro');
   document.getElementById('modalRegistrarPedido').classList.remove('hidden');
 }
 function atualizarCampoNovoCliente() {
@@ -4180,39 +4206,88 @@ document.getElementById('btnConfirmarRegistrarPedido').addEventListener('click',
 });
 
 // ============================================================
-// LINK DE PAGAMENTO (Mercado Pago "Seu link") — aparece no catálogo
+// PAGAMENTO NO CATÁLOGO: PIX (chave própria) + link do Mercado Pago (cartão)
 // ============================================================
+// Deixa a chave no formato que o PIX exige. Devolve '' se estiver inválida.
+function normalizarChavePix(tipo, valor) {
+  const v = String(valor || '').trim();
+  if (!v) return '';
+  const d = v.replace(/\D/g, '');
+  if (tipo === 'celular') {
+    const semPais = (d.length >= 12 && d.startsWith('55')) ? d.slice(2) : d;
+    return (semPais.length === 10 || semPais.length === 11) ? '+55' + semPais : '';
+  }
+  if (tipo === 'cpf') return d.length === 11 ? d : '';
+  if (tipo === 'cnpj') return d.length === 14 ? d : '';
+  if (tipo === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v.toLowerCase() : '';
+  if (tipo === 'aleatoria') return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v.toLowerCase() : '';
+  return '';
+}
+
 document.getElementById('btnLinkPagamento').addEventListener('click', async () => {
   if (!nuvemAuth || !nuvemAuth.currentUser) {
     mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
     return;
   }
+  const resp = carregarResponsavel();
+  document.getElementById('inputLinkPagamento').value = '';
+  document.getElementById('pixTipoChave').value = 'celular';
+  document.getElementById('pixChave').value = '';
+  document.getElementById('pixNome').value = resp.nome || '';
+  document.getElementById('pixCidade').value = '';
   try {
     const doc = await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).get();
-    document.getElementById('inputLinkPagamento').value = (doc.exists && doc.data().linkPagamento) || '';
-  } catch (err) { /* campo fica vazio */ }
+    const d = doc.exists ? doc.data() : {};
+    document.getElementById('inputLinkPagamento').value = d.linkPagamento || '';
+    if (d.pix && d.pix.chave) {
+      document.getElementById('pixTipoChave').value = d.pix.tipo || 'celular';
+      document.getElementById('pixChave').value = d.pix.chave;
+      document.getElementById('pixNome').value = d.pix.nome || '';
+      document.getElementById('pixCidade').value = d.pix.cidade || '';
+    }
+  } catch (err) { /* campos ficam como estão */ }
   document.getElementById('modalLinkPagamento').classList.remove('hidden');
 });
 document.getElementById('btnFecharLinkPagamento').addEventListener('click', () => document.getElementById('modalLinkPagamento').classList.add('hidden'));
+
 document.getElementById('btnSalvarLinkPagamento').addEventListener('click', async () => {
-  const link = document.getElementById('inputLinkPagamento').value.trim();
-  if (!/^https:\/\/\S+\.\S+/.test(link)) { mostrarToast('O link precisa começar com https://'); return; }
+  // --- PIX ---
+  const tipo = document.getElementById('pixTipoChave').value;
+  const chaveDigitada = document.getElementById('pixChave').value.trim();
+  const nome = document.getElementById('pixNome').value.trim();
+  const cidade = document.getElementById('pixCidade').value.trim();
+  let pix = null;
+  if (chaveDigitada) {
+    const chave = normalizarChavePix(tipo, chaveDigitada);
+    if (!chave) {
+      const dicas = { celular: 'celular com DDD (ex: 77 99999-8888)', cpf: 'CPF com 11 números', cnpj: 'CNPJ com 14 números', email: 'e-mail válido', aleatoria: 'chave aleatória completa (ex: 123e4567-e89b-...)' };
+      mostrarToast('Chave PIX inválida. Precisa ser ' + dicas[tipo] + '.');
+      return;
+    }
+    if (!nome || !cidade) { mostrarToast('Preencha o nome e a cidade do PIX.'); return; }
+    pix = { tipo, chave, nome, cidade };
+    document.getElementById('pixChave').value = chave;
+  }
+
+  // --- Link (cartão) ---
+  let link = document.getElementById('inputLinkPagamento').value.trim().replace(/\s+/g, '');
+  if (link) {
+    // Aceita link colado sem o começo (ex: link.mercadopago.com.br/...) e completa sozinho
+    link = link.replace(/^http:\/\//i, 'https://');
+    if (!/^https:\/\//i.test(link)) link = 'https://' + link;
+    if (!/^https:\/\/[^\s/]+\.[^\s/]+/i.test(link)) { mostrarToast('Link inválido. Ex: link.mercadopago.com.br/seunome'); return; }
+    document.getElementById('inputLinkPagamento').value = link;
+  }
+
   try {
-    await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({ linkPagamento: link }, { merge: true });
-    mostrarToast('Link salvo. O botão PIX/Cartão já aparece no catálogo.');
+    await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({ pix, linkPagamento: link }, { merge: true });
+    const partes = [];
+    if (pix) partes.push('PIX');
+    if (link) partes.push('cartão');
+    mostrarToast(partes.length ? `Salvo! O catálogo já mostra: ${partes.join(' e ')}.` : 'Salvo. Pagamento pelo catálogo desligado.');
     document.getElementById('modalLinkPagamento').classList.add('hidden');
   } catch (err) {
     mostrarToast('Erro ao salvar: ' + (err.code || err.message));
-  }
-});
-document.getElementById('btnRemoverLinkPagamento').addEventListener('click', async () => {
-  if (!confirm('Remover o link? O botão PIX/Cartão some do catálogo.')) return;
-  try {
-    await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({ linkPagamento: '' }, { merge: true });
-    document.getElementById('inputLinkPagamento').value = '';
-    mostrarToast('Link removido.');
-  } catch (err) {
-    mostrarToast('Erro ao remover: ' + (err.code || err.message));
   }
 });
 
