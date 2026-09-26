@@ -2,7 +2,7 @@
    Como o app é um único arquivo HTML (sem backend), o cache aqui é bem
    simples: guarda o próprio app para abrir mesmo sem internet. */
 
-const CACHE = 'horta-v42';
+const CACHE = 'horta-v43';
 const ARQUIVOS = ['./manifest.json', './icons/icon-192.png', './icons/icon-512.png', './fundo-inicio.jpg'];
 
 self.addEventListener('install', (event) => {
