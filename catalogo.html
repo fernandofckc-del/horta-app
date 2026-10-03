@@ -118,9 +118,7 @@
     border: none; border-radius: 999px; padding: 10px; font-size: 0.8rem; font-weight: 700; cursor: pointer;
   }
   .produto .btn-add-carrinho { background: var(--verde); color: #fff; }
-  .produto .btn-add-carrinho::before { content: "🛒 "; }
   .produto .btn-comprar-agora { background: var(--verde-claro); color: var(--verde-escuro); }
-  .produto .btn-comprar-agora::before { content: "⚡ "; }
   .carrinho-barra {
     position: sticky; bottom: 0; left: 0; right: 0;
     background: var(--card); border-top: 1px solid var(--borda);
@@ -208,6 +206,8 @@
     padding: 14px 22px; display: flex; align-items: center; gap: 10px;
     box-shadow: 0 6px 18px rgba(22,163,74,0.4); cursor: pointer; font-weight: 800; font-size: 0.95rem;
   }
+  @keyframes pulsar-carrinho { 0% { transform: scale(1); } 40% { transform: scale(1.12); } 100% { transform: scale(1); } }
+  .carrinho-barra-fixa.pulsar { animation: pulsar-carrinho 0.45s ease; }
   .carrinho-barra-fixa .badge-qtd {
     background: #fff; color: var(--verde-escuro); border-radius: 999px;
     min-width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
@@ -485,7 +485,9 @@ function renderProgressoItens() {
   const pct = Math.min(100, Math.round((total / entregaConfig.minimoItensCliente) * 100));
   document.getElementById('barraProgressoItens').style.width = pct + '%';
 }
-const CARRINHO_STORAGE_KEY = 'hg_catalogo_carrinho_' + uid;
+// Guarda o carrinho pelo ID do produto. (Antes guardava pela posição na lista:
+// se o vendedor apagava/acrescentava produto, o carrinho trocava de produto sozinho.)
+const CARRINHO_STORAGE_KEY = 'hg_catalogo_carrinho_v2_' + uid;
 const carrinho = {}; // { indice: quantidade } — itens já adicionados ao carrinho
 const selecionado = {}; // { indice: quantidade } — quantidade escolhida no seletor, antes de adicionar
 
@@ -495,15 +497,26 @@ let itensCheckout = {};
 let checkoutEhCarrinho = true;
 
 function salvarCarrinhoLocal() {
-  try { localStorage.setItem(CARRINHO_STORAGE_KEY, JSON.stringify(carrinho)); } catch (err) { /* ignora se storage indisponível */ }
+  try {
+    const porId = {};
+    Object.entries(carrinho).forEach(([idx, qtd]) => {
+      const p = itensCatalogo[idx];
+      if (p && p.id && qtd > 0) porId[p.id] = qtd;
+    });
+    localStorage.setItem(CARRINHO_STORAGE_KEY, JSON.stringify(porId));
+  } catch (err) { /* ignora se storage indisponível */ }
 }
 
 function restaurarCarrinhoLocal() {
   try {
     const salvo = JSON.parse(localStorage.getItem(CARRINHO_STORAGE_KEY) || '{}');
-    Object.keys(salvo).forEach((idx) => {
-      if (itensCatalogo[idx] && salvo[idx] > 0) carrinho[idx] = Math.min(salvo[idx], itensCatalogo[idx].estoqueAtual || 0);
+    itensCatalogo.forEach((p, idx) => {
+      const qtd = Number(salvo[p.id]) || 0;
+      const max = p.estoqueAtual || 0;
+      if (qtd > 0 && max > 0) carrinho[idx] = Math.min(qtd, max);
     });
+    // Carrinho no formato antigo (pela posição) é descartado: podia apontar pro produto errado.
+    localStorage.removeItem('hg_catalogo_carrinho_' + uid);
   } catch (err) { /* ignora se storage indisponível ou corrompido */ }
 }
 
@@ -525,15 +538,27 @@ function mudarQtdSelecionada(idx, delta) {
   document.getElementById('qtd-' + idx).textContent = novo;
 }
 
-function adicionarAoCarrinho(idx) {
+// Mostra um recado rápido no próprio botão e depois volta o texto original
+function avisarNoBotao(btn, texto) {
+  if (!btn) return;
+  if (!btn.dataset.rotulo) btn.dataset.rotulo = btn.textContent;
+  btn.textContent = texto;
+  clearTimeout(btn._timerAviso);
+  btn._timerAviso = setTimeout(() => { btn.textContent = btn.dataset.rotulo; }, 1500);
+}
+
+function adicionarAoCarrinho(idx, btn) {
   const p = itensCatalogo[idx];
   const qtd = selecionado[idx] || 1;
   const max = p.estoqueAtual || 0;
   const jaNoCarrinho = carrinho[idx] || 0;
   const novaQtd = Math.min(max, jaNoCarrinho + qtd);
-  if (novaQtd <= jaNoCarrinho) return;
+  if (novaQtd <= jaNoCarrinho) { avisarNoBotao(btn, '⚠️ Todo o estoque já está no carrinho'); return; }
   carrinho[idx] = novaQtd;
   atualizarCarrinhoBarra();
+  avisarNoBotao(btn, `✅ Adicionado (${novaQtd} no carrinho)`);
+  const barra = document.getElementById('carrinhoBarra');
+  barra.classList.remove('pulsar'); void barra.offsetWidth; barra.classList.add('pulsar');
 }
 
 function renderModalCarrinho() {
@@ -651,7 +676,7 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', async ()
   const itensPedido = Object.entries(itensCheckout).filter(([, qtd]) => qtd > 0).map(([idx, qtd]) => ({
     produtoId: itensCatalogo[idx].id, nome: itensCatalogo[idx].nome, quantidade: qtd, precoUnitario: precoFinal(itensCatalogo[idx])
   }));
-  const total = Object.entries(itensCheckout).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? precoFinal(itensCatalogo[idx]) * qtd : 0), 0);
+  const total = Math.round(Object.entries(itensCheckout).reduce((s, [idx, qtd]) => s + (itensCatalogo[idx] ? precoFinal(itensCatalogo[idx]) * qtd : 0), 0) * 100) / 100;
   const endereco = document.getElementById('enderecoEntregaInput').value.trim();
   let mensagem = `Olá! Quero fazer um pedido:\n\n${linhas.join('\n')}\n\nTotal: ${formatarMoeda(total)}`;
   if (endereco) mensagem += `\n\nEndereço de entrega:\n${endereco}`;
@@ -678,6 +703,7 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', async ()
 // (pro vendedor ver na caixa de pedidos do app) e depois abre o link.
 let linkPagamento = '';
 let pixConfig = null;
+let rotuloBtnCartao = '💳 PIX/Cartão';
 let ultimoPedidoPix = null;
 
 document.getElementById('btnPagarPix').addEventListener('click', async () => {
@@ -750,7 +776,7 @@ document.getElementById('btnPagarOnline').addEventListener('click', async () => 
   const itensPedido = entradas.map(([idx, qtd]) => ({
     produtoId: itensCatalogo[idx].id, nome: itensCatalogo[idx].nome, quantidade: qtd, precoUnitario: precoFinal(itensCatalogo[idx])
   }));
-  const total = entradas.reduce((s, [idx, qtd]) => s + precoFinal(itensCatalogo[idx]) * qtd, 0);
+  const total = Math.round(entradas.reduce((s, [idx, qtd]) => s + precoFinal(itensCatalogo[idx]) * qtd, 0) * 100) / 100;
   const endereco = document.getElementById('enderecoEntregaInput').value.trim();
 
   const btn = document.getElementById('btnPagarOnline');
@@ -758,7 +784,7 @@ document.getElementById('btnPagarOnline').addEventListener('click', async () => 
   btn.textContent = 'Registrando pedido...';
   await registrarPedidoEIncrementar(itensPedido, total, endereco, 'link');
   btn.disabled = false;
-  btn.textContent = '💳 PIX/Cartão';
+  btn.textContent = rotuloBtnCartao;
 
   if (checkoutEhCarrinho) {
     Object.keys(carrinho).forEach((idx) => delete carrinho[idx]);
@@ -810,7 +836,8 @@ if (!uid) {
     document.getElementById('btnPagarPix').classList.toggle('hidden', !pixConfig);
     document.getElementById('btnPagarOnline').classList.toggle('hidden', !linkPagamento);
     // Com PIX próprio, o link fica só pro cartão; sem PIX, o link cobre os dois.
-    document.getElementById('btnPagarOnline').textContent = pixConfig ? '💳 Cartão' : '💳 PIX/Cartão';
+    rotuloBtnCartao = pixConfig ? '💳 Cartão' : '💳 PIX/Cartão';
+    document.getElementById('btnPagarOnline').textContent = rotuloBtnCartao;
 
     restaurarCarrinhoLocal();
     atualizarCarrinhoBarra();
@@ -870,7 +897,7 @@ if (!uid) {
 
     grid.querySelectorAll('[data-menos-idx]').forEach((btn) => btn.addEventListener('click', () => mudarQtdSelecionada(btn.dataset.menosIdx, -1)));
     grid.querySelectorAll('[data-mais-idx]').forEach((btn) => btn.addEventListener('click', () => mudarQtdSelecionada(btn.dataset.maisIdx, 1)));
-    grid.querySelectorAll('[data-add-idx]').forEach((btn) => btn.addEventListener('click', () => adicionarAoCarrinho(btn.dataset.addIdx)));
+    grid.querySelectorAll('[data-add-idx]').forEach((btn) => btn.addEventListener('click', () => adicionarAoCarrinho(btn.dataset.addIdx, btn)));
     grid.querySelectorAll('[data-comprar-idx]').forEach((btn) => btn.addEventListener('click', () => {
       const idx = btn.dataset.comprarIdx;
       const qtd = selecionado[idx] || 1;

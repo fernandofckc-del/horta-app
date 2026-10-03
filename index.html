@@ -82,6 +82,7 @@
     box-shadow: 0 1px 5px rgba(0,0,0,0.04);
     cursor: pointer;
   }
+  .item .info { flex: 1; min-width: 0; }
   .item .info strong { display: block; font-size: 0.92rem; }
   .item .info small { color: var(--texto-suave); font-size: 0.76rem; }
   .item .valor-direita { font-weight: 700; font-size: 0.9rem; white-space: nowrap; }
@@ -109,7 +110,7 @@
   .linha { display: flex; gap: 10px; }
   .linha > label { flex: 1; }
 
-  button.primario, button.fantasma, button.perigo {
+  button.primario, button.fantasma, button.perigo, button.whatsapp {
     border: none;
     border-radius: 10px;
     padding: 11px 16px;
@@ -122,6 +123,7 @@
   button.fantasma.active { background: var(--verde); color: #fff; border-color: var(--verde); }
   button.perigo { background: var(--card); border: 1px solid var(--vermelho); color: var(--vermelho); }
   button.whatsapp { background: #25d366; color: #fff; width: 100%; }
+  button.btn-mini { padding: 5px 9px; font-size: 0.8rem; border-radius: 8px; width: auto; flex-shrink: 0; }
   .acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   .acoes > * { flex: 1; }
 
@@ -238,7 +240,9 @@
   .badge.colhido { background: #e5e7eb; color: #4b5563; }
   .toast {
     position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
-    background: var(--texto); color: #fff; padding: 10px 18px; border-radius: 10px;
+    background: #1f2937; color: #fff; padding: 10px 18px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.14); box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    max-width: calc(100% - 32px); text-align: center;
     font-size: 0.85rem; z-index: 100; transition: opacity 0.2s;
   }
   .toast.hidden { opacity: 0; pointer-events: none; }
@@ -263,13 +267,22 @@
   .pedido-card .itens { margin: 8px 0; font-size: 0.88rem; }
   .pedido-card .acoes-pedido { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
   .pedido-card .acoes-pedido button { flex: 1; min-width: 90px; padding: 8px; font-size: 0.8rem; }
+  details.config-catalogo { background: var(--card); border: 1px solid var(--borda); border-radius: 12px; padding: 0 12px; margin-bottom: 12px; }
+  details.config-catalogo summary { cursor: pointer; padding: 12px 0; font-weight: 600; font-size: 0.88rem; list-style: none; }
+  details.config-catalogo summary::-webkit-details-marker { display: none; }
+  details.config-catalogo summary::after { content: '▾'; float: right; color: var(--texto-suave); }
+  details.config-catalogo[open] summary::after { content: '▴'; }
+  .config-catalogo-botoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: 12px; }
+  .config-catalogo-botoes button { width: 100%; font-size: 0.8rem; padding: 10px 8px; }
+  .dica-box { background: var(--bg); border: 1px dashed var(--borda); border-radius: 10px; padding: 9px 12px; font-size: 0.8rem; color: var(--texto-suave); margin: 0 0 12px; }
+  .dica-box strong { color: var(--texto); }
   .pedido-card .selo-status { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--borda); margin-top: 6px; }
 </style>
 </head>
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.4.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.5.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -311,6 +324,7 @@
         </button>
         <button class="icone-item" data-ir="financas">
           <span class="icone-app cor-financas">💳</span><span class="icone-legenda">Finanças</span>
+          <span class="badge-icone hidden" id="badgeContasInicio" title="Contas vencidas">0</span>
         </button>
         <button class="icone-item" data-ir="servicos">
           <span class="icone-app cor-servicos">🔧</span><span class="icone-legenda">Serviços</span>
@@ -349,12 +363,17 @@
     <button class="primario" style="width:auto" id="btnNovoProduto">+ Novo</button>
   </div>
   <button class="fantasma" id="btnCompartilharCatalogo" style="width:100%;margin-bottom:8px">🔗 Compartilhar catálogo com clientes</button>
-  <button class="fantasma" id="btnBannerCatalogo" style="width:100%;margin-bottom:8px">🖼️ Adicionar/trocar banner do catálogo</button>
-  <button class="fantasma" id="btnRemoverBannerCatalogo" style="width:100%;margin-bottom:8px">🗑️ Remover banner do catálogo</button>
-  <button class="fantasma" id="btnEntregaMinima" style="width:100%;margin-bottom:12px">🚚 Entrega mínima</button>
-  <button class="fantasma" id="btnClientesCatalogo" style="width:100%;margin-bottom:12px">👥 Clientes do catálogo</button>
-  <button class="fantasma" id="btnTemaCatalogo" style="width:100%;margin-bottom:12px">🎨 Tema do catálogo</button>
-  <button class="fantasma" id="btnLinkPagamento" style="width:100%;margin-bottom:12px">💳 Pagamento (PIX e cartão)</button>
+  <details class="config-catalogo" id="configCatalogo">
+    <summary>⚙️ Configurar catálogo (banner, entrega, pagamento...)</summary>
+    <div class="config-catalogo-botoes">
+      <button class="fantasma" id="btnLinkPagamento">💳 Pagamento (PIX e cartão)</button>
+      <button class="fantasma" id="btnEntregaMinima">🚚 Entrega mínima</button>
+      <button class="fantasma" id="btnClientesCatalogo">👥 Clientes do catálogo</button>
+      <button class="fantasma" id="btnTemaCatalogo">🎨 Tema do catálogo</button>
+      <button class="fantasma" id="btnBannerCatalogo">🖼️ Trocar banner</button>
+      <button class="fantasma" id="btnRemoverBannerCatalogo">🗑️ Remover banner</button>
+    </div>
+  </details>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
   <div class="lista" id="listaProdutos"></div>
 </main>
@@ -401,19 +420,26 @@
     <span>Total</span><strong id="vendaTotalTexto">R$ 0,00</strong>
   </div>
 
-  <label>Forma de pagamento
-    <select id="vendaFormaPagamento">
-      <option>Dinheiro</option>
-      <option>PIX</option>
-      <option>Cartão</option>
-      <option value="Fiado">Fiado</option>
-    </select>
-  </label>
+  <div class="linha">
+    <label>Forma de pagamento
+      <select id="vendaFormaPagamento">
+        <option>Dinheiro</option>
+        <option>PIX</option>
+        <option>Cartão</option>
+        <option value="Fiado">Fiado</option>
+      </select>
+    </label>
+    <label style="max-width:165px">Data da venda
+      <input type="date" id="vendaData">
+    </label>
+  </div>
+  <p id="vendaDataAviso" class="dica-box hidden">📅 Venda com data passada: ela entra no dia escolhido (bom pra lançar venda que ficou esquecida).</p>
 
   <button class="primario" id="btnFinalizarVenda">Finalizar venda</button>
 
   <h2 class="titulo">Últimas vendas</h2>
   <div class="lista" id="listaVendasRecentes"></div>
+  <button type="button" class="fantasma hidden" id="btnMaisVendas" style="width:100%;margin-top:10px">Mostrar mais vendas</button>
 </main>
 
 <!-- ===================== INSUMOS (gastos) ===================== -->
@@ -675,6 +701,7 @@
 
     <h2 class="titulo">Cofrinho / Reserva</h2>
     <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-6px">Dinheiro separado que não conta como "disponível para gastar".</p>
+    <p id="sugestaoReserva" class="dica-box hidden"></p>
     <div class="toolbar" style="margin-bottom:12px">
       <button class="primario" id="btnGuardarCofrinho" style="width:auto;flex:1">+ Guardar</button>
       <button class="fantasma" id="btnRetirarCofrinho" style="width:auto;flex:1">− Retirar</button>
@@ -1152,7 +1179,7 @@
     </div>
 
     <button class="whatsapp" id="btnCobrarWhatsapp" style="margin-top:10px">📲 Cobrar pelo WhatsApp</button>
-    <button class="fantasma" id="btnEnviarExtrato" style="margin-top:8px">📄 Enviar extrato completo</button>
+    <button class="fantasma" id="btnEnviarExtrato" style="margin-top:8px;width:100%">📄 Enviar extrato completo no WhatsApp</button>
 
     <h2 class="titulo">Extrato em PDF</h2>
     <div class="linha">
@@ -1339,6 +1366,7 @@
     <div class="resumo-caixa">
       <span>Total</span><strong id="vendaDetalheTotal">R$ 0,00</strong>
     </div>
+    <button class="whatsapp" id="btnComprovanteVenda" style="margin-top:4px">📲 Enviar comprovante no WhatsApp</button>
     <p style="font-size:0.78rem;color:var(--texto-suave)">Cancelar devolve os itens ao estoque e remove o valor do fiado do cliente (se houver).</p>
     <div class="acoes">
       <button class="fantasma" id="btnFecharVendaDetalhe">Fechar</button>
@@ -1352,10 +1380,10 @@
   <div class="modal-box">
     <h3>Backup dos dados</h3>
     <p style="font-size:0.85rem;color:var(--texto-suave)">
-      Seus dados ficam salvos apenas neste navegador/celular. Se limpar o
-      histórico do navegador ou trocar de aparelho, você perde tudo — por
-      isso, exporte um backup de vez em quando e guarde o arquivo em local
-      seguro (Google Drive, e-mail para você mesmo, etc.).
+      Seus dados ficam salvos neste celular e, com a conta Google conectada
+      (lá embaixo), também na nuvem, sozinhos. Mesmo assim, exporte um backup
+      em arquivo de vez em quando e guarde em local seguro (Google Drive,
+      e-mail pra você mesmo, etc.).
     </p>
     <div class="acoes">
       <button class="fantasma" id="btnExportarBackup">Exportar backup</button>
@@ -1370,6 +1398,7 @@
     </p>
     <button class="primario hidden" id="btnEntrarGoogle" style="width:100%">Entrar com Google</button>
     <div id="nuvemLogado" class="hidden">
+      <p id="nuvemSyncInfo" style="font-size:0.8rem;font-weight:600;margin:-4px 0 10px"></p>
       <button class="fantasma" id="btnSincronizarAgora" style="width:100%;margin-bottom:8px">🔄 Sincronizar agora</button>
       <button class="fantasma" id="btnSairGoogle" style="width:100%">Sair da conta</button>
     </div>
@@ -1392,7 +1421,7 @@
       <button class="primario" id="btnSalvarApiKeyVoz" style="width:100%">Salvar chave</button>
     </div>
     <div id="vozPrincipalSection" class="hidden">
-      <p style="font-size:0.85rem;color:var(--texto-suave)" id="vozStatusTexto">Toque no microfone e fale o comando. Ex: "vendi 2 alfaces pro João", "gastei 50 reais em sementes", "lembrar de regar amanhã".</p>
+      <p style="font-size:0.85rem;color:var(--texto-suave)" id="vozStatusTexto">Toque no microfone e fale o comando. Ex: "vendi 2 alfaces pro João", "gastei 50 reais em sementes", "fiz um farol de 150 reais pro Carlos no PIX", "gastei 80 no mercado".</p>
       <button class="primario" id="btnFalar" style="width:100%;font-size:1.3rem;padding:16px">🎤</button>
       <p id="vozTranscript" style="min-height:22px;font-style:italic;color:var(--texto-suave);margin:10px 0"></p>
       <div class="lista" id="vozResultado"></div>
@@ -1409,9 +1438,10 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.4.0';
+const APP_VERSION = '3.5.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
+const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
 // Estado da caixa de pedidos do catálogo (declarado cedo pra estar disponível desde o início)
 let pedidosCatalogoCache = [];
@@ -1419,10 +1449,10 @@ let pararOuvirPedidos = null;
 let pedidosJaCarregados = false;
 let filtroPedidos = 'novos';
 function carregarConfigPessoal() { return JSON.parse(localStorage.getItem(CHAVE_CONFIG_PESSOAL) || '{"salario":0,"diaRecebimento":5,"percentualReserva":10,"metaValor":0,"metaDescricao":""}'); }
-function salvarConfigPessoal(obj) { localStorage.setItem(CHAVE_CONFIG_PESSOAL, JSON.stringify(obj)); }
+function salvarConfigPessoal(obj) { localStorage.setItem(CHAVE_CONFIG_PESSOAL, JSON.stringify(obj)); if (typeof marcarAlteracaoLocal === 'function') marcarAlteracaoLocal(); }
 const CHAVE_RESPONSAVEL = 'hg_responsavel';
 function carregarResponsavel() { return JSON.parse(localStorage.getItem(CHAVE_RESPONSAVEL) || '{"nome":"","telefone":""}'); }
-function salvarResponsavel(obj) { localStorage.setItem(CHAVE_RESPONSAVEL, JSON.stringify(obj)); if (typeof agendarAtualizacaoCatalogo === 'function') agendarAtualizacaoCatalogo(); }
+function salvarResponsavel(obj) { localStorage.setItem(CHAVE_RESPONSAVEL, JSON.stringify(obj)); if (typeof marcarAlteracaoLocal === 'function') marcarAlteracaoLocal(); if (typeof agendarAtualizacaoCatalogo === 'function') agendarAtualizacaoCatalogo(); }
 
 function carregar(chave) { return JSON.parse(localStorage.getItem(chave) || '[]'); }
 function salvar(chave, dados) { localStorage.setItem(chave, JSON.stringify(dados)); }
@@ -1433,6 +1463,42 @@ function precoVigente(p) {
   return (p && p.precoPromocional > 0 && p.precoPromocional < p.preco) ? p.precoPromocional : (p ? p.preco : 0);
 }
 function escapeHTML(s = '') { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// -------------------- DATAS NO HORÁRIO DO CELULAR --------------------
+// toISOString() usa o horário de Londres (UTC): no Brasil, depois das 21h ele já
+// devolve o dia seguinte. Estas funções usam sempre o relógio do aparelho.
+function dataLocalISO(d) {
+  const x = d instanceof Date ? d : new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+}
+function hojeISO() { return dataLocalISO(new Date()); }
+function mesAtualISO() { return hojeISO().slice(0, 7); }
+// Dia "AAAA-MM-DD" de um registro: aceita data pura (gasto) ou data-hora (venda, pagamento).
+function diaDe(valor) {
+  if (!valor) return '';
+  const texto = String(valor);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) return texto;
+  const d = new Date(texto);
+  return isNaN(d.getTime()) ? texto.slice(0, 10) : dataLocalISO(d);
+}
+function mesDe(valor) { return diaDe(valor).slice(0, 7); }
+// Dia escolhido num campo de data → data-hora (hoje = agora; outro dia = meio-dia daquele dia)
+function dataHoraDeDia(diaISO) {
+  if (!diaISO || diaISO === hojeISO()) return new Date().toISOString();
+  return new Date(diaISO + 'T12:00:00').toISOString();
+}
+// Quantos dias se passaram desde uma data "AAAA-MM-DD" (negativo = data no futuro)
+function diasDesde(diaISO) {
+  const [a, m, d] = String(diaISO).split('-').map(Number);
+  const [ha, hm, hd] = hojeISO().split('-').map(Number);
+  return Math.round((Date.UTC(ha, hm - 1, hd) - Date.UTC(a, m - 1, d)) / 86400000);
+}
+function formatarDataHora(iso) {
+  return new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+// Quantidades com casas decimais (kg): evita 1.9000000000000001 no estoque
+function arred(n, casas = 3) { const f = 10 ** casas; return Math.round((Number(n) || 0) * f) / f; }
+function formatarQtd(n) { return arred(n).toLocaleString('pt-BR', { maximumFractionDigits: 3 }); }
 
 // -------------------- MODO ESCURO --------------------
 function aplicarTema(tema) {
@@ -1463,7 +1529,7 @@ function irParaAba(nome) {
   if (nome === 'inicio') mostrarMenuInicio();
   if (nome === 'estoque') renderProdutos();
   if (nome === 'clientes') { renderClientes(); renderRankingClientes(); }
-  if (nome === 'vendas') { preencherSelects(); renderVendasRecentes(); atualizarBadgesPedidos(); }
+  if (nome === 'vendas') { preencherSelects(); prepararDataVenda(); renderVendasRecentes(); atualizarBadgesPedidos(); }
   if (nome === 'insumos') { renderInsumos(); renderGraficoLucroMensal(); }
   if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); renderPrevisaoColheita(); }
   if (nome === 'tarefas') renderTarefas();
@@ -1480,6 +1546,7 @@ function mostrarMenuInicio() {
   document.getElementById('painelInicioMenu').style.display = '';
   document.getElementById('painelInicioDashboard').style.display = 'none';
   document.body.classList.add('tela-inicio-ativa');
+  atualizarBadgeContas();
 }
 function mostrarDashboardInicio() {
   document.getElementById('painelInicioMenu').style.display = 'none';
@@ -1517,11 +1584,11 @@ function renderDashboard() {
   const valorEstoque = produtos.reduce((s, p) => s + (p.preco * p.estoqueAtual), 0);
   const emFalta = produtos.filter((p) => p.estoqueAtual <= (p.estoqueMinimo || 0)).length;
 
-  const hoje = new Date().toISOString().slice(0, 10);
-  const vendasHoje = vendas.filter((v) => v.data.slice(0, 10) === hoje).reduce((s, v) => s + v.total, 0);
+  const hoje = hojeISO();
+  const vendasHoje = vendas.filter((v) => diaDe(v.data) === hoje).reduce((s, v) => s + v.total, 0);
 
   const inicioMes = hoje.slice(0, 7); // "AAAA-MM"
-  const vendasMes = vendas.filter((v) => v.data.slice(0, 7) === inicioMes).reduce((s, v) => s + v.total, 0);
+  const vendasMes = vendas.filter((v) => mesDe(v.data) === inicioMes).reduce((s, v) => s + v.total, 0);
   const insumosMes = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === inicioMes).reduce((s, i) => s + i.valor, 0);
   document.getElementById('dashLucroMes').textContent = formatarMoeda(vendasMes - insumosMes);
 
@@ -1596,11 +1663,15 @@ function renderProdutos() {
     const miniatura = p.foto
       ? `<img src="${p.foto}" style="width:44px;height:44px;object-fit:cover;border-radius:8px;flex-shrink:0">`
       : `<div style="width:44px;height:44px;border-radius:8px;background:var(--bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.1rem">🌿</div>`;
+    const emPromo = precoVigente(p) < p.preco;
+    const precoTexto = emPromo
+      ? `<s>${formatarMoeda(p.preco)}</s> ${formatarMoeda(precoVigente(p))} 🏷️ promoção`
+      : `${formatarMoeda(p.preco)} cada`;
     return `
       <div class="item ${baixo ? 'estoque-baixo' : ''}" data-id="${p.id}">
         ${miniatura}
-        <div class="info"><strong>${escapeHTML(p.nome)}</strong><small>${formatarMoeda(p.preco)} cada</small></div>
-        <span class="valor-direita">${p.estoqueAtual}</span>
+        <div class="info"><strong>${escapeHTML(p.nome)}</strong><small>${precoTexto}${baixo ? ' · <span style="color:var(--laranja);font-weight:600">estoque baixo</span>' : ''}</small></div>
+        <span class="valor-direita">${formatarQtd(p.estoqueAtual)}</span>
       </div>
     `;
   }).join('');
@@ -1843,7 +1914,11 @@ document.getElementById('btnSalvarCliente').addEventListener('click', () => {
 
 document.getElementById('btnExcluirCliente').addEventListener('click', () => {
   const id = document.getElementById('clienteId').value;
-  if (!confirm('Excluir este cliente? O histórico de vendas dele será mantido, mas desvinculado.')) return;
+  const saldoAberto = saldoDevedor(id);
+  const pergunta = saldoAberto > 0.009
+    ? `ATENÇÃO: este cliente ainda deve ${formatarMoeda(saldoAberto)} de fiado.\nSe excluir, esse valor deixa de aparecer no "Fiado em aberto".\n\nExcluir mesmo assim?`
+    : 'Excluir este cliente? O histórico de vendas dele será mantido, mas desvinculado.';
+  if (!confirm(pergunta)) return;
   salvar(CHAVES.clientes, carregar(CHAVES.clientes).filter((c) => c.id !== id));
   document.getElementById('modalCliente').classList.add('hidden');
   renderClientes();
@@ -1889,8 +1964,8 @@ function renderHistoricoCliente(clienteId) {
   const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId);
 
   const eventos = [
-    ...vendas.map((v) => ({ tipo: 'venda', data: v.data, valor: v.total, extra: v.formaPagamento })),
-    ...pagamentos.map((p) => ({ tipo: 'pagamento', data: p.data, valor: p.valor }))
+    ...vendas.map((v) => ({ tipo: 'venda', id: v.id, data: v.data, valor: v.total, extra: v.formaPagamento })),
+    ...pagamentos.map((p) => ({ tipo: 'pagamento', id: p.id, data: p.data, valor: p.valor }))
   ].sort((a, b) => new Date(b.data) - new Date(a.data));
 
   const container = document.getElementById('detalheHistorico');
@@ -1899,22 +1974,42 @@ function renderHistoricoCliente(clienteId) {
     return;
   }
   container.innerHTML = eventos.map((e) => `
-    <div class="item">
+    <div class="item" ${e.tipo === 'venda' ? `data-venda-id="${e.id}"` : 'style="cursor:default"'}>
       <div class="info">
-        <strong>${e.tipo === 'venda' ? 'Compra (' + e.extra + ')' : 'Pagamento recebido'}</strong>
-        <small>${new Date(e.data).toLocaleString('pt-BR')}</small>
+        <strong>${e.tipo === 'venda' ? 'Compra (' + escapeHTML(e.extra) + ')' : 'Pagamento recebido'}</strong>
+        <small>${formatarDataHora(e.data)}${e.tipo === 'venda' ? ' · toque pra ver' : ''}</small>
       </div>
       <span class="valor-direita" style="color:${e.tipo === 'venda' && e.extra === 'Fiado' ? 'var(--vermelho)' : 'var(--verde-escuro)'}">
         ${e.tipo === 'pagamento' ? '+ ' : ''}${formatarMoeda(e.valor)}
       </span>
+      ${e.tipo === 'pagamento' && e.id ? `<button type="button" class="perigo btn-mini" data-apagar-pagamento="${e.id}" title="Apagar este pagamento">🗑️</button>` : ''}
     </div>
   `).join('');
+  container.querySelectorAll('[data-venda-id]').forEach((el) => el.addEventListener('click', () => abrirDetalheVenda(el.dataset.vendaId)));
+  container.querySelectorAll('[data-apagar-pagamento]').forEach((b) => b.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    apagarPagamentoCliente(b.dataset.apagarPagamento, clienteId);
+  }));
+}
+
+// Corrige um pagamento lançado errado: o valor volta a contar no fiado.
+function apagarPagamentoCliente(pagamentoId, clienteId) {
+  const pag = carregar(CHAVES.pagamentos).find((p) => p.id === pagamentoId);
+  if (!pag) return;
+  if (!confirm(`Apagar este pagamento de ${formatarMoeda(pag.valor)} (${new Date(pag.data).toLocaleDateString('pt-BR')})?\n\nO valor volta a contar no fiado do cliente.`)) return;
+  salvar(CHAVES.pagamentos, carregar(CHAVES.pagamentos).filter((p) => p.id !== pagamentoId));
+  abrirDetalheCliente(clienteId);
+  renderClientes();
+  renderDashboard();
+  mostrarToast('Pagamento apagado.');
 }
 
 document.getElementById('btnRegistrarPagamento').addEventListener('click', () => {
   const clienteId = document.getElementById('modalDetalheCliente').dataset.clienteId;
   const valor = parseFloat(document.getElementById('detalhePagamentoValor').value) || 0;
   if (valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
+  const saldoAtual = saldoDevedor(clienteId);
+  if (valor > saldoAtual + 0.009 && !confirm(`O valor (${formatarMoeda(valor)}) é maior que o fiado em aberto (${formatarMoeda(saldoAtual)}).\nRegistrar mesmo assim? A diferença fica como crédito do cliente.`)) return;
 
   const pagamentos = carregar(CHAVES.pagamentos);
   pagamentos.push({ id: gerarId(), clienteId, data: new Date().toISOString(), valor });
@@ -1922,6 +2017,8 @@ document.getElementById('btnRegistrarPagamento').addEventListener('click', () =>
 
   mostrarToast('Pagamento registrado.');
   abrirDetalheCliente(clienteId); // recarrega saldo e histórico
+  renderClientes();
+  renderDashboard();
 });
 
 document.getElementById('btnCobrarWhatsapp').addEventListener('click', () => {
@@ -1985,10 +2082,10 @@ document.getElementById('btnAdicionarItemVenda').addEventListener('click', () =>
   const existente = itensVendaAtual.find((i) => i.produtoId === produtoId);
   const quantidadeJaNoCarrinho = existente ? existente.quantidade : 0;
   if (quantidadeJaNoCarrinho + qtd > produto.estoqueAtual) {
-    mostrarToast(`Atenção: estoque de "${produto.nome}" é só ${produto.estoqueAtual}. Adicionando mesmo assim.`);
+    mostrarToast(`Atenção: estoque de "${produto.nome}" é só ${formatarQtd(produto.estoqueAtual)}. Adicionando mesmo assim.`);
   }
 
-  if (existente) existente.quantidade += qtd;
+  if (existente) existente.quantidade = arred(existente.quantidade + qtd);
   else itensVendaAtual.push({ produtoId, nome: produto.nome, precoUnitario: precoVigente(produto), quantidade: qtd });
 
   renderItensVenda();
@@ -2001,7 +2098,7 @@ function renderItensVenda() {
   } else {
     lista.innerHTML = itensVendaAtual.map((item, idx) => `
       <div class="item">
-        <div class="info"><strong>${escapeHTML(item.nome)}</strong><small>${item.quantidade} x ${formatarMoeda(item.precoUnitario)}</small></div>
+        <div class="info"><strong>${escapeHTML(item.nome)}</strong><small>${formatarQtd(item.quantidade)} x ${formatarMoeda(item.precoUnitario)}</small></div>
         <span class="valor-direita">${formatarMoeda(item.quantidade * item.precoUnitario)}</span>
         <button class="perigo" style="padding:6px 10px" data-idx="${idx}">×</button>
       </div>
@@ -2014,19 +2111,34 @@ function renderItensVenda() {
   document.getElementById('vendaTotalTexto').textContent = formatarMoeda(total);
 }
 
+// Data da venda: começa sempre em "hoje"; dá pra escolher um dia passado
+function prepararDataVenda() {
+  const campo = document.getElementById('vendaData');
+  campo.max = hojeISO();
+  campo.value = hojeISO();
+  atualizarAvisoDataVenda();
+}
+function atualizarAvisoDataVenda() {
+  const dia = document.getElementById('vendaData').value;
+  document.getElementById('vendaDataAviso').classList.toggle('hidden', !dia || dia === hojeISO());
+}
+document.getElementById('vendaData').addEventListener('change', atualizarAvisoDataVenda);
+
 document.getElementById('btnFinalizarVenda').addEventListener('click', () => {
   if (itensVendaAtual.length === 0) { mostrarToast('Adicione ao menos um item.'); return; }
 
   const clienteId = document.getElementById('vendaCliente').value;
   const formaPagamento = document.getElementById('vendaFormaPagamento').value;
   if (formaPagamento === 'Fiado' && !clienteId) { mostrarToast('Selecione um cliente para venda fiado.'); return; }
+  const diaVenda = document.getElementById('vendaData').value || hojeISO();
+  if (diaVenda > hojeISO()) { mostrarToast('A data da venda não pode ser no futuro.'); return; }
 
-  const total = itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
+  const total = arred(itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), 2);
   const cliente = clienteId ? carregar(CHAVES.clientes).find((c) => c.id === clienteId) : null;
 
   const venda = {
     id: gerarId(),
-    data: new Date().toISOString(),
+    data: dataHoraDeDia(diaVenda),
     clienteId: clienteId || '',
     clienteNome: cliente ? cliente.nome : 'Venda avulsa',
     itens: itensVendaAtual,
@@ -2041,7 +2153,7 @@ document.getElementById('btnFinalizarVenda').addEventListener('click', () => {
   const produtos = carregar(CHAVES.produtos);
   itensVendaAtual.forEach((item) => {
     const p = produtos.find((x) => x.id === item.produtoId);
-    if (p) p.estoqueAtual -= item.quantidade;
+    if (p) p.estoqueAtual = arred(p.estoqueAtual - item.quantidade);
   });
   salvar(CHAVES.produtos, produtos);
 
@@ -2049,35 +2161,43 @@ document.getElementById('btnFinalizarVenda').addEventListener('click', () => {
   renderItensVenda();
   document.getElementById('vendaCliente').value = '';
   document.getElementById('vendaFormaPagamento').value = 'Dinheiro';
+  prepararDataVenda();
   renderVendasRecentes();
-  mostrarToast('Venda registrada com sucesso.');
+  mostrarToast(diaVenda === hojeISO() ? 'Venda registrada com sucesso.' : `Venda registrada no dia ${formatarDataBR(diaVenda)}.`);
 });
 
+let limiteVendasRecentes = 10;
 function renderVendasRecentes() {
-  const vendas = [...carregar(CHAVES.vendas)].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 10);
+  const todas = [...carregar(CHAVES.vendas)].sort((a, b) => new Date(b.data) - new Date(a.data));
+  const vendas = todas.slice(0, limiteVendasRecentes);
   const lista = document.getElementById('listaVendasRecentes');
+  document.getElementById('btnMaisVendas').classList.toggle('hidden', todas.length <= limiteVendasRecentes);
   if (vendas.length === 0) {
     lista.innerHTML = '<p class="vazio">Nenhuma venda registrada ainda.</p>';
     return;
   }
-  lista.innerHTML = vendas.map((v) => `
+  lista.innerHTML = vendas.map((v) => {
+    const itensTexto = (v.itens || []).map((i) => `${formatarQtd(i.quantidade)}x ${i.nome}`).join(', ');
+    return `
     <div class="item" data-id="${v.id}">
-      <div class="info"><strong>${escapeHTML(v.clienteNome)}</strong><small>${new Date(v.data).toLocaleString('pt-BR')} · ${v.formaPagamento}</small></div>
+      <div class="info"><strong>${escapeHTML(v.clienteNome)}</strong><small>${formatarDataHora(v.data)} · ${escapeHTML(v.formaPagamento)}</small><small style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(itensTexto)}</small></div>
       <span class="valor-direita">${formatarMoeda(v.total)}</span>
     </div>
-  `).join('');
+  `;
+  }).join('');
   lista.querySelectorAll('.item').forEach((el) => el.addEventListener('click', () => abrirDetalheVenda(el.dataset.id)));
 }
+document.getElementById('btnMaisVendas').addEventListener('click', () => { limiteVendasRecentes += 20; renderVendasRecentes(); });
 
 function abrirDetalheVenda(id) {
   const venda = carregar(CHAVES.vendas).find((v) => v.id === id);
   if (!venda) return;
   document.getElementById('vendaDetalheId').value = id;
   document.getElementById('vendaDetalheInfo').textContent =
-    `${venda.clienteNome} · ${new Date(venda.data).toLocaleString('pt-BR')} · ${venda.formaPagamento}`;
+    `${venda.clienteNome} · ${formatarDataHora(venda.data)} · ${venda.formaPagamento}`;
   document.getElementById('vendaDetalheItens').innerHTML = venda.itens.map((item) => `
     <div class="item">
-      <div class="info"><strong>${escapeHTML(item.nome)}</strong><small>${item.quantidade} x ${formatarMoeda(item.precoUnitario)}</small></div>
+      <div class="info"><strong>${escapeHTML(item.nome)}</strong><small>${formatarQtd(item.quantidade)} x ${formatarMoeda(item.precoUnitario)}</small></div>
       <span class="valor-direita">${formatarMoeda(item.quantidade * item.precoUnitario)}</span>
     </div>
   `).join('');
@@ -2085,6 +2205,24 @@ function abrirDetalheVenda(id) {
   document.getElementById('modalVendaDetalhe').classList.remove('hidden');
 }
 document.getElementById('btnFecharVendaDetalhe').addEventListener('click', () => document.getElementById('modalVendaDetalhe').classList.add('hidden'));
+
+// Comprovante da venda pelo WhatsApp (vai pro cliente se ele tiver telefone; senão você escolhe o contato)
+function enviarComprovanteVenda(id) {
+  const venda = carregar(CHAVES.vendas).find((v) => v.id === id);
+  if (!venda) return;
+  const cliente = venda.clienteId ? carregar(CHAVES.clientes).find((c) => c.id === venda.clienteId) : null;
+  const linhas = ['🧾 *Comprovante de compra*', formatarDataHora(venda.data), ''];
+  (venda.itens || []).forEach((i) => linhas.push(`${formatarQtd(i.quantidade)}x ${i.nome} — ${formatarMoeda(i.quantidade * i.precoUnitario)}`));
+  linhas.push('', `*Total: ${formatarMoeda(venda.total)}*`, `Pagamento: ${venda.formaPagamento}`);
+  if (venda.formaPagamento === 'Fiado' && cliente) {
+    const saldo = saldoDevedor(cliente.id);
+    if (saldo > 0.009) linhas.push(`Fiado em aberto (total): ${formatarMoeda(saldo)}`);
+  }
+  linhas.push('', 'Obrigado pela preferência! 🌱');
+  const tel = cliente ? telefoneWhats(cliente.telefone) : '';
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(linhas.join('\n'))}`, '_blank');
+}
+document.getElementById('btnComprovanteVenda').addEventListener('click', () => enviarComprovanteVenda(document.getElementById('vendaDetalheId').value));
 
 document.getElementById('btnCancelarVendaRegistrada').addEventListener('click', () => {
   const id = document.getElementById('vendaDetalheId').value;
@@ -2098,7 +2236,7 @@ document.getElementById('btnCancelarVendaRegistrada').addEventListener('click', 
   const produtos = carregar(CHAVES.produtos);
   venda.itens.forEach((item) => {
     const p = produtos.find((x) => x.id === item.produtoId);
-    if (p) p.estoqueAtual += item.quantidade;
+    if (p) p.estoqueAtual = arred(p.estoqueAtual + item.quantidade);
   });
   salvar(CHAVES.produtos, produtos);
 
@@ -2113,6 +2251,9 @@ document.getElementById('btnCancelarVendaRegistrada').addEventListener('click', 
 
   document.getElementById('modalVendaDetalhe').classList.add('hidden');
   renderVendasRecentes();
+  const modalCli = document.getElementById('modalDetalheCliente');
+  if (!modalCli.classList.contains('hidden') && modalCli.dataset.clienteId) abrirDetalheCliente(modalCli.dataset.clienteId);
+  renderClientes();
   mostrarToast('Venda cancelada e estoque devolvido.');
 });
 
@@ -2124,7 +2265,7 @@ function renderInsumos() {
   const insumos = carregar(CHAVES.insumos).filter((i) => !termo || i.nome.toLowerCase().includes(termo));
   insumos.sort((a, b) => (b.data || '').localeCompare(a.data || ''));
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO();
   const mesAtual = hoje.slice(0, 7);
   const gastoMes = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === mesAtual).reduce((s, i) => s + i.valor, 0);
   const gastoTotal = carregar(CHAVES.insumos).reduce((s, i) => s + i.valor, 0);
@@ -2163,7 +2304,7 @@ function abrirModalInsumo(id) {
     document.getElementById('insumoNome').value = '';
     document.getElementById('insumoCategoria').value = 'Sementes/Mudas';
     document.getElementById('insumoValor').value = '';
-    document.getElementById('insumoData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('insumoData').value = hojeISO();
     document.getElementById('insumoObservacao').value = '';
     btnExcluir.classList.add('hidden');
   }
@@ -2184,7 +2325,7 @@ document.getElementById('btnSalvarInsumo').addEventListener('click', () => {
     nome,
     categoria: document.getElementById('insumoCategoria').value,
     valor,
-    data: document.getElementById('insumoData').value || new Date().toISOString().slice(0, 10),
+    data: document.getElementById('insumoData').value || hojeISO(),
     observacao: document.getElementById('insumoObservacao').value.trim()
   };
   const idx = insumos.findIndex((i) => i.id === insumo.id);
@@ -2214,7 +2355,7 @@ function calcularDataPrevista(p) {
   if (!p.dataPlantio) return '9999-12-31';
   const d = new Date(p.dataPlantio + 'T00:00:00');
   d.setDate(d.getDate() + (Number(p.diasCiclo) || 0));
-  return d.toISOString().slice(0, 10);
+  return dataLocalISO(d);
 }
 
 // -------------------- PREVISÃO DE COLHEITA x MÉDIA DE VENDAS --------------------
@@ -2270,7 +2411,7 @@ function renderPrevisaoColheita() {
 
 function statusPlantio(p) {
   if (p.colhido) return 'colhido';
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO();
   const prevista = calcularDataPrevista(p);
   if (prevista <= hoje) return 'pronto';
   return 'andamento';
@@ -2387,8 +2528,7 @@ function mostrarDetalheBancada(numero) {
     return;
   }
   container.innerHTML = `<strong style="display:block;margin-bottom:8px">Bancada ${numero}</strong>` + plantiosAtivos.map((p) => {
-    const diasDesde = Math.floor((Date.now() - new Date(p.dataPlantio)) / 86400000);
-    const diasRestantes = p.diasCiclo - diasDesde;
+    const diasRestantes = (Number(p.diasCiclo) || 0) - diasDesde(p.dataPlantio);
     const status = diasRestantes <= 0 ? 'Pronto para colher' : `Faltam ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`;
     return `<div class="item" style="background:var(--card)">
       <div class="info"><strong>${escapeHTML(p.cultura)}</strong><small>Plantado em ${new Date(p.dataPlantio + 'T00:00:00').toLocaleDateString('pt-BR')} · ${status}</small></div>
@@ -2484,7 +2624,7 @@ function abrirModalPlantio(id) {
   } else {
     document.getElementById('tituloModalPlantio').textContent = 'Novo plantio';
     document.getElementById('plantioCultura').value = '';
-    document.getElementById('plantioDataPlantio').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('plantioDataPlantio').value = hojeISO();
     document.getElementById('plantioDiasCiclo').value = '';
     document.getElementById('plantioQuantidade').value = '';
     document.getElementById('plantioBancada').value = '';
@@ -2522,6 +2662,20 @@ document.getElementById('btnSalvarPlantio').addEventListener('click', () => {
   if (idx >= 0) plantios[idx] = plantio; else plantios.push(plantio);
   salvar(CHAVES.plantios, plantios);
 
+  // Editou a data ou o ciclo? A tarefa "Colher: ..." ligada a ele acompanha.
+  if (idExistente) {
+    const tarefas = carregar(CHAVES.tarefas);
+    let mudou = false;
+    tarefas.forEach((t) => {
+      if (t.plantioId === plantio.id && !t.concluida && /^colher/i.test(t.titulo || '')) {
+        const novaData = calcularDataPrevista(plantio);
+        const novoTitulo = `Colher: ${cultura}`;
+        if (t.dataPrevista !== novaData || t.titulo !== novoTitulo) { t.dataPrevista = novaData; t.titulo = novoTitulo; mudou = true; }
+      }
+    });
+    if (mudou) salvar(CHAVES.tarefas, tarefas);
+  }
+
   // Cria automaticamente a tarefa de colheita (apenas para plantios novos, se marcado)
   if (!idExistente && document.getElementById('plantioCriarTarefa').checked) {
     const responsavel = carregarResponsavel();
@@ -2546,8 +2700,10 @@ document.getElementById('btnSalvarPlantio').addEventListener('click', () => {
 
 document.getElementById('btnExcluirPlantio').addEventListener('click', () => {
   const id = document.getElementById('plantioId').value;
-  if (!confirm('Excluir este plantio?')) return;
+  const tarefasLigadas = carregar(CHAVES.tarefas).filter((t) => t.plantioId === id && !t.concluida);
+  if (!confirm(tarefasLigadas.length ? 'Excluir este plantio? A tarefa de colheita ligada a ele também será apagada.' : 'Excluir este plantio?')) return;
   salvar(CHAVES.plantios, carregar(CHAVES.plantios).filter((p) => p.id !== id));
+  if (tarefasLigadas.length) salvar(CHAVES.tarefas, carregar(CHAVES.tarefas).filter((t) => !(t.plantioId === id && !t.concluida)));
   document.getElementById('modalPlantio').classList.add('hidden');
   renderPlantios();
   renderPrevisaoColheita();
@@ -2579,18 +2735,25 @@ document.getElementById('btnConfirmarColher').addEventListener('click', () => {
 
   const plantios = carregar(CHAVES.plantios);
   const plantio = plantios.find((p) => p.id === id);
-  if (plantio) { plantio.colhido = true; plantio.quantidadeColhida = quantidadeColhida; salvar(CHAVES.plantios, plantios); }
+  if (plantio) { plantio.colhido = true; plantio.quantidadeColhida = quantidadeColhida; plantio.dataColheita = hojeISO(); salvar(CHAVES.plantios, plantios); }
 
   if (produtoDestinoId && quantidadeColhida > 0) {
     const produtos = carregar(CHAVES.produtos);
     const produto = produtos.find((p) => p.id === produtoDestinoId);
-    if (produto) { produto.estoqueAtual += quantidadeColhida; salvar(CHAVES.produtos, produtos); }
+    if (produto) { produto.estoqueAtual = arred(produto.estoqueAtual + quantidadeColhida); salvar(CHAVES.produtos, produtos); }
   }
+
+  // A tarefa "Colher: ..." desse plantio já pode sair da lista
+  const tarefas = carregar(CHAVES.tarefas);
+  const tarefasColheita = tarefas.filter((t) => t.plantioId === id && !t.concluida && /^colher/i.test(t.titulo || ''));
+  tarefasColheita.forEach((t) => { t.concluida = true; t.dataConclusao = new Date().toISOString(); });
+  if (tarefasColheita.length) salvar(CHAVES.tarefas, tarefas);
 
   document.getElementById('modalColher').classList.add('hidden');
   renderPlantios();
   renderPrevisaoColheita();
-  mostrarToast(produtoDestinoId ? 'Colheita registrada e adicionada ao estoque.' : 'Colheita registrada.');
+  const extras = [produtoDestinoId && quantidadeColhida > 0 ? 'adicionada ao estoque' : '', tarefasColheita.length ? 'tarefa de colheita concluída' : ''].filter(Boolean);
+  mostrarToast('Colheita registrada' + (extras.length ? ' (' + extras.join(', ') + ').' : '.'));
 });
 
 function formatarDataBR(iso) {
@@ -2606,7 +2769,7 @@ let tarefaFiltroAtivo = 'todas';
 
 function statusTarefa(t) {
   if (t.concluida) return 'concluidas';
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO();
   return t.dataPrevista < hoje ? 'atrasadas' : 'pendentes';
 }
 
@@ -2686,7 +2849,7 @@ function abrirModalTarefa(id) {
     document.getElementById('tituloModalTarefa').textContent = 'Nova tarefa';
     document.getElementById('tarefaTitulo').value = '';
     document.getElementById('tarefaResponsavel').value = responsavel.nome || '';
-    document.getElementById('tarefaData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('tarefaData').value = hojeISO();
     document.getElementById('tarefaPlantioVinculado').value = '';
     document.getElementById('tarefaObservacao').value = '';
     btnExcluir.classList.add('hidden');
@@ -2806,13 +2969,13 @@ function definirIntervaloDesempenho(periodo) {
 
 function chaveBucket(data, agrupamento) {
   const d = new Date(data);
-  if (agrupamento === 'dia') return d.toISOString().slice(0, 10);
-  if (agrupamento === 'mes') return d.toISOString().slice(0, 7);
+  if (agrupamento === 'dia') return dataLocalISO(d);
+  if (agrupamento === 'mes') return dataLocalISO(d).slice(0, 7);
   const diaSemana = d.getDay();
   const diff = (diaSemana === 0 ? -6 : 1) - diaSemana; // volta pra segunda-feira daquela semana
   const segunda = new Date(d);
   segunda.setDate(d.getDate() + diff);
-  return segunda.toISOString().slice(0, 10);
+  return dataLocalISO(segunda);
 }
 
 function formatarRotuloBucket(chave) {
@@ -2895,11 +3058,11 @@ function renderGraficoLucroMensal() {
   cursor.setDate(1);
   for (let i = 5; i >= 0; i--) {
     const d = new Date(cursor.getFullYear(), cursor.getMonth() - i, 1);
-    meses.push(d.toISOString().slice(0, 7)); // "AAAA-MM"
+    meses.push(dataLocalISO(d).slice(0, 7)); // "AAAA-MM"
   }
 
   const valores = meses.map((m) => {
-    const totalVendas = vendas.filter((v) => v.data.slice(0, 7) === m).reduce((s, v) => s + v.total, 0);
+    const totalVendas = vendas.filter((v) => mesDe(v.data) === m).reduce((s, v) => s + v.total, 0);
     const totalInsumos = insumos.filter((i) => (i.data || '').slice(0, 7) === m).reduce((s, i) => s + i.valor, 0);
     return totalVendas - totalInsumos;
   });
@@ -2953,52 +3116,8 @@ function desenharGraficoBarras(canvas, valores, rotulos) {
     ctx.fillText(rotulos[i], x + larguraBarra / 2, alturaCSS - 20);
     ctx.fillStyle = corValor;
     ctx.font = '9px -apple-system, sans-serif';
-    const yTexto = v >= 0 ? y - 4 : y + alturaBarra + 11;
-    ctx.fillText(formatarMoeda(v).replace('R$', 'R$').replace(/\s/, ' '), x + larguraBarra / 2, yTexto);
-  });
-}
-
-// Igual ao gráfico de barras, mas colore pela VARIAÇÃO em relação ao mês anterior
-// (subiu = verde, caiu = vermelho) em vez de pelo sinal do valor total.
-function desenharGraficoBarrasVariacao(canvas, valores, rotulos) {
-  const dpr = window.devicePixelRatio || 1;
-  const larguraCSS = canvas.clientWidth || 320;
-  const alturaCSS = canvas.clientHeight || 190;
-  canvas.width = larguraCSS * dpr;
-  canvas.height = alturaCSS * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, larguraCSS, alturaCSS);
-
-  const margemE = 8, margemD = 8, margemTopo = 14, margemBaixo = 34;
-  const areaLargura = larguraCSS - margemE - margemD;
-  const areaAltura = alturaCSS - margemTopo - margemBaixo;
-  const maxAbs = Math.max(1, ...valores.map((v) => Math.abs(v)));
-  const zeroY = margemTopo + areaAltura / 2;
-  const larguraBarra = (areaLargura / valores.length) * 0.55;
-  const passoX = areaLargura / valores.length;
-
-  ctx.strokeStyle = corTema('--borda');
-  ctx.beginPath(); ctx.moveTo(margemE, zeroY); ctx.lineTo(margemE + areaLargura, zeroY); ctx.stroke();
-
-  const corLabel = corTema('--texto-suave');
-  const corValor = corTema('--texto');
-
-  valores.forEach((v, i) => {
-    const x = margemE + i * passoX + (passoX - larguraBarra) / 2;
-    const alturaBarra = (Math.abs(v) / maxAbs) * (areaAltura / 2);
-    const y = v >= 0 ? zeroY - alturaBarra : zeroY;
-    const melhorou = i === 0 ? v >= 0 : v >= valores[i - 1];
-    ctx.fillStyle = melhorou ? '#16a34a' : '#dc2626';
-    ctx.fillRect(x, y, larguraBarra, alturaBarra || 1);
-
-    ctx.fillStyle = corLabel;
-    ctx.font = '9px -apple-system, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(rotulos[i], x + larguraBarra / 2, alturaCSS - 20);
-    ctx.fillStyle = corValor;
-    ctx.font = '9px -apple-system, sans-serif';
-    const yTexto = v >= 0 ? y - 4 : y + alturaBarra + 11;
+    // Valor negativo: escreve logo acima da linha do zero (embaixo fica o nome do mês)
+    const yTexto = v >= 0 ? y - 4 : zeroY - 4;
     ctx.fillText(formatarMoeda(v).replace('R$', 'R$').replace(/\s/, ' '), x + larguraBarra / 2, yTexto);
   });
 }
@@ -3131,7 +3250,7 @@ function abrirModalFinanceiro(id) {
     document.getElementById('financeiroTipo').value = 'devo';
     document.getElementById('financeiroNome').value = '';
     document.getElementById('financeiroValor').value = '';
-    document.getElementById('financeiroData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('financeiroData').value = hojeISO();
     document.getElementById('financeiroObs').value = '';
   }
   document.getElementById('modalFinanceiro').classList.remove('hidden');
@@ -3151,7 +3270,7 @@ document.getElementById('btnSalvarFinanceiro').addEventListener('click', () => {
     tipo: document.getElementById('financeiroTipo').value,
     nome,
     valorTotal: valor,
-    data: document.getElementById('financeiroData').value || new Date().toISOString().slice(0, 10),
+    data: document.getElementById('financeiroData').value || hojeISO(),
     obs: document.getElementById('financeiroObs').value.trim()
   };
   const idx = registros.findIndex((r) => r.id === registro.id);
@@ -3180,10 +3299,19 @@ function renderHistoricoFinanceiro(registroId) {
     div.innerHTML = '<p class="vazio">Nenhum pagamento registrado ainda.</p>';
     return;
   }
-  div.innerHTML = pagamentos.map((p) => `<div class="item">
+  div.innerHTML = pagamentos.map((p) => `<div class="item" style="cursor:default">
     <div class="info"><strong>Pagamento</strong><small>${new Date(p.data).toLocaleDateString('pt-BR')}</small></div>
     <div class="valor-direita">${formatarMoeda(p.valor)}</div>
+    <button type="button" class="perigo btn-mini" data-apagar-pag-fin="${p.id}" title="Apagar este pagamento">🗑️</button>
   </div>`).join('');
+  div.querySelectorAll('[data-apagar-pag-fin]').forEach((b) => b.addEventListener('click', () => {
+    const pag = carregar(CHAVES.pagamentosFinanceiros).find((x) => x.id === b.dataset.apagarPagFin);
+    if (!pag || !confirm(`Apagar este pagamento de ${formatarMoeda(pag.valor)} (${new Date(pag.data).toLocaleDateString('pt-BR')})?`)) return;
+    salvar(CHAVES.pagamentosFinanceiros, carregar(CHAVES.pagamentosFinanceiros).filter((x) => x.id !== pag.id));
+    abrirDetalheFinanceiro(registroId);
+    renderFinancas();
+    mostrarToast('Pagamento apagado.');
+  }));
 }
 
 function abrirDetalheFinanceiro(id) {
@@ -3275,7 +3403,7 @@ function nomeServico(s) {
 
 function mesServicosSelecionado() {
   const el = document.getElementById('servicosMes');
-  if (!el.value) el.value = new Date().toISOString().slice(0, 7);
+  if (!el.value) el.value = mesAtualISO();
   return el.value;
 }
 
@@ -3361,16 +3489,31 @@ function abrirModalServico(id) {
   document.getElementById('servicoCliente').value = s ? (s.cliente || '') : '';
   document.getElementById('servicoTelefone').value = s ? (s.telefone || '') : '';
   document.getElementById('servicoValor').value = s ? s.valor : '';
-  document.getElementById('servicoData').value = s ? s.data : new Date().toISOString().slice(0, 10);
+  document.getElementById('servicoData').value = s ? s.data : hojeISO();
   document.getElementById('servicoForma').value = s ? s.formaPagamento : 'Dinheiro';
   document.getElementById('servicoEntrada').value = '';
-  const pags = s ? pagamentosDoServico(s.id) : [];
-  document.getElementById('servicoInfoPagamentos').textContent = pags.length
-    ? 'Pagamentos recebidos: ' + pags.map((p) => `${formatarMoeda(p.valor)} em ${formatarDataBR(p.data)}`).join(', ')
-    : '';
+  renderPagamentosServicoModal(s ? s.id : null);
   document.getElementById('btnExcluirServico').classList.toggle('hidden', !s);
   atualizarCampoEntradaServico();
   document.getElementById('modalServico').classList.remove('hidden');
+}
+function renderPagamentosServicoModal(servicoId) {
+  const el = document.getElementById('servicoInfoPagamentos');
+  const pags = servicoId ? pagamentosDoServico(servicoId) : [];
+  if (!pags.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<strong style="display:block;margin:6px 0 2px;color:var(--texto)">Pagamentos recebidos</strong>' + pags.map((p) => `
+    <span style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--borda)">
+      <span>${formatarMoeda(p.valor)} em ${formatarDataBR(p.data)}</span>
+      <button type="button" class="perigo btn-mini" data-apagar-pag-serv="${p.id}" title="Apagar este pagamento">🗑️</button>
+    </span>`).join('');
+  el.querySelectorAll('[data-apagar-pag-serv]').forEach((b) => b.addEventListener('click', () => {
+    const pag = carregar(CHAVES.pagamentosServicos).find((x) => x.id === b.dataset.apagarPagServ);
+    if (!pag || !confirm(`Apagar o pagamento de ${formatarMoeda(pag.valor)} (${formatarDataBR(pag.data)})?\nO valor volta a ficar em aberto.`)) return;
+    salvar(CHAVES.pagamentosServicos, carregar(CHAVES.pagamentosServicos).filter((x) => x.id !== pag.id));
+    renderPagamentosServicoModal(servicoId);
+    renderServicos();
+    mostrarToast('Pagamento apagado.');
+  }));
 }
 document.getElementById('btnNovoServico').addEventListener('click', () => abrirModalServico(null));
 document.getElementById('btnCancelarServico').addEventListener('click', () => document.getElementById('modalServico').classList.add('hidden'));
@@ -3391,7 +3534,7 @@ document.getElementById('btnSalvarServico').addEventListener('click', () => {
     tipo,
     descricao: document.getElementById('servicoDescricao').value.trim(),
     cliente, telefone, valor,
-    data: document.getElementById('servicoData').value || new Date().toISOString().slice(0, 10),
+    data: document.getElementById('servicoData').value || hojeISO(),
     formaPagamento: forma
   };
   const idx = servicos.findIndex((x) => x.id === servico.id);
@@ -3433,7 +3576,7 @@ function abrirModalMaterialServico(id) {
   document.getElementById('tituloModalMaterialServico').textContent = m ? 'Editar compra de material' : 'Compra de material';
   document.getElementById('materialServicoNome').value = m ? m.nome : '';
   document.getElementById('materialServicoValor').value = m ? m.valor : '';
-  document.getElementById('materialServicoData').value = m ? m.data : new Date().toISOString().slice(0, 10);
+  document.getElementById('materialServicoData').value = m ? m.data : hojeISO();
   document.getElementById('materialServicoObs').value = m ? (m.observacao || '') : '';
   document.getElementById('btnExcluirMaterialServico').classList.toggle('hidden', !m);
   document.getElementById('modalMaterialServico').classList.remove('hidden');
@@ -3448,7 +3591,7 @@ document.getElementById('btnSalvarMaterialServico').addEventListener('click', ()
   const lista = carregar(CHAVES.materiaisServicos);
   const mat = {
     id: idExistente || gerarId(), nome, valor,
-    data: document.getElementById('materialServicoData').value || new Date().toISOString().slice(0, 10),
+    data: document.getElementById('materialServicoData').value || hojeISO(),
     observacao: document.getElementById('materialServicoObs').value.trim()
   };
   const idx = lista.findIndex((x) => x.id === mat.id);
@@ -3476,7 +3619,7 @@ function abrirModalReceberServico(id) {
   document.getElementById('receberServicoId').value = id;
   document.getElementById('receberServicoInfo').textContent = `${s.cliente || 'Cliente'} · ${nomeServico(s)} · falta ${formatarMoeda(saldo)}`;
   document.getElementById('receberServicoValor').value = saldo.toFixed(2);
-  document.getElementById('receberServicoData').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('receberServicoData').value = hojeISO();
   document.getElementById('modalReceberServico').classList.remove('hidden');
 }
 document.getElementById('btnCancelarReceberServico').addEventListener('click', () => document.getElementById('modalReceberServico').classList.add('hidden'));
@@ -3488,7 +3631,7 @@ document.getElementById('btnSalvarReceberServico').addEventListener('click', () 
   const valor = Math.min(parseFloat(document.getElementById('receberServicoValor').value) || 0, saldo);
   if (valor <= 0) { mostrarToast('Informe um valor válido.'); return; }
   const pags = carregar(CHAVES.pagamentosServicos);
-  pags.push({ id: gerarId(), servicoId: id, valor, data: document.getElementById('receberServicoData').value || new Date().toISOString().slice(0, 10) });
+  pags.push({ id: gerarId(), servicoId: id, valor, data: document.getElementById('receberServicoData').value || hojeISO() });
   salvar(CHAVES.pagamentosServicos, pags);
   document.getElementById('modalReceberServico').classList.add('hidden');
   renderServicos();
@@ -3509,8 +3652,8 @@ function cobrarServicoWhatsapp(id) {
 // MINHA RENDA (salário, contas fixas, cofrinho, meta de economia)
 // ============================================================
 function lucroHortaMesAtual() {
-  const inicioMes = new Date().toISOString().slice(0, 7);
-  const vendasMes = carregar(CHAVES.vendas).filter((v) => v.data.slice(0, 7) === inicioMes).reduce((s, v) => s + v.total, 0);
+  const inicioMes = mesAtualISO();
+  const vendasMes = carregar(CHAVES.vendas).filter((v) => mesDe(v.data) === inicioMes).reduce((s, v) => s + v.total, 0);
   const insumosMes = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === inicioMes).reduce((s, i) => s + i.valor, 0);
   return vendasMes - insumosMes;
 }
@@ -3528,7 +3671,7 @@ function totaisDividasPessoais() {
 
 function renderFinancasRenda() {
   const cfg = carregarConfigPessoal();
-  const mesAtual = new Date().toISOString().slice(0, 7);
+  const mesAtual = mesAtualISO();
   const lucroHorta = lucroHortaMesAtual();
   const lucroServicos = lucroServicosCaixaMes(mesAtual);
   const rendaMes = (cfg.salario || 0) + lucroHorta + lucroServicos;
@@ -3573,15 +3716,25 @@ function renderFinancasRenda() {
 
   // Contas fixas
   const pagas = carregar(CHAVES.contasFixasPagas).filter((p) => p.mes === mesAtual).map((p) => p.contaId);
+  const diaHoje = new Date().getDate();
   const listaContas = document.getElementById('listaContasFixas');
   if (contasFixas.length === 0) {
     listaContas.innerHTML = '<p class="vazio">Nenhuma conta fixa cadastrada.</p>';
   } else {
     listaContas.innerHTML = [...contasFixas].sort((a, b) => (a.dia || 0) - (b.dia || 0)).map((c) => {
       const paga = pagas.includes(c.id);
+      let selo = '';
+      if (!paga && c.dia) {
+        const venc = diaVencimentoNoMes(c.dia);
+        const falta = venc - diaHoje;
+        if (falta < 0) selo = `<span class="badge atrasado">⚠️ Venceu dia ${venc}</span>`;
+        else if (falta === 0) selo = '<span class="badge atrasado">Vence hoje</span>';
+        else if (falta <= 3) selo = `<span class="badge andamento">Vence em ${falta} dia${falta > 1 ? 's' : ''}</span>`;
+      }
       return `<div class="item">
         <div class="info" onclick="abrirModalContaFixa('${c.id}')" style="cursor:pointer">
-          <strong>${escapeHTML(c.nome)}</strong><small>Vence dia ${c.dia || '-'}${paga ? ' · paga este mês' : ''}</small>
+          <strong>${escapeHTML(c.nome)}</strong><small>Vence dia ${c.dia || '-'}${paga ? ' · ✔ paga este mês' : ''}</small>
+          ${selo ? `<div>${selo}</div>` : ''}
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div class="valor-direita" style="${paga ? 'color:var(--texto-suave)' : ''}">${formatarMoeda(c.valor)}</div>
@@ -3597,10 +3750,26 @@ function renderFinancasRenda() {
   if (movs.length === 0) {
     listaCofrinho.innerHTML = '<p class="vazio">Nenhuma movimentação ainda.</p>';
   } else {
-    listaCofrinho.innerHTML = movs.map((m) => `<div class="item">
+    listaCofrinho.innerHTML = movs.map((m) => `<div class="item" style="cursor:default">
       <div class="info"><strong>${m.tipo === 'deposito' ? 'Guardado' : 'Retirado'}</strong><small>${new Date(m.data).toLocaleDateString('pt-BR')}${m.obs ? ' · ' + escapeHTML(m.obs) : ''}</small></div>
       <div class="valor-direita" style="${m.tipo === 'deposito' ? 'color:var(--verde-escuro)' : 'color:var(--vermelho)'}">${m.tipo === 'deposito' ? '+' : '−'} ${formatarMoeda(m.valor)}</div>
+      <button type="button" class="perigo btn-mini" onclick="apagarMovCofrinho('${m.id}')" title="Apagar este movimento">🗑️</button>
     </div>`).join('');
+  }
+
+  // Sugestão de reserva (usa o "% de reserva" do ⚙ Salário e metas)
+  const sugestaoEl = document.getElementById('sugestaoReserva');
+  const pctReserva = Number(cfg.percentualReserva) || 0;
+  if (pctReserva > 0 && rendaMes > 0) {
+    const sugerido = rendaMes * pctReserva / 100;
+    const guardadoMes = carregar(CHAVES.cofrinhoMov).filter((m) => m.tipo === 'deposito' && mesDe(m.data) === mesAtual).reduce((t, m) => t + m.valor, 0);
+    const faltaGuardar = sugerido - guardadoMes;
+    sugestaoEl.innerHTML = faltaGuardar > 0.009
+      ? `💡 Sugestão: guardar <strong>${formatarMoeda(sugerido)}</strong> este mês (${pctReserva}% da renda). Já guardou ${formatarMoeda(guardadoMes)}, faltam <strong>${formatarMoeda(faltaGuardar)}</strong>.`
+      : `✅ Reserva do mês feita: ${formatarMoeda(guardadoMes)} guardados (${pctReserva}% da renda = ${formatarMoeda(sugerido)}).`;
+    sugestaoEl.classList.remove('hidden');
+  } else {
+    sugestaoEl.classList.add('hidden');
   }
 
   // Gastos pessoais
@@ -3644,10 +3813,43 @@ function renderFinancasRenda() {
   }
 
   desenharGraficoBarras(document.getElementById('graficoProjecaoFinanceira'), projecao, rotulosProjecao);
+  atualizarBadgeContas();
+}
+
+// Dia do vencimento neste mês (conta do dia 31 em mês de 30 dias vence no dia 30)
+function diaVencimentoNoMes(dia) {
+  const h = new Date();
+  const ultimoDia = new Date(h.getFullYear(), h.getMonth() + 1, 0).getDate();
+  return Math.min(Number(dia) || 0, ultimoDia);
+}
+function contasFixasVencidas() {
+  const mes = mesAtualISO();
+  const pagas = carregar(CHAVES.contasFixasPagas).filter((p) => p.mes === mes).map((p) => p.contaId);
+  const diaHoje = new Date().getDate();
+  return carregar(CHAVES.contasFixas).filter((c) => c.dia && !pagas.includes(c.id) && diaVencimentoNoMes(c.dia) <= diaHoje);
+}
+function atualizarBadgeContas() {
+  const el = document.getElementById('badgeContasInicio');
+  if (!el) return;
+  const n = contasFixasVencidas().length;
+  el.textContent = n;
+  el.classList.toggle('hidden', n === 0);
+}
+function apagarMovCofrinho(id) {
+  const movs = carregar(CHAVES.cofrinhoMov);
+  const mov = movs.find((m) => m.id === id);
+  if (!mov) return;
+  const restantes = movs.filter((m) => m.id !== id);
+  const saldoDepois = restantes.reduce((t, m) => t + (m.tipo === 'deposito' ? m.valor : -m.valor), 0);
+  if (saldoDepois < -0.009) { mostrarToast('Não dá pra apagar: o cofrinho ficaria negativo. Apague antes a retirada.'); return; }
+  if (!confirm(`Apagar este movimento (${mov.tipo === 'deposito' ? 'guardado' : 'retirado'} ${formatarMoeda(mov.valor)} em ${new Date(mov.data).toLocaleDateString('pt-BR')})?`)) return;
+  salvar(CHAVES.cofrinhoMov, restantes);
+  renderFinancasRenda();
+  mostrarToast('Movimento apagado.');
 }
 
 function toggleContaFixaPaga(contaId) {
-  const mesAtual = new Date().toISOString().slice(0, 7);
+  const mesAtual = mesAtualISO();
   let pagas = carregar(CHAVES.contasFixasPagas);
   const existente = pagas.find((p) => p.contaId === contaId && p.mes === mesAtual);
   if (existente) {
@@ -3782,7 +3984,7 @@ function abrirModalGastoPessoal(id) {
     document.getElementById('gastoPessoalNome').value = '';
     document.getElementById('gastoPessoalCategoria').value = CATEGORIAS_GASTO_PESSOAL[0];
     document.getElementById('gastoPessoalValor').value = '';
-    document.getElementById('gastoPessoalData').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('gastoPessoalData').value = hojeISO();
   }
   document.getElementById('modalGastoPessoal').classList.remove('hidden');
 }
@@ -3801,7 +4003,7 @@ document.getElementById('btnSalvarGastoPessoal').addEventListener('click', () =>
     nome,
     categoria: document.getElementById('gastoPessoalCategoria').value,
     valor,
-    data: document.getElementById('gastoPessoalData').value || new Date().toISOString().slice(0, 10)
+    data: document.getElementById('gastoPessoalData').value || hojeISO()
   };
   const idx = gastos.findIndex((g) => g.id === gasto.id);
   if (idx >= 0) gastos[idx] = gasto; else gastos.push(gasto);
@@ -3823,12 +4025,15 @@ document.getElementById('btnExcluirGastoPessoal').addEventListener('click', () =
 // ============================================================
 // BACKUP (exportar / importar tudo em um JSON)
 // ============================================================
-document.getElementById('btnBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.remove('hidden'));
+document.getElementById('btnBackup').addEventListener('click', () => {
+  atualizarStatusSyncUi();
+  document.getElementById('modalBackup').classList.remove('hidden');
+});
 document.getElementById('btnFecharBackup').addEventListener('click', () => document.getElementById('modalBackup').classList.add('hidden'));
 
 document.getElementById('btnExportarBackup').addEventListener('click', () => exportarBackup(false));
 
-function exportarBackup(automatico) {
+function exportarBackup(automatico, sufixo) {
   const dump = {};
   Object.values(CHAVES).forEach((chave) => { dump[chave] = carregar(chave); });
   dump[CHAVE_RESPONSAVEL] = carregarResponsavel();
@@ -3838,7 +4043,7 @@ function exportarBackup(automatico) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `backup_horta_${new Date().toISOString().slice(0, 10)}${automatico ? '_auto' : ''}.json`;
+  a.download = `backup_horta_${hojeISO()}${sufixo ? '_' + sufixo : (automatico ? '_auto' : '')}.json`;
   a.click();
   URL.revokeObjectURL(url);
   localStorage.setItem('hg_ultimo_backup', new Date().toISOString());
@@ -3877,10 +4082,10 @@ document.getElementById('btnGerarRelatorioPdf').addEventListener('click', async 
   const doc = new jsPDF();
 
   const hoje = new Date();
-  const inicioMes = hoje.toISOString().slice(0, 7);
+  const inicioMes = mesAtualISO();
   const nomeMes = hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
-  const vendas = carregar(CHAVES.vendas).filter((v) => v.data.slice(0, 7) === inicioMes);
+  const vendas = carregar(CHAVES.vendas).filter((v) => mesDe(v.data) === inicioMes);
   const insumos = carregar(CHAVES.insumos).filter((i) => (i.data || '').slice(0, 7) === inicioMes);
   const totalVendas = vendas.reduce((s, v) => s + v.total, 0);
   const totalInsumos = insumos.reduce((s, i) => s + i.valor, 0);
@@ -3910,10 +4115,27 @@ document.getElementById('btnGerarRelatorioPdf').addEventListener('click', async 
   doc.text(`Lucro do mês: ${formatarMoeda(lucro)}`, 14, y); y += 7;
   doc.text(`Fiado em aberto (clientes): ${formatarMoeda(totalFiado)}`, 14, y); y += 14;
 
+  const servicosMes = carregar(CHAVES.servicos).filter((x) => (x.data || '').slice(0, 7) === inicioMes);
+  const totalServicos = servicosMes.reduce((t, x) => t + x.valor, 0);
+  const totalMaterial = materialServicosMes(inicioMes);
+  doc.setFontSize(13);
+  doc.text('Serviços extras', 14, y);
+  y += 8;
+  doc.setFontSize(11);
+  doc.text(`Serviços feitos no mês: ${formatarMoeda(totalServicos)} (${servicosMes.length} serviço${servicosMes.length === 1 ? '' : 's'})`, 14, y); y += 7;
+  doc.text(`Material comprado: ${formatarMoeda(totalMaterial)}`, 14, y); y += 7;
+  doc.text(`Lucro dos serviços: ${formatarMoeda(totalServicos - totalMaterial)}`, 14, y); y += 7;
+  doc.text(`A receber de serviços (fiado): ${formatarMoeda(totalFiadoServicos())}`, 14, y); y += 14;
+
+  const contasMes = carregar(CHAVES.contasFixas).reduce((t, c) => t + c.valor, 0);
+  const gastosPessoaisMes = carregar(CHAVES.gastosPessoais).filter((g) => (g.data || '').slice(0, 7) === inicioMes).reduce((t, g) => t + g.valor, 0);
   doc.setFontSize(13);
   doc.text('Finanças pessoais', 14, y);
   y += 8;
   doc.setFontSize(11);
+  doc.text(`Contas fixas do mês: ${formatarMoeda(contasMes)}`, 14, y); y += 7;
+  doc.text(`Gastos pessoais do mês: ${formatarMoeda(gastosPessoaisMes)}`, 14, y); y += 7;
+  doc.text(`Guardado no cofrinho: ${formatarMoeda(saldoCofrinho())}`, 14, y); y += 7;
   doc.text(`Eu devo (em aberto): ${formatarMoeda(totalDevo)}`, 14, y); y += 7;
   doc.text(`Tenho a receber: ${formatarMoeda(totalReceber)}`, 14, y); y += 14;
 
@@ -3939,7 +4161,7 @@ document.getElementById('btnGerarExtratoPdf').addEventListener('click', async ()
   const dataFim = document.getElementById('extratoPdfDataFim').value;
 
   const dentroDoIntervalo = (isoData) => {
-    const data = isoData.slice(0, 10);
+    const data = diaDe(isoData);
     if (dataInicio && data < dataInicio) return false;
     if (dataFim && data > dataFim) return false;
     return true;
@@ -3997,7 +4219,7 @@ document.getElementById('btnGerarExtratoPdf').addEventListener('click', async ()
     vendas.forEach((v) => {
       novaPaginaSeNecessario(14);
       const itensTexto = v.itens.map((i) => `${i.quantidade}x ${i.nome}`).join(', ');
-      doc.text(formatarDataBR(v.data.slice(0, 10)), 14, y);
+      doc.text(formatarDataBR(diaDe(v.data)), 14, y);
       doc.text(v.formaPagamento, 60, y);
       doc.text(formatarMoeda(v.total), margemDireita, y, { align: 'right' });
       y += 5;
@@ -4017,7 +4239,7 @@ document.getElementById('btnGerarExtratoPdf').addEventListener('click', async ()
     doc.setFontSize(10);
     pagamentos.forEach((p) => {
       novaPaginaSeNecessario(7);
-      doc.text(formatarDataBR(p.data.slice(0, 10)), 14, y);
+      doc.text(formatarDataBR(diaDe(p.data)), 14, y);
       doc.text(formatarMoeda(p.valor), margemDireita, y, { align: 'right' });
       y += 7;
     });
@@ -4099,7 +4321,7 @@ const firebaseConfig = {
   appId: "1:750724063638:web:1ce40cbace48965d43bdb7"
 };
 
-let nuvemAuth, nuvemDb, sincronizacaoEmAndamento = false, pushDebounceTimer;
+var nuvemAuth, nuvemDb, sincronizacaoEmAndamento = false, pushDebounceTimer;
 
 function empacotarDump() {
   const dump = {};
@@ -4109,12 +4331,49 @@ function empacotarDump() {
   return dump;
 }
 
+// -------------------- SINCRONIZAÇÃO INTELIGENTE --------------------
+// Cada envio grava uma "versão" na nuvem. Se a versão que está lá é a mesma que
+// este aparelho enviou/baixou por último, ninguém mais mexeu nela — não precisa
+// perguntar nada. Só pergunta quando os DOIS lados mudaram (conflito de verdade).
+var aplicandoDumpDaNuvem = false, avisoErroNuvemMostrado = false;
+const SYNC_PENDENTE = 'hg_sync_pendente'; // tem alteração deste aparelho que ainda não subiu
+const SYNC_STATUS = 'hg_sync_status';     // resultado do último envio (aparece no Backup)
+function chaveVersaoSync() {
+  return 'hg_sync_versao_' + (nuvemAuth && nuvemAuth.currentUser ? nuvemAuth.currentUser.uid : '');
+}
+function gerarVersaoSync() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
+function marcarAlteracaoLocal() {
+  if (aplicandoDumpDaNuvem) return;
+  localStorage.setItem(SYNC_PENDENTE, String(Date.now()));
+  agendarEnvioNuvem();
+}
+function temDadosLocais() { return Object.values(CHAVES).some((chave) => carregar(chave).length > 0); }
+// Versão "comparável" de um pacote de dados: lista que falta conta como lista vazia
+function dumpComparavel(d) {
+  const out = {};
+  Object.values(CHAVES).forEach((k) => { out[k] = Array.isArray(d && d[k]) ? d[k] : []; });
+  out[CHAVE_RESPONSAVEL] = (d && d[CHAVE_RESPONSAVEL]) || null;
+  out[CHAVE_CONFIG_PESSOAL] = (d && d[CHAVE_CONFIG_PESSOAL]) || null;
+  return jsonEstavel(out);
+}
+// JSON com as chaves sempre na mesma ordem (a nuvem pode devolver os campos em outra ordem)
+function jsonEstavel(v) {
+  if (Array.isArray(v)) return '[' + v.map(jsonEstavel).join(',') + ']';
+  if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + jsonEstavel(v[k])).join(',') + '}';
+  return JSON.stringify(v === undefined ? null : v);
+}
+
 function aplicarDump(dump) {
-  Object.values(CHAVES).forEach((chave) => {
-    if (Array.isArray(dump[chave])) salvar(chave, dump[chave]);
-  });
-  if (dump[CHAVE_RESPONSAVEL]) salvarResponsavel(dump[CHAVE_RESPONSAVEL]);
-  if (dump[CHAVE_CONFIG_PESSOAL]) salvarConfigPessoal(dump[CHAVE_CONFIG_PESSOAL]);
+  aplicandoDumpDaNuvem = true;
+  try {
+    Object.values(CHAVES).forEach((chave) => {
+      if (Array.isArray(dump[chave])) salvar(chave, dump[chave]);
+    });
+    if (dump[CHAVE_RESPONSAVEL]) salvarResponsavel(dump[CHAVE_RESPONSAVEL]);
+    if (dump[CHAVE_CONFIG_PESSOAL]) salvarConfigPessoal(dump[CHAVE_CONFIG_PESSOAL]);
+  } finally {
+    aplicandoDumpDaNuvem = false;
+  }
 }
 
 function atualizarUiNuvem(user) {
@@ -4130,15 +4389,60 @@ function atualizarUiNuvem(user) {
     btnEntrar.classList.remove('hidden');
     logado.classList.add('hidden');
   }
+  atualizarStatusSyncUi();
 }
 
-function enviarParaNuvem() {
-  if (!nuvemAuth || !nuvemAuth.currentUser || sincronizacaoEmAndamento) return;
+function registrarStatusSync(ok, erro) {
+  localStorage.setItem(SYNC_STATUS, JSON.stringify({ ok, em: new Date().toISOString(), erro: erro || '' }));
+  atualizarStatusSyncUi();
+}
+function atualizarStatusSyncUi() {
+  const el = document.getElementById('nuvemSyncInfo');
+  if (!el) return;
+  let st = null;
+  try { st = JSON.parse(localStorage.getItem(SYNC_STATUS) || 'null'); } catch (e) { st = null; }
+  const pendente = !!localStorage.getItem(SYNC_PENDENTE);
+  if (st && !st.ok) { el.textContent = '⚠️ ' + st.erro; el.style.color = 'var(--vermelho)'; return; }
+  if (pendente) { el.textContent = '⏳ Tem alteração esperando pra subir pra nuvem...'; el.style.color = 'var(--laranja)'; return; }
+  if (st && st.ok) {
+    el.textContent = '✅ Tudo salvo na nuvem — ' + new Date(st.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    el.style.color = '#16a34a';
+    return;
+  }
+  el.textContent = '';
+}
+function explicarErroNuvem(err) {
+  const msg = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+  if (/maximum allowed size|exceeds|too large|1,048,576/i.test(msg)) return 'Os dados ficaram grandes demais pra nuvem (provavelmente muitas fotos de produto). Tire ou troque algumas fotos. O backup em arquivo continua funcionando.';
+  if (/permission/i.test(msg)) return 'A nuvem recusou o salvamento (permissão). Saia e entre de novo na conta Google.';
+  if (/unavailable|network|offline|failed to fetch/i.test(msg)) return 'Sem internet agora. Vai subir sozinho quando a conexão voltar.';
+  return 'Não foi possível salvar na nuvem: ' + ((err && (err.code || err.message)) || 'erro desconhecido');
+}
+
+async function enviarParaNuvem() {
+  if (!nuvemAuth || !nuvemAuth.currentUser) return false;
+  if (sincronizacaoEmAndamento) { agendarEnvioNuvem(); return false; } // tenta de novo daqui a pouco
   const uid = nuvemAuth.currentUser.uid;
-  nuvemDb.collection('users').doc(uid).set({
-    dump: empacotarDump(),
-    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
-  }).catch(() => {});
+  const chaveVersao = chaveVersaoSync();
+  const marca = localStorage.getItem(SYNC_PENDENTE);
+  const versao = gerarVersaoSync();
+  try {
+    await nuvemDb.collection('users').doc(uid).set({
+      dump: empacotarDump(),
+      versao,
+      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    localStorage.setItem(chaveVersao, versao);
+    if (localStorage.getItem(SYNC_PENDENTE) === marca) localStorage.removeItem(SYNC_PENDENTE);
+    avisoErroNuvemMostrado = false;
+    registrarStatusSync(true);
+    return true;
+  } catch (err) {
+    const texto = explicarErroNuvem(err);
+    registrarStatusSync(false, texto);
+    if (!avisoErroNuvemMostrado) { avisoErroNuvemMostrado = true; mostrarToast('⚠️ ' + texto); }
+    return false;
+  }
 }
 
 function agendarEnvioNuvem() {
@@ -4147,20 +4451,72 @@ function agendarEnvioNuvem() {
   pushDebounceTimer = setTimeout(enviarParaNuvem, 1500);
 }
 
-async function baixarDaNuvem(mostrarAviso) {
-  if (!nuvemAuth || !nuvemAuth.currentUser) return;
-  const uid = nuvemAuth.currentUser.uid;
+// Depois de baixar da nuvem, redesenha a tela que estiver aberta
+function reexibirTelaAtual() {
+  const ativa = document.querySelector('main.active');
+  const nome = ativa ? ativa.id.replace('tab-', '') : 'inicio';
+  if (nome === 'inicio') {
+    if (document.getElementById('painelInicioDashboard').style.display !== 'none') renderDashboard();
+    atualizarBadgeContas();
+  } else {
+    irParaAba(nome);
+  }
+}
+
+var ultimaConferenciaNuvemMs = 0;
+async function sincronizarComNuvem(manual) {
+  if (!nuvemAuth || !nuvemAuth.currentUser || sincronizacaoEmAndamento) return;
+  sincronizacaoEmAndamento = true;
+  ultimaConferenciaNuvemMs = Date.now();
+  const chaveVersao = chaveVersaoSync();
+  let acao = 'nada', dados = null, versaoNuvem = null;
   try {
-    const doc = await nuvemDb.collection('users').doc(uid).get();
-    if (doc.exists && doc.data().dump) {
-      aplicarDump(doc.data().dump);
-      irParaAba('inicio');
-      if (mostrarAviso) mostrarToast('Dados atualizados a partir da nuvem.');
-    } else if (mostrarAviso) {
-      mostrarToast('Nenhum dado encontrado na nuvem ainda.');
+    const doc = await nuvemDb.collection('users').doc(nuvemAuth.currentUser.uid).get();
+    dados = doc.exists ? doc.data() : null;
+    if (!dados || !dados.dump) {
+      acao = 'enviar'; // nuvem vazia: manda o que tem aqui
+    } else {
+      versaoNuvem = dados.versao || ('ts-' + (dados.atualizadoEm && dados.atualizadoEm.toMillis ? dados.atualizadoEm.toMillis() : 0));
+      const versaoLocal = localStorage.getItem(chaveVersao);
+      const pendente = !!localStorage.getItem(SYNC_PENDENTE);
+      if (versaoLocal === versaoNuvem) {
+        acao = pendente ? 'enviar' : 'nada';   // ninguém mexeu na nuvem
+      } else if (dumpComparavel(dados.dump) === dumpComparavel(empacotarDump())) {
+        localStorage.setItem(chaveVersao, versaoNuvem); // conteúdo igual: só anota a versão
+        localStorage.removeItem(SYNC_PENDENTE);
+        acao = 'nada';
+      } else if (!temDadosLocais() || (versaoLocal && !pendente)) {
+        acao = 'baixar';                       // só a nuvem mudou (outro aparelho)
+      } else {
+        acao = 'perguntar';                    // os dois lados mudaram
+      }
+    }
+    if (acao === 'perguntar') {
+      const quando = dados.atualizadoEm && dados.atualizadoEm.toDate ? dados.atualizadoEm.toDate().toLocaleString('pt-BR') : 'data desconhecida';
+      const usarNuvem = confirm(`Os dados deste aparelho estão diferentes dos que estão na nuvem (nuvem atualizada em ${quando}).\n\nOK = usar os dados da NUVEM (antes eu baixo um backup do que está neste aparelho, por segurança)\nCancelar = manter os dados DESTE APARELHO e mandar pra nuvem`);
+      if (usarNuvem) { exportarBackup(true, 'antes_da_nuvem'); acao = 'baixar'; } else { acao = 'enviar'; }
+    }
+    if (acao === 'baixar') {
+      aplicarDump(dados.dump);
+      localStorage.setItem(chaveVersao, versaoNuvem);
+      localStorage.removeItem(SYNC_PENDENTE);
+      registrarStatusSync(true);
+      reexibirTelaAtual();
+      mostrarToast('☁️ Dados atualizados com a nuvem.');
+    } else if (acao === 'nada') {
+      registrarStatusSync(true);
+      if (manual) mostrarToast('✅ Já está tudo sincronizado.');
     }
   } catch (err) {
-    mostrarToast('Não foi possível sincronizar agora.');
+    const texto = explicarErroNuvem(err);
+    registrarStatusSync(false, texto);
+    if (manual) mostrarToast('⚠️ ' + texto);
+  } finally {
+    sincronizacaoEmAndamento = false;
+  }
+  if (acao === 'enviar') {
+    const ok = await enviarParaNuvem();
+    if (manual && ok) mostrarToast('✅ Dados enviados pra nuvem.');
   }
 }
 
@@ -4174,33 +4530,22 @@ function iniciarFirebase() {
     if (err && err.code) mostrarToast('Erro no login: ' + err.code);
   });
 
-  nuvemAuth.onAuthStateChanged(async (user) => {
+  nuvemAuth.onAuthStateChanged((user) => {
     atualizarUiNuvem(user);
-    if (user) iniciarEscutaPedidos(user.uid); else pararEscutaPedidos();
-    if (!user) return;
-    sincronizacaoEmAndamento = true;
-    try {
-      const doc = await nuvemDb.collection('users').doc(user.uid).get();
-      if (doc.exists && doc.data().dump) {
-        const dataNuvem = doc.data().atualizadoEm ? doc.data().atualizadoEm.toDate().toLocaleString('pt-BR') : 'data desconhecida';
-        const usarNuvem = confirm(`Encontramos dados salvos na nuvem (última atualização: ${dataNuvem}).\n\nOK = usar os dados da nuvem (substitui os deste aparelho)\nCancelar = manter os dados deste aparelho (substitui os da nuvem)`);
-        if (usarNuvem) {
-          aplicarDump(doc.data().dump);
-          irParaAba('inicio');
-          mostrarToast('Dados da nuvem aplicados.');
-        } else {
-          enviarParaNuvem();
-        }
-      } else {
-        enviarParaNuvem();
-      }
-    } catch (err) {
-      mostrarToast('Erro ao sincronizar: ' + (err.code || err.message || 'desconhecido'));
+    if (user) {
+      iniciarEscutaPedidos(user.uid);
+      sincronizarComNuvem(false);
+    } else {
+      pararEscutaPedidos();
     }
-    sincronizacaoEmAndamento = false;
   });
 }
 iniciarFirebase();
+// Voltou a internet: se tiver alteração pendente (ou faz tempo que não confere), sincroniza.
+// (Sem isso a cada oscilação de sinal ele baixaria tudo de novo e gastaria dados móveis.)
+window.addEventListener('online', () => {
+  if (localStorage.getItem(SYNC_PENDENTE) || Date.now() - ultimaConferenciaNuvemMs > 10 * 60 * 1000) sincronizarComNuvem(false);
+});
 
 // Detecta se o app está rodando dentro do app instalado (TWA), onde popups não funcionam bem
 const rodandoEmAppInstalado = document.referrer.startsWith('android-app://') ||
@@ -4230,14 +4575,14 @@ document.getElementById('btnSairGoogle').addEventListener('click', () => {
   nuvemAuth.signOut();
   mostrarToast('Desconectado da nuvem.');
 });
-document.getElementById('btnSincronizarAgora').addEventListener('click', () => baixarDaNuvem(true));
+document.getElementById('btnSincronizarAgora').addEventListener('click', () => sincronizarComNuvem(true));
 
 // Reaproveita salvar() para também empurrar mudanças para a nuvem (com debounce),
 // e reconstrói o catálogo automaticamente quando os produtos mudam.
 const salvarOriginal = salvar;
 salvar = function(chave, dados) {
   salvarOriginal(chave, dados);
-  agendarEnvioNuvem();
+  marcarAlteracaoLocal();
   if (chave === CHAVES.produtos) agendarAtualizacaoCatalogo();
 };
 
@@ -4598,7 +4943,7 @@ document.getElementById('btnConfirmarRegistrarPedido').addEventListener('click',
 
   itens.forEach((i) => {
     const prod = produtos.find((x) => x.id === i.produtoId);
-    if (prod) prod.estoqueAtual -= i.quantidade;
+    if (prod) prod.estoqueAtual = arred(prod.estoqueAtual - i.quantidade);
   });
   salvar(CHAVES.produtos, produtos);
 
@@ -4932,16 +5277,16 @@ async function processarComandoVoz(texto) {
 
   const produtos = carregar(CHAVES.produtos).map((p) => p.nome);
   const clientes = carregar(CHAVES.clientes).map((c) => c.nome);
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeISO();
   const vendas = carregar(CHAVES.vendas);
-  const vendasHoje = vendas.filter((v) => v.data.slice(0, 10) === hoje).reduce((s, v) => s + v.total, 0);
+  const vendasHoje = vendas.filter((v) => diaDe(v.data) === hoje).reduce((s, v) => s + v.total, 0);
   const clientesComSaldo = carregar(CHAVES.clientes).map((c) => ({ ...c, saldo: saldoDevedor(c.id) })).filter((c) => c.saldo > 0.009);
   const totalFiado = clientesComSaldo.reduce((s, c) => s + c.saldo, 0);
 
   const systemPrompt = `Você interpreta comandos de voz em português para um app de controle de horta. Data de hoje: ${hoje}.
 Produtos cadastrados: ${produtos.join(', ') || 'nenhum'}.
 Clientes cadastrados: ${clientes.join(', ') || 'nenhum'}.
-Contexto para perguntas: vendas hoje = R$${vendasHoje.toFixed(2)}, fiado em aberto = R$${totalFiado.toFixed(2)}.
+Contexto para perguntas: vendas hoje = R$${vendasHoje.toFixed(2)}, fiado em aberto = R$${totalFiado.toFixed(2)}, serviços extras a receber = R$${totalFiadoServicos().toFixed(2)}.
 
 Responda APENAS com um JSON válido, sem texto antes ou depois, no formato:
 {"acoes":[
@@ -4953,17 +5298,23 @@ Responda APENAS com um JSON válido, sem texto antes ou depois, no formato:
   {"tipo":"produto","nome":"...","preco":0,"estoqueInicial":0,"cultura":"..."},
   {"tipo":"concluir_tarefa","titulo":"..."},
   {"tipo":"pagamento_cliente","clienteNome":"...","valor":0},
+  {"tipo":"servico","servicoTipo":"...","descricao":"...","clienteNome":"...","valor":0,"formaPagamento":"Dinheiro"},
+  {"tipo":"material_servico","descricao":"...","valor":0},
+  {"tipo":"gasto_pessoal","descricao":"...","valor":0,"categoria":"Outros"},
   {"tipo":"resposta","texto":"..."}
 ]}
 Use "tipo":"resposta" para perguntas ou quando não entender o comando. Campos opcionais podem ser omitidos.
 - "venda": registra uma venda. formaPagamento pode ser Dinheiro, PIX, Cartão ou Fiado.
-- "gasto": registra um gasto/insumo.
+- "gasto": gasto da HORTA (sementes, adubo, solução nutritiva, substrato, embalagens, energia/água da horta...). categoria: Sementes/Mudas, Nutrientes/Solução, Substrato, Energia/Água, Embalagens, Equipamentos ou Outros.
+- "gasto_pessoal": gasto pessoal ou da casa (mercado, gasolina, remédio, roupa, lazer...). categoria: Alimentação, Transporte, Saúde, Educação, Lazer, Casa, Vestuário ou Outros.
 - "tarefa": cria uma tarefa nova a fazer.
 - "financeiro": registro pessoal de dívida/a receber. subtipo pode ser "devo" ou "receber".
 - "cliente": cadastra um cliente novo (use quando o comando for só "cadastrar/criar cliente X", não durante uma venda).
 - "produto": cadastra um produto novo no estoque, com preço de venda e estoque inicial (0 se não informado).
 - "concluir_tarefa": marca uma tarefa existente como concluída, pelo título mais parecido.
-- "pagamento_cliente": registra que um cliente pagou parte ou todo o fiado (abate o saldo devedor dele).
+- "pagamento_cliente": registra que um cliente pagou parte ou todo o fiado da HORTA (abate o saldo devedor dele).
+- "servico": serviço extra feito por fora, fora da horta (pintura automotiva, revitalização de farol, polimento, martelinho de ouro...). servicoTipo = tipo do serviço, valor = quanto cobrou, formaPagamento: Dinheiro, PIX, Cartão ou Fiado.
+- "material_servico": material comprado para os serviços extras (verniz, lixa, massa de polir, tinta, fita...).
 Use nomes de produtos/clientes o mais próximo possível dos já cadastrados.`;
 
   try {
@@ -5012,34 +5363,35 @@ function aplicarAcoesVoz(acoes) {
           clienteId = cliente.id;
         }
         const formaPagamento = acao.formaPagamento || 'Dinheiro';
+        const preco = precoVigente(produto);
         const venda = {
           id: gerarId(), data: new Date().toISOString(), clienteId,
           clienteNome: clienteId ? carregar(CHAVES.clientes).find((c) => c.id === clienteId).nome : 'Venda avulsa',
-          itens: [{ produtoId: produto.id, nome: produto.nome, precoUnitario: produto.preco, quantidade: qtd }],
-          total: produto.preco * qtd, formaPagamento
+          itens: [{ produtoId: produto.id, nome: produto.nome, precoUnitario: preco, quantidade: qtd }],
+          total: arred(preco * qtd, 2), formaPagamento
         };
         const vendas = carregar(CHAVES.vendas); vendas.push(venda); salvar(CHAVES.vendas, vendas);
-        produto.estoqueAtual -= qtd; salvar(CHAVES.produtos, produtos);
-        linhas.push(`✅ Venda: ${qtd}x ${produto.nome} — ${formatarMoeda(produto.preco * qtd)}`);
+        produto.estoqueAtual = arred(produto.estoqueAtual - qtd); salvar(CHAVES.produtos, produtos);
+        linhas.push(`✅ Venda: ${formatarQtd(qtd)}x ${produto.nome} — ${formatarMoeda(preco * qtd)}`);
 
       } else if (acao.tipo === 'gasto') {
         const valor = Number(acao.valor) || 0;
         if (valor <= 0) { linhas.push('❌ Gasto sem valor válido.'); return; }
-        const insumo = { id: gerarId(), nome: acao.descricao || 'Gasto por voz', categoria: acao.categoria || 'Outros', valor, data: new Date().toISOString().slice(0, 10), observacao: 'Registrado por comando de voz' };
+        const insumo = { id: gerarId(), nome: acao.descricao || 'Gasto por voz', categoria: CATEGORIAS_INSUMO.includes(acao.categoria) ? acao.categoria : 'Outros', valor, data: hojeISO(), observacao: 'Registrado por comando de voz' };
         const insumos = carregar(CHAVES.insumos); insumos.push(insumo); salvar(CHAVES.insumos, insumos);
         linhas.push(`✅ Gasto: ${insumo.nome} — ${formatarMoeda(valor)}`);
 
       } else if (acao.tipo === 'tarefa') {
         if (!acao.titulo) { linhas.push('❌ Tarefa sem título.'); return; }
         const responsavel = carregarResponsavel();
-        const tarefa = { id: gerarId(), titulo: acao.titulo, responsavel: responsavel.nome || '', dataPrevista: acao.dataPrevista || new Date().toISOString().slice(0, 10), plantioId: '', observacao: 'Registrado por comando de voz', concluida: false };
+        const tarefa = { id: gerarId(), titulo: acao.titulo, responsavel: responsavel.nome || '', dataPrevista: acao.dataPrevista || hojeISO(), plantioId: '', observacao: 'Registrado por comando de voz', concluida: false };
         const tarefas = carregar(CHAVES.tarefas); tarefas.push(tarefa); salvar(CHAVES.tarefas, tarefas);
         linhas.push(`✅ Tarefa: ${tarefa.titulo} — ${formatarDataBR(tarefa.dataPrevista)}`);
 
       } else if (acao.tipo === 'financeiro') {
         const valor = Number(acao.valor) || 0;
         if (!acao.nome || valor <= 0) { linhas.push('❌ Registro financeiro incompleto.'); return; }
-        const registro = { id: gerarId(), tipo: acao.subtipo === 'receber' ? 'receber' : 'devo', nome: acao.nome, valorTotal: valor, data: new Date().toISOString().slice(0, 10), obs: 'Registrado por comando de voz' };
+        const registro = { id: gerarId(), tipo: acao.subtipo === 'receber' ? 'receber' : 'devo', nome: acao.nome, valorTotal: valor, data: hojeISO(), obs: 'Registrado por comando de voz' };
         const financeiros = carregar(CHAVES.financeiros); financeiros.push(registro); salvar(CHAVES.financeiros, financeiros);
         linhas.push(`✅ ${registro.tipo === 'devo' ? 'Você deve' : 'A receber de'} ${registro.nome} — ${formatarMoeda(valor)}`);
 
@@ -5083,6 +5435,29 @@ function aplicarAcoesVoz(acoes) {
         salvar(CHAVES.pagamentos, pagamentos);
         linhas.push(`✅ Pagamento de ${cliente.nome}: ${formatarMoeda(valor)}`);
 
+      } else if (acao.tipo === 'servico') {
+        const valor = Number(acao.valor) || 0;
+        if (valor <= 0) { linhas.push('❌ Serviço sem valor válido.'); return; }
+        const forma = ['Dinheiro', 'PIX', 'Cartão', 'Fiado'].includes(acao.formaPagamento) ? acao.formaPagamento : 'Dinheiro';
+        if (forma === 'Fiado' && !acao.clienteNome) { linhas.push('❌ Serviço fiado precisa do nome do cliente.'); return; }
+        const servico = { id: gerarId(), tipo: acao.servicoTipo || 'Serviço', descricao: acao.descricao || '', cliente: acao.clienteNome || '', telefone: '', valor, data: hojeISO(), formaPagamento: forma };
+        const servicos = carregar(CHAVES.servicos); servicos.push(servico); salvar(CHAVES.servicos, servicos);
+        linhas.push(`✅ Serviço: ${nomeServico(servico)} — ${formatarMoeda(valor)} (${forma})`);
+
+      } else if (acao.tipo === 'material_servico') {
+        const valor = Number(acao.valor) || 0;
+        if (valor <= 0) { linhas.push('❌ Material sem valor válido.'); return; }
+        const mat = { id: gerarId(), nome: acao.descricao || 'Material', valor, data: hojeISO(), observacao: 'Registrado por comando de voz' };
+        const materiais = carregar(CHAVES.materiaisServicos); materiais.push(mat); salvar(CHAVES.materiaisServicos, materiais);
+        linhas.push(`✅ Material (serviços): ${mat.nome} — ${formatarMoeda(valor)}`);
+
+      } else if (acao.tipo === 'gasto_pessoal') {
+        const valor = Number(acao.valor) || 0;
+        if (valor <= 0) { linhas.push('❌ Gasto pessoal sem valor válido.'); return; }
+        const gasto = { id: gerarId(), nome: acao.descricao || 'Gasto', categoria: CATEGORIAS_GASTO_PESSOAL.includes(acao.categoria) ? acao.categoria : 'Outros', valor, data: hojeISO() };
+        const gastos = carregar(CHAVES.gastosPessoais); gastos.push(gasto); salvar(CHAVES.gastosPessoais, gastos);
+        linhas.push(`✅ Gasto pessoal: ${gasto.nome} (${gasto.categoria}) — ${formatarMoeda(valor)}`);
+
       } else if (acao.tipo === 'resposta') {
         linhas.push(`💬 ${acao.texto}`);
       }
@@ -5102,12 +5477,15 @@ function aplicarAcoesVoz(acoes) {
   renderFinancas();
   renderVendasRecentes();
   renderClientes();
+  renderServicos();
+  renderFinancasRenda();
 }
 
 // ============================================================
 // INICIALIZAÇÃO
 // ============================================================
 renderDashboard();
+atualizarBadgeContas();
 verificarBackupAutomatico();
 
 if ('serviceWorker' in navigator) {

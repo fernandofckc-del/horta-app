@@ -2,7 +2,7 @@
    Como o app é um único arquivo HTML (sem backend), o cache aqui é bem
    simples: guarda o próprio app para abrir mesmo sem internet. */
 
-const CACHE = 'horta-v43';
+const CACHE = 'horta-v44';
 const ARQUIVOS = ['./manifest.json', './icons/icon-192.png', './icons/icon-512.png', './fundo-inicio.jpg'];
 
 self.addEventListener('install', (event) => {
@@ -19,7 +19,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Só cuida dos arquivos do próprio app. Firebase, Google, PIX e a IA vão direto
+  // pela rede, sem passar pelo cache (evita atrapalhar a conexão em tempo real).
+  if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
   const ehHtml = event.request.mode === 'navigate' || url.pathname.endsWith('index.html') || url.pathname.endsWith('/');
   if (ehHtml) {
     // Network-first pro HTML: sempre tenta buscar a versão nova primeiro,
