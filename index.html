@@ -282,7 +282,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.5.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.5.1</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -668,7 +668,8 @@
     <p style="font-size:0.76rem;color:var(--texto-suave);margin-top:-6px">
       Se salário, contas e gastos continuarem parecidos, é assim que sua situação tende a evoluir (sem contar juros de dívida).
     </p>
-    <canvas id="graficoProjecaoFinanceira" style="width:100%;height:190px;display:block;background:var(--card);border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.04);margin-bottom:18px"></canvas>
+    <canvas id="graficoProjecaoFinanceira" style="width:100%;height:190px;display:block;background:var(--card);border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.04);margin-bottom:10px"></canvas>
+    <p id="projecaoExplicacao" class="dica-box" style="margin-bottom:18px"></p>
 
     <div class="grid-cards">
       <div class="card"><span class="label">Renda do mês (salário + horta + serviços)</span><span class="valor" id="rendaDashRenda">R$ 0,00</span></div>
@@ -1438,7 +1439,7 @@
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.5.1';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -3075,6 +3076,14 @@ function renderGraficoLucroMensal() {
   desenharGraficoBarras(document.getElementById('graficoLucroMensal'), valores, rotulos);
 }
 
+// Valor curto pro gráfico: 6.583 → "−6,6 mil", 860 → "860" (cabe embaixo de cada barra)
+function rotuloCurto(v) {
+  const a = Math.abs(Number(v) || 0);
+  const sinal = v < -0.5 ? '−' : '';
+  if (a >= 1000) return sinal + (a / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil';
+  return sinal + Math.round(a).toLocaleString('pt-BR');
+}
+
 function corTema(variavelCss) {
   return getComputedStyle(document.documentElement).getPropertyValue(variavelCss).trim() || '#6b7c73';
 }
@@ -3118,7 +3127,7 @@ function desenharGraficoBarras(canvas, valores, rotulos) {
     ctx.font = '9px -apple-system, sans-serif';
     // Valor negativo: escreve logo acima da linha do zero (embaixo fica o nome do mês)
     const yTexto = v >= 0 ? y - 4 : zeroY - 4;
-    ctx.fillText(formatarMoeda(v).replace('R$', 'R$').replace(/\s/, ' '), x + larguraBarra / 2, yTexto);
+    ctx.fillText(rotuloCurto(v), x + larguraBarra / 2, yTexto);
   });
 }
 
@@ -3800,10 +3809,13 @@ function renderFinancasRenda() {
     </div>`).join('');
   }
 
-  // Projeção mês a mês: parte da situação total de hoje e soma o fluxo mensal recorrente
-  const netMensal = rendaMes - totalContasFixas - gastosPessoaisMes;
+  // Projeção mês a mês: parte da situação de hoje e soma um "mês típico" a cada mês.
+  // (Antes somava o mês atual: no comecinho do mês quase não tinha venda, mas as contas
+  // fixas já contavam inteiras — e o gráfico despencava todo dia 1º.)
+  const tipico = estimativaMesTipico(cfg, totalContasFixas);
   const projecao = [situacaoTotal];
-  for (let i = 1; i <= 6; i++) projecao.push(projecao[i - 1] + netMensal);
+  for (let i = 1; i <= 6; i++) projecao.push(projecao[i - 1] + Math.round(tipico.total));
+  document.getElementById('projecaoExplicacao').innerHTML = textoMesTipico(tipico);
 
   const cursorMes = new Date();
   const rotulosProjecao = ['Hoje'];
@@ -3814,6 +3826,69 @@ function renderFinancasRenda() {
 
   desenharGraficoBarras(document.getElementById('graficoProjecaoFinanceira'), projecao, rotulosProjecao);
   atualizarBadgeContas();
+}
+
+// -------------------- PROJEÇÃO: "MÊS TÍPICO" --------------------
+// O que varia de um mês pro outro (horta, serviços, gastos pessoais) usa a média dos
+// meses que já fecharam (até 3). Se começou a anotar no meio de um mês, esse mês é
+// ajustado pro mês inteiro. Sem nenhum mês fechado ainda, usa tudo desde o primeiro
+// registro (contando no mínimo 30 dias).
+function mesesFechados(qtd) {
+  const h = new Date();
+  const lista = [];
+  for (let i = 1; i <= qtd; i++) lista.push(dataLocalISO(new Date(h.getFullYear(), h.getMonth() - i, 1)).slice(0, 7));
+  return lista;
+}
+function diasNoMes(mesISO) {
+  const [a, m] = mesISO.split('-').map(Number);
+  return new Date(a, m, 0).getDate();
+}
+function mediaMensalTipica(lancamentos) {
+  const hoje = hojeISO();
+  const validos = lancamentos.filter((l) => l.dia && l.dia <= hoje && isFinite(l.valor));
+  if (validos.length === 0) return { valor: 0, base: 'sem registros' };
+  const primeiroDia = validos.reduce((m, l) => (l.dia < m ? l.dia : m), hoje);
+  const mesInicio = primeiroDia.slice(0, 7);
+  const valores = [];
+  mesesFechados(3).forEach((mes) => {
+    if (mes < mesInicio) return; // ainda não anotava nesse mês
+    let total = validos.filter((l) => l.dia.slice(0, 7) === mes).reduce((t, l) => t + l.valor, 0);
+    if (mes === mesInicio) {
+      const dias = diasNoMes(mes);
+      const cobertos = dias - Number(primeiroDia.slice(8, 10)) + 1;
+      if (cobertos < 20) return; // começou a anotar no fim do mês: não serve de média
+      total = total * dias / cobertos;
+    }
+    valores.push(total);
+  });
+  if (valores.length) {
+    return { valor: valores.reduce((t, v) => t + v, 0) / valores.length, base: valores.length === 1 ? 'mês passado' : `média de ${valores.length} meses` };
+  }
+  const dias = Math.max(30, diasDesde(primeiroDia) + 1);
+  return { valor: validos.reduce((t, l) => t + l.valor, 0) / dias * 30, base: 'desde que começou a anotar' };
+}
+function estimativaMesTipico(cfg, totalContasFixas) {
+  const horta = mediaMensalTipica([
+    ...carregar(CHAVES.vendas).map((v) => ({ dia: diaDe(v.data), valor: Number(v.total) || 0 })),
+    ...carregar(CHAVES.insumos).map((i) => ({ dia: i.data, valor: -(Number(i.valor) || 0) }))
+  ]);
+  const servicos = mediaMensalTipica([
+    ...carregar(CHAVES.servicos).filter((x) => x.formaPagamento !== 'Fiado').map((x) => ({ dia: x.data, valor: Number(x.valor) || 0 })),
+    ...carregar(CHAVES.pagamentosServicos).map((x) => ({ dia: x.data, valor: Number(x.valor) || 0 })),
+    ...carregar(CHAVES.materiaisServicos).map((x) => ({ dia: x.data, valor: -(Number(x.valor) || 0) }))
+  ]);
+  const gastos = mediaMensalTipica(carregar(CHAVES.gastosPessoais).map((g) => ({ dia: g.data, valor: Number(g.valor) || 0 })));
+  const salario = Number(cfg.salario) || 0;
+  return { salario, horta, servicos, gastos, contas: totalContasFixas,
+    total: salario + horta.valor + servicos.valor - totalContasFixas - gastos.valor };
+}
+function textoMesTipico(t) {
+  const m = (v) => Math.round(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const total = Math.round(t.total);
+  return `📊 Cada mês a projeção ${total >= 0 ? 'soma' : 'tira'} <strong>${m(Math.abs(total))}</strong><br>`
+    + `➕ salário ${m(t.salario)} · horta ${m(t.horta.valor)} · serviços ${m(t.servicos.valor)}<br>`
+    + `➖ contas fixas ${m(t.contas)} · gastos pessoais ${m(t.gastos.valor)}<br>`
+    + '<span style="font-size:0.74rem">Horta, serviços e gastos = média dos meses que já fecharam (até 3).</span>';
 }
 
 // Dia do vencimento neste mês (conta do dia 31 em mês de 30 dias vence no dia 30)
