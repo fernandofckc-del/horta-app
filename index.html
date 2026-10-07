@@ -4881,7 +4881,7 @@ function renderPedidosCatalogo() {
          </div>`;
     return `<div class="pedido-card ${reg ? '' : 'novo'}">
       <div class="topo"><strong>${formatarMoeda(p.total)}</strong><small style="margin:0">${quando}</small></div>
-      <small>${formatarTelefone(p.clienteTelefone)} · ${rotuloOrigemPedido(p.origem)}</small>
+      <small>${p.clienteNome ? escapeHTML(p.clienteNome) + ' · ' : ''}${formatarTelefone(p.clienteTelefone)} · ${rotuloOrigemPedido(p.origem)}</small>
       <div class="itens">${itens || '<em>sem itens</em>'}</div>
       ${endereco ? `<small>📍 ${endereco.replace(/\n/g, '<br>')}</small>` : ''}
       ${acoes}
@@ -4960,7 +4960,7 @@ function abrirRegistrarPedido(pedidoId) {
     (telPedido ? `<option value="__novo__">➕ Cadastrar novo cliente (${formatarTelefone(telPedido)})</option>` : '') +
     clientes.map((c) => `<option value="${c.id}">${escapeHTML(c.nome)}</option>`).join('');
   select.value = achado ? achado.id : (telPedido ? '__novo__' : '');
-  document.getElementById('registrarPedidoNovoNome').value = '';
+  document.getElementById('registrarPedidoNovoNome').value = p.clienteNome || '';
   document.getElementById('registrarPedidoNovoNome').placeholder = 'Ex: Maria (vizinha)';
   atualizarCampoNovoCliente();
 
@@ -5176,12 +5176,12 @@ document.getElementById('btnClientesCatalogo').addEventListener('click', async (
     lista.innerHTML = snap.docs.map((d) => {
       const c = d.data();
       const ultimo = c.ultimoAcesso ? c.ultimoAcesso.toDate().toLocaleDateString('pt-BR') : '-';
-      return `<div class="item" data-telefone="${c.telefone}">
-        <div class="info"><strong>${escapeHTML(c.telefone)}</strong><small>Último acesso: ${ultimo}</small></div>
+      return `<div class="item" data-telefone="${escapeHTML(c.telefone)}" data-nome="${escapeHTML(c.nome || '')}">
+        <div class="info"><strong>${escapeHTML(c.nome || c.telefone)}</strong><small>${c.nome ? escapeHTML(formatarTelefone(c.telefone)) + ' · ' : ''}Último acesso: ${ultimo}</small></div>
       </div>`;
     }).join('');
     lista.querySelectorAll('[data-telefone]').forEach((el) => {
-      el.addEventListener('click', () => abrirHistoricoCliente(el.dataset.telefone));
+      el.addEventListener('click', () => abrirHistoricoCliente(el.dataset.telefone, el.dataset.nome));
     });
   } catch (err) {
     lista.innerHTML = `<p class="vazio">Erro ao carregar: ${err.code || err.message}</p>`;
@@ -5189,9 +5189,9 @@ document.getElementById('btnClientesCatalogo').addEventListener('click', async (
 });
 document.getElementById('btnFecharClientesCatalogo').addEventListener('click', () => document.getElementById('modalClientesCatalogo').classList.add('hidden'));
 
-async function abrirHistoricoCliente(telefone) {
+async function abrirHistoricoCliente(telefone, nome) {
   const uid = nuvemAuth.currentUser.uid;
-  document.getElementById('tituloHistoricoCliente').textContent = `Histórico — ${telefone}`;
+  document.getElementById('tituloHistoricoCliente').textContent = `Histórico — ${nome || telefone}`;
   const lista = document.getElementById('listaHistoricoCliente');
   lista.innerHTML = '<p class="vazio">Carregando...</p>';
   document.getElementById('modalClientesCatalogo').classList.add('hidden');
