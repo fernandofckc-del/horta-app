@@ -699,7 +699,40 @@ function verificarMinimoItens() {
 
 const ULTIMO_PEDIDO_KEY = 'hg_catalogo_ultimo_pedido_' + uid;
 
+// Aviso no celular do vendedor pelo app ntfy (grátis): chega mesmo com o app da horta fechado.
+// O canal fica no catálogo, que é público — por isso o aviso leva só valor e produtos,
+// nunca nome, telefone ou endereço do cliente.
+let topicoAvisoVendedor = '';
+const ROTULO_ORIGEM_AVISO = { whatsapp: 'WhatsApp', pix: 'PIX', link: 'Cartão (link)' };
+
+function avisarVendedorNoCelular(itensPedido, total, origem) {
+  if (!topicoAvisoVendedor) return Promise.resolve();
+  const qtdItens = itensPedido.reduce((s, i) => s + (Number(i.quantidade) || 0), 0);
+  const linhas = itensPedido.slice(0, 15).map((i) => {
+    const p = itensCatalogo.find((x) => x.id === i.produtoId);
+    return `${i.quantidade}x ${i.nome}${textoUnidade(p)}`;
+  });
+  if (itensPedido.length > 15) linhas.push(`... e mais ${itensPedido.length - 15}`);
+  const pastaDoApp = location.origin + location.pathname.replace(/[^/]*$/, '');
+  const envio = fetch('https://ntfy.sh/', {
+    method: 'POST',
+    keepalive: true, // termina de enviar mesmo se o cliente sair da página (ex: abrir o WhatsApp)
+    body: JSON.stringify({
+      topic: topicoAvisoVendedor,
+      title: `Novo pedido: ${formatarMoeda(total)}`,
+      message: `${qtdItens} ${qtdItens === 1 ? 'item' : 'itens'} · ${ROTULO_ORIGEM_AVISO[origem] || origem}\n${linhas.join('\n')}`,
+      tags: ['shopping_cart'],
+      priority: 4,
+      click: pastaDoApp + 'index.html#pedidos',
+      icon: pastaDoApp + 'icons/icon-192.png'
+    })
+  }).catch(() => { /* sem internet ou ntfy fora do ar: o pedido segue normal */ });
+  // Nunca deixa o cliente esperando mais que 2 segundos por causa do aviso.
+  return Promise.race([envio, new Promise((resolve) => setTimeout(resolve, 2000))]);
+}
+
 async function registrarPedidoEIncrementar(itensPedido, total, endereco, origem) {
+  const aviso = avisarVendedorNoCelular(itensPedido, total, origem);
   try {
     const porId = {};
     itensPedido.forEach((i) => { if (i.produtoId) porId[i.produtoId] = i.quantidade; });
@@ -723,6 +756,7 @@ async function registrarPedidoEIncrementar(itensPedido, total, endereco, origem)
     // Não bloqueia o pedido do cliente se o registro falhar — só não conta pra rodada.
     console.error('Erro ao registrar pedido/contador:', err);
   }
+  await aviso;
 }
 
 document.getElementById('btnFinalizarPedido').addEventListener('click', async () => {
@@ -952,6 +986,8 @@ if (!uid) {
     if (linkPagamento && !/^https?:\/\//i.test(linkPagamento)) linkPagamento = 'https://' + linkPagamento;
     if (!/^https?:\/\/[^\s/]+\.[^\s/]+/i.test(linkPagamento)) linkPagamento = '';
     pixConfig = (dados.pix && dados.pix.chave) ? dados.pix : null;
+    const avisoPedidos = dados.avisoPedidos || {};
+    topicoAvisoVendedor = (avisoPedidos.ativo && /^[-_A-Za-z0-9]{1,64}$/.test(avisoPedidos.topico || '')) ? avisoPedidos.topico : '';
     document.getElementById('btnPagarPix').classList.toggle('hidden', !pixConfig);
     document.getElementById('btnPagarOnline').classList.toggle('hidden', !linkPagamento);
     // Com PIX próprio, o link fica só pro cartão; sem PIX, o link cobre os dois.
