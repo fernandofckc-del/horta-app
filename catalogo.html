@@ -114,6 +114,27 @@
     background: #fee2e2; padding: 6px 10px; border-radius: 999px; text-align: center;
   }
   .vazio { text-align: center; color: var(--texto-suave); padding: 40px 16px; }
+  .produto .info span.unidade { position: relative; z-index: 1; color: #fff; font-size: 0.75rem; font-weight: 600; opacity: 0.9; }
+  .produto .info .descricao { display: block; font-size: 0.76rem; color: var(--texto-suave); margin: -4px 0 6px; line-height: 1.3; }
+  .ferramentas-catalogo { display: flex; gap: 8px; margin-bottom: 14px; }
+  .ferramentas-catalogo input {
+    flex: 1; min-width: 0; padding: 11px 14px; border-radius: 999px; border: 1px solid var(--borda);
+    font-size: 0.95rem; background: var(--card); color: inherit;
+  }
+  .ferramentas-catalogo button {
+    flex-shrink: 0; padding: 0 14px; border-radius: 999px; border: 1px solid var(--borda);
+    background: var(--card); color: inherit; font-weight: 600; font-size: 0.85rem; cursor: pointer;
+  }
+  .ferramentas-catalogo button.ativo { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .repetir-pedido {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 12px 14px;
+    background: var(--verde-claro); border-radius: var(--radius); font-size: 0.88rem;
+  }
+  .repetir-pedido span { flex: 1; }
+  .repetir-pedido button {
+    flex-shrink: 0; padding: 9px 14px; border-radius: 999px; border: none;
+    background: var(--verde); color: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer;
+  }
   .whatsapp {
     display: block; text-align: center; text-decoration: none;
     background: #25d366; color: #fff; padding: 13px; border-radius: 999px;
@@ -457,6 +478,14 @@ let itensCatalogo = [];
 let telefoneVendedor = '';
 let entregaConfig = { ativo: false, minimoItensCliente: 0, minimoPedidos: 0, recado: '' };
 let entregaContador = 0;
+function textoUnidade(p) {
+  return p && p.unidade ? ` (${p.unidade})` : '';
+}
+// Para a busca: "Alface Crespa" e "alface crespa" acham igual, com ou sem acento.
+function normalizarBusca(t) {
+  return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function precoFinal(p) {
   return (p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco) ? p.precoPromocional : p.preco;
 }
@@ -595,7 +624,7 @@ function renderModalCarrinho() {
       const p = itensCatalogo[idx];
       return `
         <div class="item-carrinho">
-          <div class="info"><strong>${escapeHTML(p.nome)}</strong><small>${qtd}x ${formatarMoeda(precoFinal(p))}</small></div>
+          <div class="info"><strong>${escapeHTML(p.nome)}</strong><small>${qtd}x ${formatarMoeda(precoFinal(p))}${p.unidade ? ' / ' + escapeHTML(p.unidade) : ''}</small></div>
           <div style="display:flex;align-items:center;gap:8px">
             <strong>${formatarMoeda(precoFinal(p) * qtd)}</strong>
             <button class="remover" data-remover-idx="${idx}">✕</button>
@@ -668,7 +697,14 @@ function verificarMinimoItens() {
   return true;
 }
 
+const ULTIMO_PEDIDO_KEY = 'hg_catalogo_ultimo_pedido_' + uid;
+
 async function registrarPedidoEIncrementar(itensPedido, total, endereco, origem) {
+  try {
+    const porId = {};
+    itensPedido.forEach((i) => { if (i.produtoId) porId[i.produtoId] = i.quantidade; });
+    localStorage.setItem(ULTIMO_PEDIDO_KEY, JSON.stringify(porId));
+  } catch (err) { /* sem armazenamento: só não oferece repetir */ }
   try {
     await db.collection('pedidos').add({
       uid,
@@ -695,7 +731,7 @@ document.getElementById('btnFinalizarPedido').addEventListener('click', async ()
     .filter(([, qtd]) => qtd > 0)
     .map(([idx, qtd]) => {
       const p = itensCatalogo[idx];
-      return `${qtd}x ${p.nome} — ${formatarMoeda(precoFinal(p) * qtd)}`;
+      return `${qtd}x ${p.nome}${textoUnidade(p)} — ${formatarMoeda(precoFinal(p) * qtd)}`;
     });
   if (linhas.length === 0) return;
   const itensPedido = Object.entries(itensCheckout).filter(([, qtd]) => qtd > 0).map(([idx, qtd]) => ({
@@ -841,6 +877,64 @@ if (statusRetorno) {
   }
 }
 
+// "Repetir meu último pedido": quem compra toda semana enche o carrinho com um toque.
+function montarRepetirPedido() {
+  if (!telefoneVendedor) return;
+  let ultimo = {};
+  try { ultimo = JSON.parse(localStorage.getItem(ULTIMO_PEDIDO_KEY) || '{}'); } catch (err) { return; }
+  const disponiveis = [];
+  itensCatalogo.forEach((p, idx) => {
+    const qtd = Number(ultimo[p.id]) || 0;
+    if (qtd > 0 && p.estoqueAtual > 0) disponiveis.push([idx, Math.min(qtd, p.estoqueAtual)]);
+  });
+  if (disponiveis.length === 0) return;
+  const bloco = document.createElement('div');
+  bloco.className = 'repetir-pedido';
+  bloco.innerHTML = `<span>🔁 Quer pedir de novo o mesmo da última vez? <b>${disponiveis.length} ${disponiveis.length > 1 ? 'produtos' : 'produto'}</b></span>
+    <button type="button">Repetir</button>`;
+  bloco.querySelector('button').addEventListener('click', () => {
+    disponiveis.forEach(([idx, qtd]) => { carrinho[idx] = qtd; });
+    atualizarCarrinhoBarra();
+    abrirModalCarrinho(carrinho, true);
+  });
+  conteudo.appendChild(bloco);
+}
+
+// Busca e filtro de promoções (só aparece quando o catálogo tem bastante produto).
+function montarBuscaCatalogo(grid) {
+  const temPromo = itensCatalogo.some((p) => p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco);
+  if (itensCatalogo.length < 6 && !temPromo) return;
+  const barra = document.createElement('div');
+  barra.className = 'ferramentas-catalogo';
+  barra.innerHTML = `${itensCatalogo.length >= 6 ? '<input type="search" placeholder="🔍 Procurar produto..." aria-label="Procurar produto">' : ''}
+    ${temPromo ? '<button type="button" aria-pressed="false">🏷️ Promoções</button>' : ''}`;
+  const aviso = document.createElement('p');
+  aviso.className = 'vazio hidden';
+  aviso.textContent = 'Nenhum produto encontrado.';
+  const campo = barra.querySelector('input');
+  const botaoPromo = barra.querySelector('button');
+  let soPromo = false;
+  const filtrar = () => {
+    const termo = campo ? normalizarBusca(campo.value.trim()) : '';
+    let visiveis = 0;
+    grid.querySelectorAll('.produto').forEach((card) => {
+      const mostra = (!termo || card.dataset.busca.includes(termo)) && (!soPromo || card.dataset.promo === '1');
+      card.style.display = mostra ? '' : 'none';
+      if (mostra) visiveis++;
+    });
+    aviso.classList.toggle('hidden', visiveis > 0);
+  };
+  if (campo) campo.addEventListener('input', filtrar);
+  if (botaoPromo) botaoPromo.addEventListener('click', () => {
+    soPromo = !soPromo;
+    botaoPromo.classList.toggle('ativo', soPromo);
+    botaoPromo.setAttribute('aria-pressed', String(soPromo));
+    filtrar();
+  });
+  conteudo.appendChild(barra);
+  conteudo.appendChild(aviso);
+}
+
 if (!uid) {
   conteudo.textContent = 'Link inválido.';
 } else {
@@ -885,21 +979,27 @@ if (!uid) {
 
     const grid = document.createElement('div');
     grid.className = 'grid';
-    grid.innerHTML = itensCatalogo.map((p, idx) => {
+    // Produtos com estoque primeiro; dentro de cada grupo mantém a ordem do vendedor.
+    const ordem = itensCatalogo.map((p, idx) => idx)
+      .sort((a, b) => (itensCatalogo[b].estoqueAtual > 0) - (itensCatalogo[a].estoqueAtual > 0) || a - b);
+    grid.innerHTML = ordem.map((idx) => {
+      const p = itensCatalogo[idx];
       const semEstoque = !(p.estoqueAtual > 0);
       if (!semEstoque) selecionado[idx] = 1;
+      const emPromocao = p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco;
       return `
-      <div class="produto">
+      <div class="produto" data-busca="${escapeHTML(normalizarBusca(p.nome + ' ' + (p.descricao || '')))}" data-promo="${emPromocao ? 1 : 0}">
         ${p.foto ? `<div class="foto-wrap"><img src="${p.foto}" alt="${escapeHTML(p.nome)}"></div>` : `<div class="sem-foto">🌿</div>`}
         <div class="info">
           <strong>${escapeHTML(p.nome)}</strong>
+          ${p.descricao ? `<span class="descricao">${escapeHTML(p.descricao)}</span>` : ''}
           <div class="preco-wrap">
             <div class="fundo-rasgado"></div>
             <span class="preco">
               ${(p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco)
                 ? `<s>${formatarMoeda(p.preco)}</s>${formatarMoeda(p.precoPromocional)}`
                 : formatarMoeda(p.preco)}
-            </span>
+            </span>${p.unidade ? `<span class="unidade">/ ${escapeHTML(p.unidade)}</span>` : ''}
           </div>
           ${semEstoque ? `<span class="sem-estoque-tag">Sem estoque no momento</span>` : (telefoneVendedor ? `
             <div class="qtd-controle">
@@ -918,6 +1018,8 @@ if (!uid) {
     }).join('');
     conteudo.className = '';
     conteudo.innerHTML = '';
+    montarRepetirPedido();
+    montarBuscaCatalogo(grid);
     conteudo.appendChild(grid);
 
     grid.querySelectorAll('[data-menos-idx]').forEach((btn) => btn.addEventListener('click', () => mudarQtdSelecionada(btn.dataset.menosIdx, -1)));

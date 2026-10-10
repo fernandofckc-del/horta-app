@@ -282,7 +282,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.5.1</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.6.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -1144,6 +1144,23 @@
         <input type="number" step="0.01" id="produtoEstoque">
       </label>
     </div>
+    <div class="linha">
+      <label>Vendido por
+        <select id="produtoUnidade">
+          <option value="">unidade</option>
+          <option value="maço">maço</option>
+          <option value="pé">pé</option>
+          <option value="kg">kg</option>
+          <option value="dúzia">dúzia</option>
+          <option value="bandeja">bandeja</option>
+          <option value="pacote">pacote</option>
+          <option value="caixa">caixa</option>
+        </select>
+      </label>
+      <label>Descrição curta (opcional)
+        <input type="text" id="produtoDescricao" maxlength="80" placeholder="Ex: sem agrotóxico">
+      </label>
+    </div>
     <label>Preço promocional (opcional — aparece no catálogo com o preço normal riscado)
       <input type="number" step="0.01" min="0" id="produtoPrecoPromocional" placeholder="Deixe em branco pra não ter promoção">
     </label>
@@ -1460,7 +1477,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.5.1';
+const APP_VERSION = '3.6.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -1688,7 +1705,7 @@ function renderProdutos() {
     const emPromo = precoVigente(p) < p.preco;
     const precoTexto = emPromo
       ? `<s>${formatarMoeda(p.preco)}</s> ${formatarMoeda(precoVigente(p))} 🏷️ promoção`
-      : `${formatarMoeda(p.preco)} cada`;
+      : `${formatarMoeda(p.preco)} ${p.unidade ? '/ ' + escapeHTML(p.unidade) : 'cada'}`;
     return `
       <div class="item ${baixo ? 'estoque-baixo' : ''}" data-id="${p.id}">
         ${miniatura}
@@ -1717,6 +1734,8 @@ function abrirModalProduto(id) {
     document.getElementById('produtoEstoque').value = p.estoqueAtual;
     document.getElementById('produtoEstoqueMinimo').value = p.estoqueMinimo || 0;
     document.getElementById('produtoCultura').value = p.cultura || '';
+    document.getElementById('produtoUnidade').value = p.unidade || '';
+    document.getElementById('produtoDescricao').value = p.descricao || '';
     document.getElementById('produtoFoto').value = p.foto || '';
     const preview = document.getElementById('produtoFotoPreview');
     if (p.foto) { preview.src = p.foto; preview.classList.remove('hidden'); document.getElementById('btnRemoverFotoProduto').classList.remove('hidden'); }
@@ -1731,6 +1750,8 @@ function abrirModalProduto(id) {
     document.getElementById('produtoEstoque').value = 0;
     document.getElementById('produtoEstoqueMinimo').value = 0;
     document.getElementById('produtoCultura').value = '';
+    document.getElementById('produtoUnidade').value = '';
+    document.getElementById('produtoDescricao').value = '';
     document.getElementById('produtoFoto').value = '';
     document.getElementById('produtoFotoArquivo').value = '';
     document.getElementById('produtoFotoPreview').classList.add('hidden');
@@ -1789,6 +1810,8 @@ document.getElementById('btnSalvarProduto').addEventListener('click', () => {
     estoqueAtual: parseFloat(document.getElementById('produtoEstoque').value) || 0,
     estoqueMinimo: parseFloat(document.getElementById('produtoEstoqueMinimo').value) || 0,
     cultura: document.getElementById('produtoCultura').value.trim(),
+    unidade: document.getElementById('produtoUnidade').value,
+    descricao: document.getElementById('produtoDescricao').value.trim(),
     foto: document.getElementById('produtoFoto').value || ''
   };
   const idx = produtos.findIndex((p) => p.id === produto.id);
@@ -4696,7 +4719,7 @@ async function atualizarCatalogoNaNuvem() {
   if (!nuvemAuth || !nuvemAuth.currentUser) return;
   const produtos = carregar(CHAVES.produtos);
   const responsavel = carregarResponsavel();
-  const itensCatalogo = produtos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, precoPromocional: p.precoPromocional || null, foto: p.foto || '', estoqueAtual: p.estoqueAtual || 0 }));
+  const itensCatalogo = produtos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, precoPromocional: p.precoPromocional || null, foto: p.foto || '', estoqueAtual: p.estoqueAtual || 0, unidade: p.unidade || '', descricao: p.descricao || '' }));
   try {
     await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({
       itens: itensCatalogo,
@@ -5057,6 +5080,30 @@ function pararEscutaPedidos() {
   atualizarBadgesPedidos();
 }
 
+// Dois "plins" e uma vibração quando chega pedido novo, pra não passar despercebido.
+let audioAvisoPedido = null;
+function tocarAvisoPedido() {
+  try { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); } catch (e) { /* sem vibração */ }
+  try {
+    audioAvisoPedido = audioAvisoPedido || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioAvisoPedido;
+    if (ctx.state === 'suspended') ctx.resume();
+    [0, 0.22].forEach((atraso, i) => {
+      const osc = ctx.createOscillator();
+      const vol = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = i === 0 ? 880 : 1175;
+      const t = ctx.currentTime + atraso;
+      vol.gain.setValueAtTime(0.0001, t);
+      vol.gain.exponentialRampToValueAtTime(0.3, t + 0.02);
+      vol.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      osc.connect(vol).connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    });
+  } catch (e) { /* navegador sem áudio: fica só o aviso na tela */ }
+}
+
 function iniciarEscutaPedidos(uid) {
   pararEscutaPedidos();
   // Só um filtro de igualdade → não precisa de índice. A ordem é feita aqui.
@@ -5067,7 +5114,10 @@ function iniciarEscutaPedidos(uid) {
       .filter((p) => p.status !== 'pendente'); // pagamento online ainda não aprovado
     if (pedidosJaCarregados) {
       const chegaram = pedidosCatalogoCache.filter((p) => !idsAntes.has(p.id) && !registroProcessado(p.id));
-      if (chegaram.length > 0) mostrarToast(`📥 ${chegaram.length > 1 ? chegaram.length + ' novos pedidos' : 'Novo pedido'} do catálogo!`);
+      if (chegaram.length > 0) {
+        mostrarToast(`📥 ${chegaram.length > 1 ? chegaram.length + ' novos pedidos' : 'Novo pedido'} do catálogo!`);
+        tocarAvisoPedido();
+      }
     }
     pedidosJaCarregados = true;
     atualizarBadgesPedidos();
