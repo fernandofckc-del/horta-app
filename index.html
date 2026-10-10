@@ -282,7 +282,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.6.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.7.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -373,6 +373,7 @@
       <button class="fantasma" id="btnTemaCatalogo">🎨 Tema do catálogo</button>
       <button class="fantasma" id="btnBannerCatalogo">🖼️ Trocar banner</button>
       <button class="fantasma" id="btnRemoverBannerCatalogo">🗑️ Remover banner</button>
+      <button class="fantasma" id="btnAvisoCelular">🔔 Aviso de pedido no celular</button>
     </div>
   </details>
   <input type="file" accept="image/*" id="arquivoBannerCatalogo" hidden>
@@ -1089,6 +1090,45 @@
 
 <!-- ===================== MODAL: PRODUTO ===================== -->
 <!-- ===================== MODAL: ENTREGA MÍNIMA ===================== -->
+<div id="modalAvisoCelular" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>🔔 Aviso de pedido no celular</h3>
+    <p style="font-size:0.78rem;color:var(--texto-suave);margin-top:-8px">
+      Receba um aviso quando chegar pedido do catálogo, <strong>mesmo com o app da horta fechado</strong>.
+      Funciona pelo app <strong>ntfy</strong>, que é grátis e não pede cadastro.
+    </p>
+
+    <div id="avisoCelularDesligado">
+      <p style="font-size:0.88rem;margin:0 0 8px"><strong>1.</strong> Instale o app ntfy no celular:</p>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="fantasma" id="btnNtfyAndroid" style="flex:1">🤖 Android</button>
+        <button class="fantasma" id="btnNtfyIphone" style="flex:1">🍎 iPhone</button>
+      </div>
+      <p style="font-size:0.88rem;margin:0 0 8px"><strong>2.</strong> Volte aqui e ligue os avisos:</p>
+      <button class="primario" id="btnAtivarAvisoCelular" style="margin-bottom:14px">🔔 Ligar avisos</button>
+    </div>
+
+    <div id="avisoCelularLigado" class="hidden">
+      <p style="font-size:0.88rem;margin:0 0 10px">✅ <strong>Avisos ligados.</strong> Falta só inscrever este celular no canal de avisos:</p>
+      <button class="primario hidden" id="btnAbrirNtfy" style="margin-bottom:10px">📲 Inscrever no app ntfy</button>
+      <div class="dica-box" id="avisoCelularManual">
+        No app ntfy, toque no <strong>+</strong>, cole o código abaixo e confirme.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <input type="text" id="avisoCelularTopico" readonly style="flex:1;min-width:0">
+        <button class="fantasma" id="btnCopiarTopicoAviso" style="width:auto">📋 Copiar</button>
+      </div>
+      <button class="fantasma" id="btnTestarAvisoCelular" style="width:100%;margin-bottom:8px">📤 Enviar aviso de teste</button>
+      <button class="perigo" id="btnDesligarAvisoCelular" style="width:100%;margin-bottom:14px">🔕 Desligar avisos</button>
+    </div>
+
+    <div class="dica-box">
+      O aviso mostra só o valor e os produtos do pedido. Nome, telefone e endereço do cliente você vê aqui no app.
+    </div>
+    <button class="fantasma" id="btnFecharAvisoCelular" style="width:100%">Fechar</button>
+  </div>
+</div>
+
 <div id="modalEntregaMinima" class="modal-overlay hidden">
   <div class="modal-box">
     <h3>🚚 Entrega mínima</h3>
@@ -1477,7 +1517,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.6.0';
+const APP_VERSION = '3.7.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -4654,6 +4694,7 @@ function iniciarFirebase() {
     if (user) {
       iniciarEscutaPedidos(user.uid);
       sincronizarComNuvem(false);
+      abrirPedidosSeVeioDoAviso();
     } else {
       pararEscutaPedidos();
     }
@@ -4958,6 +4999,135 @@ document.getElementById('btnBannerCatalogo').addEventListener('click', () => {
   }
   document.getElementById('arquivoBannerCatalogo').click();
 });
+
+// ============================================================
+// AVISO DE PEDIDO NO CELULAR (app ntfy, grátis, chega com o app da horta fechado)
+// O catálogo manda o aviso direto pro ntfy.sh no canal guardado em catalogos/{uid}.avisoPedidos.
+// ============================================================
+const NTFY_SERVIDOR = 'https://ntfy.sh';
+const NTFY_PLAY_STORE = 'https://play.google.com/store/apps/details?id=io.heckel.ntfy';
+const NTFY_APP_STORE = 'https://apps.apple.com/us/app/ntfy/id1625396347';
+let avisoCelularConfig = null; // { topico, ativo }
+
+function gerarTopicoAviso() {
+  const letras = 'abcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = new Uint8Array(20);
+  crypto.getRandomValues(bytes);
+  return 'horta-' + Array.from(bytes, (b) => letras[b % letras.length]).join('');
+}
+
+function mostrarEstadoAvisoCelular() {
+  const ligado = !!(avisoCelularConfig && avisoCelularConfig.ativo && avisoCelularConfig.topico);
+  document.getElementById('avisoCelularDesligado').classList.toggle('hidden', ligado);
+  document.getElementById('avisoCelularLigado').classList.toggle('hidden', !ligado);
+  document.getElementById('avisoCelularTopico').value = ligado ? avisoCelularConfig.topico : '';
+  // No Android dá pra inscrever com um toque; no iPhone é colando o código no app.
+  const android = /Android/i.test(navigator.userAgent);
+  document.getElementById('btnAbrirNtfy').classList.toggle('hidden', !android);
+  document.getElementById('avisoCelularManual').innerHTML = (android ? 'Se o botão não funcionar: n' : 'N') +
+    'o app ntfy, toque no <strong>+</strong>, cole o código abaixo e confirme.';
+}
+
+async function salvarAvisoCelular(config) {
+  await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({ avisoPedidos: config }, { merge: true });
+  avisoCelularConfig = config;
+  mostrarEstadoAvisoCelular();
+}
+
+document.getElementById('btnAvisoCelular').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  try {
+    const doc = await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).get();
+    avisoCelularConfig = (doc.exists && doc.data().avisoPedidos) || null;
+  } catch (err) {
+    mostrarToast('Erro ao carregar configuração: ' + (err.code || err.message));
+    return;
+  }
+  mostrarEstadoAvisoCelular();
+  document.getElementById('modalAvisoCelular').classList.remove('hidden');
+});
+document.getElementById('btnFecharAvisoCelular').addEventListener('click', () => document.getElementById('modalAvisoCelular').classList.add('hidden'));
+document.getElementById('btnNtfyAndroid').addEventListener('click', () => window.open(NTFY_PLAY_STORE, '_blank'));
+document.getElementById('btnNtfyIphone').addEventListener('click', () => window.open(NTFY_APP_STORE, '_blank'));
+
+document.getElementById('btnAtivarAvisoCelular').addEventListener('click', async () => {
+  // Religando, reaproveita o mesmo canal: quem já estava inscrito não precisa inscrever de novo.
+  const topico = (avisoCelularConfig && avisoCelularConfig.topico) || gerarTopicoAviso();
+  try {
+    await salvarAvisoCelular({ topico, ativo: true });
+    mostrarToast('Avisos ligados! Agora inscreva o celular no canal.');
+  } catch (err) {
+    mostrarToast('Erro ao ligar avisos: ' + (err.code || err.message));
+  }
+});
+
+document.getElementById('btnDesligarAvisoCelular').addEventListener('click', async () => {
+  if (!confirm('Desligar os avisos de pedido no celular?')) return;
+  try {
+    await salvarAvisoCelular({ topico: avisoCelularConfig.topico, ativo: false });
+    mostrarToast('Avisos desligados.');
+  } catch (err) {
+    mostrarToast('Erro ao desligar avisos: ' + (err.code || err.message));
+  }
+});
+
+document.getElementById('btnAbrirNtfy').addEventListener('click', () => {
+  const topico = avisoCelularConfig && avisoCelularConfig.topico;
+  if (!topico) return;
+  // Abre o app ntfy já inscrevendo no canal; se o app não estiver instalado, cai na Play Store.
+  location.href = `intent://ntfy.sh/${topico}?display=${encodeURIComponent('Pedidos da Horta')}` +
+    `#Intent;scheme=ntfy;package=io.heckel.ntfy;S.browser_fallback_url=${encodeURIComponent(NTFY_PLAY_STORE)};end`;
+});
+
+document.getElementById('btnCopiarTopicoAviso').addEventListener('click', async () => {
+  const campo = document.getElementById('avisoCelularTopico');
+  let ok = false;
+  try { await navigator.clipboard.writeText(campo.value); ok = true; } catch (err) { /* tenta o jeito antigo */ }
+  if (!ok) {
+    campo.focus(); campo.select();
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+  }
+  mostrarToast(ok ? 'Código copiado! Agora cole no app ntfy.' : 'Segure no código e copie.');
+});
+
+document.getElementById('btnTestarAvisoCelular').addEventListener('click', async () => {
+  const topico = avisoCelularConfig && avisoCelularConfig.topico;
+  if (!topico) return;
+  const btn = document.getElementById('btnTestarAvisoCelular');
+  btn.disabled = true;
+  try {
+    // Publica em JSON na raiz do servidor: aceita acento e emoji sem complicação.
+    const resp = await fetch(NTFY_SERVIDOR + '/', {
+      method: 'POST',
+      body: JSON.stringify({
+        topic: topico,
+        title: 'Teste do Controle da Horta',
+        message: 'Se este aviso chegou, está tudo certo: você vai ser avisado a cada pedido do catálogo. 🌱',
+        tags: ['seedling'],
+        priority: 4,
+        click: location.origin + location.pathname.replace(/[^/]*$/, '') + 'index.html#pedidos'
+      })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    mostrarToast('Aviso de teste enviado. Chegou no celular?');
+  } catch (err) {
+    mostrarToast('Não deu para enviar o teste. Confira a internet e tente de novo.');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// Tocar no aviso do celular abre o app direto na caixa de pedidos (index.html#pedidos).
+function abrirPedidosSeVeioDoAviso() {
+  if (location.hash !== '#pedidos' || !nuvemAuth || !nuvemAuth.currentUser) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  renderPedidosCatalogo();
+  document.getElementById('modalPedidosCatalogo').classList.remove('hidden');
+}
+window.addEventListener('hashchange', abrirPedidosSeVeioDoAviso);
 
 // ============================================================
 // ENTREGA MÍNIMA (config em catalogos/{uid}.entrega, contador em contadores/{uid})
