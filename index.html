@@ -215,6 +215,24 @@
   }
 
   .resumo-caixa { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; display: flex; justify-content: space-between; margin: 10px 0; }
+  .midia-produto { margin-bottom: 12px; }
+  .rotulo-midia { display: block; font-size: 0.8rem; color: var(--texto-suave); margin-bottom: 6px; }
+  .fotos-produto { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .slot-foto {
+    position: relative; aspect-ratio: 1; border-radius: 10px; border: 1px dashed var(--borda); background: var(--bg);
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    font-size: 0.78rem; color: var(--texto-suave); overflow: hidden; cursor: pointer;
+  }
+  .slot-foto.cheio { border-style: solid; cursor: default; }
+  .slot-foto.desativado { opacity: 0.45; cursor: not-allowed; }
+  .slot-foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .slot-foto .tag-capa { position: absolute; left: 4px; bottom: 4px; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.62rem; padding: 2px 6px; border-radius: 999px; }
+  .slot-foto .remover-midia {
+    position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 999px; border: none;
+    background: rgba(0,0,0,0.65); color: #fff; font-size: 0.8rem; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .video-produto { border-radius: 10px; overflow: hidden; background: #000; margin-bottom: 8px; }
+  .video-produto video { width: 100%; max-height: 240px; display: block; }
   .resumo-desconto { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--texto-suave); padding: 2px 12px; }
   .resumo-desconto.desconto { color: var(--verde); font-weight: 600; }
   .resumo-desconto.erro { color: var(--vermelho); font-weight: 600; }
@@ -285,7 +303,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.8.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.9.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -1200,12 +1218,15 @@
     <label>Nome do produto
       <input type="text" id="produtoNome">
     </label>
-    <label>Foto do produto (opcional)
-      <input type="file" accept="image/*" id="produtoFotoArquivo">
-    </label>
-    <img id="produtoFotoPreview" class="hidden" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:-4px 0 8px">
-    <button type="button" class="fantasma hidden" id="btnRemoverFotoProduto" style="width:100%;margin-bottom:12px">🗑️ Remover foto</button>
-    <input type="hidden" id="produtoFoto">
+    <div class="midia-produto">
+      <span class="rotulo-midia">Fotos do produto (até 3 — a primeira é a capa)</span>
+      <div class="fotos-produto" id="produtoFotosSlots"></div>
+      <input type="file" accept="image/*" multiple id="produtoFotoArquivo" class="hidden">
+      <span class="rotulo-midia">Vídeo curto (opcional — até 15 segundos, sem som)</span>
+      <div id="produtoVideoArea"></div>
+      <input type="file" accept="video/*" id="produtoVideoArquivo" class="hidden">
+      <div class="dica-box hidden" id="produtoMidiaAviso"></div>
+    </div>
     <div class="linha">
       <label>Preço de venda (R$)
         <input type="number" step="0.01" min="0" id="produtoPreco">
@@ -1246,6 +1267,30 @@
       <button class="perigo hidden" id="btnExcluirProduto">Excluir</button>
       <button class="primario" id="btnSalvarProduto">Salvar</button>
     </div>
+  </div>
+</div>
+
+<div id="modalRegrasMidia" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>📸 Liberar fotos extras e vídeo</h3>
+    <p style="font-size:0.82rem;color:var(--texto-suave);margin-top:-8px">
+      Para guardar mais fotos e o vídeo dos produtos, o Firebase precisa de uma liberação.
+      É <strong>uma vez só</strong>, é <strong>grátis</strong> e dá para fazer pelo celular:
+    </p>
+    <ol style="font-size:0.84rem;padding-left:20px;margin:0 0 10px;line-height:1.5">
+      <li>Toque em <strong>📋 Copiar regras</strong>.</li>
+      <li>Toque em <strong>🔥 Abrir o Firebase</strong> e entre com a mesma conta Google.</li>
+      <li>Na tela <strong>Regras</strong> (Rules), apague tudo o que está lá, cole e toque em <strong>Publicar</strong>.</li>
+      <li>Volte aqui e toque em <strong>✅ Já colei, testar</strong>.</li>
+    </ol>
+    <textarea id="textoRegrasMidia" readonly rows="5" style="width:100%;font-family:monospace;font-size:0.68rem;margin-bottom:8px"></textarea>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="fantasma" id="btnCopiarRegrasMidia" style="flex:1">📋 Copiar regras</button>
+      <button class="fantasma" id="btnAbrirFirebaseRegras" style="flex:1">🔥 Abrir o Firebase</button>
+    </div>
+    <button class="primario" id="btnTestarRegrasMidia" style="margin-bottom:8px">✅ Já colei, testar</button>
+    <p style="font-size:0.76rem;color:var(--texto-suave);margin:0 0 10px">Enquanto isso, você pode tirar as fotos extras e o vídeo e salvar o produto normalmente — a capa funciona como sempre.</p>
+    <button class="fantasma" id="btnFecharRegrasMidia" style="width:100%">Fechar</button>
   </div>
 </div>
 
@@ -1548,7 +1593,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.8.0';
+const APP_VERSION = '3.9.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -1807,11 +1852,7 @@ function abrirModalProduto(id) {
     document.getElementById('produtoCultura').value = p.cultura || '';
     document.getElementById('produtoUnidade').value = p.unidade || '';
     document.getElementById('produtoDescricao').value = p.descricao || '';
-    document.getElementById('produtoFoto').value = p.foto || '';
-    const preview = document.getElementById('produtoFotoPreview');
-    if (p.foto) { preview.src = p.foto; preview.classList.remove('hidden'); document.getElementById('btnRemoverFotoProduto').classList.remove('hidden'); }
-    else { preview.classList.add('hidden'); document.getElementById('btnRemoverFotoProduto').classList.add('hidden'); }
-    document.getElementById('produtoFotoArquivo').value = '';
+    prepararMidiaDoForm(p);
     btnExcluir.classList.remove('hidden');
   } else {
     document.getElementById('tituloModalProduto').textContent = 'Novo produto';
@@ -1823,53 +1864,435 @@ function abrirModalProduto(id) {
     document.getElementById('produtoCultura').value = '';
     document.getElementById('produtoUnidade').value = '';
     document.getElementById('produtoDescricao').value = '';
-    document.getElementById('produtoFoto').value = '';
-    document.getElementById('produtoFotoArquivo').value = '';
-    document.getElementById('produtoFotoPreview').classList.add('hidden');
-    document.getElementById('btnRemoverFotoProduto').classList.add('hidden');
+    prepararMidiaDoForm(null);
     btnExcluir.classList.add('hidden');
   }
   document.getElementById('modalProduto').classList.remove('hidden');
 }
 document.getElementById('btnNovoProduto').addEventListener('click', () => abrirModalProduto(null));
 document.getElementById('btnCancelarProduto').addEventListener('click', () => document.getElementById('modalProduto').classList.add('hidden'));
-document.getElementById('btnRemoverFotoProduto').addEventListener('click', () => {
-  document.getElementById('produtoFoto').value = '';
-  document.getElementById('produtoFotoArquivo').value = '';
-  document.getElementById('produtoFotoPreview').classList.add('hidden');
-  document.getElementById('btnRemoverFotoProduto').classList.add('hidden');
-});
 
-document.getElementById('produtoFotoArquivo').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const leitor = new FileReader();
-  leitor.onload = () => {
-    const img = new Image();
-    img.onload = () => {
-      const maxLado = 480;
-      const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * escala;
-      canvas.height = img.height * escala;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-      document.getElementById('produtoFoto').value = dataUrl;
-      const preview = document.getElementById('produtoFotoPreview');
-      preview.src = dataUrl;
-      preview.classList.remove('hidden');
-      document.getElementById('btnRemoverFotoProduto').classList.remove('hidden');
-    };
-    img.src = leitor.result;
+// ============================================================
+// FOTOS (ATÉ 3) E VÍDEO CURTO DO PRODUTO
+// A capa pequena continua em produto.foto, como sempre (lista, catálogo, PDF).
+// As fotos grandes e o vídeo ficam cada um num documento próprio em
+// catalogos/{uid}/midias/{id} — fora do backup na nuvem e do catálogo principal,
+// que têm limite de 1 MB e já carregam as capas.
+//   produto.galeria = ids das fotos grandes, na ordem das fotos ('' = só a capa pequena)
+//   produto.video   = { id, partes, mime, duracao } (o vídeo vai em pedaços: id_0, id_1...)
+// ============================================================
+const MIDIA_MAX_FOTOS = 3;
+const VIDEO_MAX_SEGUNDOS = 15;
+const VIDEO_MAX_BYTES = 3.5 * 1024 * 1024;
+const VIDEO_PARTE_BYTES = 700 * 1024; // em base64 fica ~930 KB, abaixo do limite de 1 MB por documento
+let fotosForm = [];      // [{ id, pequena, grande, nova, carregando, erro }]
+let videoForm = null;    // existente: { id, partes, mime, duracao } | novo: { novo: true, blob, mime, duracao, url }
+let processandoVideo = false;
+let regrasMidiaOk = null; // null = ainda não sabe; true = liberado; false = falta colar as regras
+
+function logadoNaNuvem() { return !!(nuvemAuth && nuvemAuth.currentUser); }
+function colecaoMidias() { return nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).collection('midias'); }
+function idsDasMidias(p) {
+  const ids = (p && Array.isArray(p.galeria) ? p.galeria : []).filter(Boolean);
+  if (p && p.video && p.video.id) for (let i = 0; i < (p.video.partes || 0); i++) ids.push(`${p.video.id}_${i}`);
+  return ids;
+}
+
+function redimensionarImagem(img, maxLado, qualidade) {
+  const escala = Math.min(1, maxLado / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.width * escala));
+  canvas.height = Math.max(1, Math.round(img.height * escala));
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', qualidade);
+}
+// Capa pequena (igual sempre foi) + versão grande pra ver ampliada no catálogo.
+async function versoesDaFoto(origem) {
+  const img = await carregarImagem(origem);
+  const pequena = redimensionarImagem(img, 480, 0.7);
+  let grande = redimensionarImagem(img, 1200, 0.78);
+  if (grande.length > 900000) grande = redimensionarImagem(img, 1000, 0.65);
+  if (grande.length > 900000) grande = redimensionarImagem(img, 800, 0.55);
+  return { pequena, grande };
+}
+
+function prepararMidiaDoForm(p) {
+  if (videoForm && videoForm.url) URL.revokeObjectURL(videoForm.url);
+  fotosForm = [];
+  videoForm = null;
+  processandoVideo = false;
+  if (p) {
+    const galeria = Array.isArray(p.galeria) ? p.galeria : [];
+    const qtd = Math.min(MIDIA_MAX_FOTOS, Math.max(galeria.length, p.foto ? 1 : 0));
+    for (let i = 0; i < qtd; i++) fotosForm.push({ id: galeria[i] || '', pequena: i === 0 ? (p.foto || '') : '', grande: '', nova: false });
+    if (p.video && p.video.id) videoForm = { ...p.video };
+  }
+  renderMidiaProduto();
+  carregarFotosDoForm();
+  conferirRegrasMidia();
+}
+
+// Fotos extras de um produto já salvo: busca na nuvem pra mostrar no formulário.
+async function carregarFotosDoForm() {
+  if (!logadoNaNuvem()) return;
+  const pendentes = fotosForm.filter((f) => f.id && !f.grande && !(fotosForm.indexOf(f) === 0 && f.pequena));
+  if (pendentes.length === 0) return;
+  pendentes.forEach((f) => { f.carregando = true; });
+  renderMidiaProduto();
+  await Promise.all(pendentes.map(async (f) => {
+    try {
+      const doc = await colecaoMidias().doc(f.id).get();
+      f.grande = doc.exists ? (doc.data().dados || '') : '';
+      f.erro = !f.grande;
+    } catch (err) {
+      f.erro = true;
+    }
+    f.carregando = false;
+  }));
+  renderMidiaProduto();
+}
+
+async function conferirRegrasMidia(forcar) {
+  if (!logadoNaNuvem()) return null;
+  if (regrasMidiaOk === true && !forcar) return true;
+  try {
+    await colecaoMidias().doc('_teste').get();
+    regrasMidiaOk = true;
+  } catch (err) {
+    if (/permission/i.test(String((err && err.code) || '') + ' ' + String((err && err.message) || ''))) regrasMidiaOk = false;
+  }
+  renderMidiaProduto();
+  return regrasMidiaOk;
+}
+
+function renderMidiaProduto() {
+  const logado = logadoNaNuvem();
+  const slots = document.getElementById('produtoFotosSlots');
+  let html = '';
+  for (let i = 0; i < MIDIA_MAX_FOTOS; i++) {
+    const f = fotosForm[i];
+    if (f) {
+      const src = f.grande || f.pequena;
+      const conteudo = src ? `<img src="${src}" alt="Foto ${i + 1}">` : (f.carregando ? 'carregando…' : '⚠️ não carregou');
+      html += `<div class="slot-foto cheio">${conteudo}${i === 0 ? '<span class="tag-capa">capa</span>' : ''}
+        <button type="button" class="remover-midia" data-remover-foto="${i}" aria-label="Remover foto ${i + 1}">✕</button></div>`;
+    } else {
+      // Fotos além da capa precisam da nuvem (conta Google).
+      const bloqueado = fotosForm.length > 0 && !logado;
+      html += `<div class="slot-foto${bloqueado ? ' desativado' : ''}" data-adicionar-foto role="button" tabindex="0">${fotosForm.length === 0 ? '📷<br>+ capa' : '📷<br>+ foto'}</div>`;
+    }
+  }
+  slots.innerHTML = html;
+  slots.querySelectorAll('[data-remover-foto]').forEach((b) => b.addEventListener('click', () => {
+    fotosForm.splice(Number(b.dataset.removerFoto), 1);
+    renderMidiaProduto();
+  }));
+  slots.querySelectorAll('[data-adicionar-foto]').forEach((el) => el.addEventListener('click', () => {
+    if (fotosForm.length > 0 && !logado) { mostrarToast('Para colocar mais de uma foto, entre com sua conta Google (menu Backup).'); return; }
+    document.getElementById('produtoFotoArquivo').click();
+  }));
+
+  const area = document.getElementById('produtoVideoArea');
+  if (processandoVideo) {
+    area.innerHTML = `<div class="video-produto" id="videoProcessando"></div>
+      <div class="dica-box">🎬 Preparando o vídeo para ficar leve... <strong id="progressoVideo">0%</strong><br>Deixe esta tela aberta.</div>`;
+  } else if (videoForm && videoForm.novo) {
+    area.innerHTML = `<div class="video-produto"><video src="${videoForm.url}" muted loop playsinline autoplay></video></div>
+      <button type="button" class="fantasma" id="btnRemoverVideoProduto" style="width:100%;margin-bottom:12px">🗑️ Tirar vídeo</button>`;
+  } else if (videoForm) {
+    area.innerHTML = `<div class="dica-box" style="margin-bottom:8px">🎬 Vídeo salvo (${Math.round(videoForm.duracao || 0)} s). Ele aparece no catálogo quando o cliente toca na foto.</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button type="button" class="fantasma" id="btnTrocarVideoProduto" style="flex:1">🔄 Trocar</button>
+        <button type="button" class="fantasma" id="btnRemoverVideoProduto" style="flex:1">🗑️ Tirar vídeo</button>
+      </div>`;
+  } else {
+    area.innerHTML = `<button type="button" class="fantasma" id="btnEscolherVideoProduto" style="width:100%;margin-bottom:12px${logado ? '' : ';opacity:0.5'}">🎬 Escolher vídeo</button>`;
+  }
+  const escolher = () => {
+    if (!logadoNaNuvem()) { mostrarToast('Para colocar vídeo, entre com sua conta Google (menu Backup).'); return; }
+    document.getElementById('produtoVideoArquivo').click();
   };
-  leitor.readAsDataURL(file);
+  const btnEscolher = document.getElementById('btnEscolherVideoProduto');
+  if (btnEscolher) btnEscolher.addEventListener('click', escolher);
+  const btnTrocar = document.getElementById('btnTrocarVideoProduto');
+  if (btnTrocar) btnTrocar.addEventListener('click', escolher);
+  const btnRemover = document.getElementById('btnRemoverVideoProduto');
+  if (btnRemover) btnRemover.addEventListener('click', () => {
+    if (videoForm && videoForm.url) URL.revokeObjectURL(videoForm.url);
+    videoForm = null;
+    renderMidiaProduto();
+  });
+
+  const aviso = document.getElementById('produtoMidiaAviso');
+  if (!logado) {
+    aviso.innerHTML = 'Para colocar <strong>mais fotos e vídeo</strong>, entre com sua conta Google (menu Backup). A capa funciona normalmente.';
+  } else if (regrasMidiaOk === false) {
+    aviso.innerHTML = '⚠️ Falta liberar o Firebase para guardar fotos extras e vídeo. <button type="button" class="fantasma" id="btnVerRegrasMidia" style="width:auto;padding:4px 10px;margin-top:6px">Ver como fazer</button>';
+  } else {
+    aviso.innerHTML = '';
+  }
+  aviso.classList.toggle('hidden', !aviso.innerHTML);
+  const btnVer = document.getElementById('btnVerRegrasMidia');
+  if (btnVer) btnVer.addEventListener('click', abrirModalRegrasMidia);
+}
+
+document.getElementById('produtoFotoArquivo').addEventListener('change', async (e) => {
+  const arquivos = [...e.target.files];
+  e.target.value = '';
+  const vagas = logadoNaNuvem() ? MIDIA_MAX_FOTOS - fotosForm.length : (fotosForm.length === 0 ? 1 : 0);
+  if (arquivos.length > vagas) {
+    mostrarToast(!logadoNaNuvem() ? 'Sem entrar na conta Google, só dá para colocar a capa.'
+      : vagas === 0 ? 'Já tem o máximo de 3 fotos.'
+      : vagas === 1 ? 'Só cabe mais 1 foto.' : `Só cabem mais ${vagas} fotos.`);
+  }
+  for (const arquivo of arquivos.slice(0, Math.max(0, vagas))) {
+    const url = URL.createObjectURL(arquivo);
+    try {
+      fotosForm.push({ id: '', ...(await versoesDaFoto(url)), nova: true });
+    } catch (err) {
+      mostrarToast('Não deu para usar uma das fotos. Tente outra.');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+  renderMidiaProduto();
 });
 
-document.getElementById('btnSalvarProduto').addEventListener('click', () => {
+// Deixa o vídeo leve: redesenha num tamanho menor (até 540 px), sem som e com no
+// máximo 15 segundos, gravando de novo com o próprio navegador. Leva o tempo do vídeo.
+async function prepararVideoCurto(arquivo, aoProgredir, onde) {
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) throw new Error('sem-suporte');
+  const url = URL.createObjectURL(arquivo);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.src = url;
+  if (onde) onde.appendChild(video); // na tela: alguns celulares pausam vídeo escondido
+  try {
+    await new Promise((resolve, reject) => {
+      video.onloadedmetadata = resolve;
+      video.onerror = () => reject(new Error('formato'));
+    });
+    const duracao = Math.min(Number.isFinite(video.duration) ? video.duration : VIDEO_MAX_SEGUNDOS, VIDEO_MAX_SEGUNDOS);
+    const escala = Math.min(1, 540 / Math.max(video.videoWidth, video.videoHeight));
+    const largura = Math.max(2, Math.round(video.videoWidth * escala / 2) * 2);
+    const altura = Math.max(2, Math.round(video.videoHeight * escala / 2) * 2);
+    const canvas = document.createElement('canvas');
+    canvas.width = largura;
+    canvas.height = altura;
+    const ctx = canvas.getContext('2d');
+    const tipos = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mimeType = tipos.find((t) => MediaRecorder.isTypeSupported(t)) || '';
+    const gravador = new MediaRecorder(canvas.captureStream(24), { ...(mimeType ? { mimeType } : {}), videoBitsPerSecond: 600000 });
+    const pedacos = [];
+    gravador.ondataavailable = (ev) => { if (ev.data && ev.data.size) pedacos.push(ev.data); };
+    const parou = new Promise((resolve) => { gravador.onstop = resolve; });
+    ctx.drawImage(video, 0, 0, largura, altura);
+    gravador.start(1000);
+    await video.play();
+    await new Promise((resolve) => {
+      const quadro = () => {
+        ctx.drawImage(video, 0, 0, largura, altura);
+        aoProgredir(Math.min(1, video.currentTime / duracao));
+        if (video.ended || video.currentTime >= duracao) { resolve(); return; }
+        if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(quadro);
+        else requestAnimationFrame(quadro);
+      };
+      video.onended = resolve;
+      quadro();
+    });
+    video.pause();
+    gravador.stop();
+    await parou;
+    const blob = new Blob(pedacos, { type: (gravador.mimeType || mimeType || 'video/webm').split(';')[0] });
+    return { blob, mime: blob.type, duracao: Math.min(video.currentTime, duracao) };
+  } finally {
+    video.removeAttribute('src');
+    video.load();
+    URL.revokeObjectURL(url);
+  }
+}
+
+document.getElementById('produtoVideoArquivo').addEventListener('change', async (e) => {
+  const arquivo = e.target.files[0];
+  e.target.value = '';
+  if (!arquivo) return;
+  processandoVideo = true;
+  renderMidiaProduto();
+  try {
+    const r = await prepararVideoCurto(arquivo, (p) => {
+      const el = document.getElementById('progressoVideo');
+      if (el) el.textContent = Math.round(p * 100) + '%';
+    }, document.getElementById('videoProcessando'));
+    if (!r.blob.size) throw new Error('vazio');
+    if (r.blob.size > VIDEO_MAX_BYTES) throw new Error('grande');
+    if (videoForm && videoForm.url) URL.revokeObjectURL(videoForm.url);
+    videoForm = { novo: true, blob: r.blob, mime: r.mime, duracao: r.duracao, url: URL.createObjectURL(r.blob) };
+  } catch (err) {
+    const msg = err && err.message;
+    mostrarToast(msg === 'grande' ? 'O vídeo ficou grande demais. Escolha um vídeo mais curto.'
+      : msg === 'formato' ? 'Este celular não consegue abrir esse vídeo. Tente outro.'
+      : msg === 'sem-suporte' ? 'Este navegador não consegue preparar vídeos. Tente pelo Chrome.'
+      : 'Não deu para usar esse vídeo. Tente outro.');
+  } finally {
+    processandoVideo = false;
+    renderMidiaProduto();
+  }
+});
+
+function base64DeBytes(bytes) {
+  let texto = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) texto += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(texto);
+}
+function comTempoLimite(promessa, ms) {
+  return Promise.race([promessa, new Promise((_, rejeita) => setTimeout(() => rejeita(new Error('tempo-esgotado')), ms))]);
+}
+
+// Sobe as fotos e o vídeo novos de uma vez (tudo ou nada) e diz o que guardar no produto.
+async function gravarMidiasDoProduto(anterior) {
+  const logado = logadoNaNuvem();
+  const lote = logado ? nuvemDb.batch() : null;
+  let escritas = 0;
+  const agora = () => firebase.firestore.FieldValue.serverTimestamp(); // só é chamado logado (Firebase carregado)
+  const galeria = [];
+  let foto = '';
+  for (let i = 0; i < fotosForm.length; i++) {
+    const f = fotosForm[i];
+    let id = f.id || '';
+    if (f.nova && logado) {
+      id = gerarId();
+      lote.set(colecaoMidias().doc(id), { tipo: 'foto', dados: f.grande, criadoEm: agora() });
+      escritas++;
+    }
+    if (i === 0) foto = f.pequena || (await versoesDaFoto(f.grande)).pequena;
+    galeria.push(id);
+  }
+  let video = videoForm && !videoForm.novo ? { id: videoForm.id, partes: videoForm.partes, mime: videoForm.mime, duracao: videoForm.duracao } : null;
+  if (videoForm && videoForm.novo && logado) {
+    const id = gerarId();
+    const bytes = new Uint8Array(await videoForm.blob.arrayBuffer());
+    const partes = Math.ceil(bytes.length / VIDEO_PARTE_BYTES);
+    for (let n = 0; n < partes; n++) {
+      lote.set(colecaoMidias().doc(`${id}_${n}`), {
+        tipo: 'video', parte: n, dados: base64DeBytes(bytes.subarray(n * VIDEO_PARTE_BYTES, (n + 1) * VIDEO_PARTE_BYTES)), criadoEm: agora()
+      });
+      escritas++;
+    }
+    video = { id, partes, mime: videoForm.mime, duracao: Math.round(videoForm.duracao) };
+  }
+  if (escritas > 0) await comTempoLimite(lote.commit(), 120000);
+  const novo = { galeria, video };
+  const ficam = new Set(idsDasMidias(novo));
+  return { foto, galeria, video, apagar: idsDasMidias(anterior).filter((id) => !ficam.has(id)) };
+}
+
+function apagarMidias(ids) {
+  if (!ids.length || !logadoNaNuvem()) return;
+  const lote = nuvemDb.batch();
+  ids.forEach((id) => lote.delete(colecaoMidias().doc(id)));
+  lote.commit().catch(() => { /* fica sobrando na nuvem, mas não aparece em lugar nenhum */ });
+}
+
+function tratarErroMidia(err) {
+  const msg = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
+  if (/permission/i.test(msg)) {
+    regrasMidiaOk = false;
+    renderMidiaProduto();
+    abrirModalRegrasMidia();
+  } else if (/tempo-esgotado|unavailable|network/i.test(msg)) {
+    mostrarToast('A internet está fraca e as fotos/vídeo não subiram. Tente salvar de novo.');
+  } else {
+    mostrarToast('Não deu para enviar as fotos/vídeo: ' + ((err && (err.code || err.message)) || 'erro'));
+  }
+}
+
+// -------- Liberação única nas regras do Firebase (pasta "midias" do catálogo) --------
+const REGRAS_FIRESTORE = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /catalogos/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /catalogos/{userId}/clientesCadastrados/{telefone} {
+      allow get, write: if true;
+      allow list: if request.auth != null && request.auth.uid == userId;
+    }
+    match /catalogos/{userId}/midias/{midiaId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /contadores/{uid} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if (request.auth != null && request.auth.uid == uid)
+                    || (request.resource.data.pedidosRodada is number
+                        && resource.data.pedidosRodada is number
+                        && request.resource.data.pedidosRodada == resource.data.pedidosRodada + 1
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pedidosRodada']));
+    }
+    match /pedidos/{pedidoId} {
+      allow create: if true;
+      allow read: if request.auth != null && request.auth.uid == resource.data.uid;
+      allow update, delete: if false;
+    }
+  }
+}`;
+function abrirModalRegrasMidia() {
+  document.getElementById('textoRegrasMidia').value = REGRAS_FIRESTORE;
+  document.getElementById('modalRegrasMidia').classList.remove('hidden');
+}
+document.getElementById('btnFecharRegrasMidia').addEventListener('click', () => document.getElementById('modalRegrasMidia').classList.add('hidden'));
+document.getElementById('btnCopiarRegrasMidia').addEventListener('click', async () => {
+  const campo = document.getElementById('textoRegrasMidia');
+  let ok = false;
+  try { await navigator.clipboard.writeText(campo.value); ok = true; } catch (err) { /* tenta o jeito antigo */ }
+  if (!ok) {
+    campo.focus(); campo.select();
+    try { ok = document.execCommand('copy'); } catch (err) { ok = false; }
+  }
+  mostrarToast(ok ? 'Regras copiadas! Agora abra o Firebase e cole.' : 'Segure no texto, selecione tudo e copie.');
+});
+document.getElementById('btnAbrirFirebaseRegras').addEventListener('click', () => {
+  window.open(`https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/databases/-default-/rules`, '_blank');
+});
+document.getElementById('btnTestarRegrasMidia').addEventListener('click', async () => {
+  const ok = await conferirRegrasMidia(true);
+  if (ok) {
+    document.getElementById('modalRegrasMidia').classList.add('hidden');
+    mostrarToast('✅ Liberado! Agora é só salvar o produto com as fotos e o vídeo.');
+  } else {
+    mostrarToast('Ainda não liberou. Confira se tocou em Publicar (pode levar 1 minutinho).');
+  }
+});
+
+document.getElementById('btnSalvarProduto').addEventListener('click', async () => {
   const nome = document.getElementById('produtoNome').value.trim();
   if (!nome) { mostrarToast('Informe o nome do produto.'); return; }
+  if (processandoVideo) { mostrarToast('Espere o vídeo ficar pronto.'); return; }
+  if (fotosForm.some((f) => f.carregando)) { mostrarToast('Espere as fotos carregarem.'); return; }
+  if (fotosForm.length > 0 && !fotosForm[0].pequena && !fotosForm[0].grande) { mostrarToast('A capa não carregou. Confira a internet e abra o produto de novo.'); return; }
   const idExistente = document.getElementById('produtoId').value;
+  const anterior = idExistente ? carregar(CHAVES.produtos).find((p) => p.id === idExistente) : null;
+
+  const btnSalvar = document.getElementById('btnSalvarProduto');
+  const temNovidade = fotosForm.some((f) => f.nova) || (videoForm && videoForm.novo);
+  let midias;
+  btnSalvar.disabled = true;
+  if (temNovidade && logadoNaNuvem()) btnSalvar.textContent = 'Enviando fotos...';
+  try {
+    midias = await gravarMidiasDoProduto(anterior);
+  } catch (err) {
+    tratarErroMidia(err);
+    return;
+  } finally {
+    btnSalvar.disabled = false;
+    btnSalvar.textContent = 'Salvar';
+  }
   const produtos = carregar(CHAVES.produtos);
 
   const precoPromocional = parseFloat(document.getElementById('produtoPrecoPromocional').value);
@@ -1883,12 +2306,17 @@ document.getElementById('btnSalvarProduto').addEventListener('click', () => {
     cultura: document.getElementById('produtoCultura').value.trim(),
     unidade: document.getElementById('produtoUnidade').value,
     descricao: document.getElementById('produtoDescricao').value.trim(),
-    foto: document.getElementById('produtoFoto').value || ''
+    foto: midias.foto,
+    ...(midias.galeria.some(Boolean) ? { galeria: midias.galeria } : {}),
+    ...(midias.video ? { video: midias.video } : {})
   };
   const idx = produtos.findIndex((p) => p.id === produto.id);
   if (idx >= 0) produtos[idx] = produto; else produtos.push(produto);
   salvar(CHAVES.produtos, produtos);
 
+  apagarMidias(midias.apagar);
+  if (videoForm && videoForm.url) URL.revokeObjectURL(videoForm.url);
+  videoForm = null;
   document.getElementById('modalProduto').classList.add('hidden');
   renderProdutos();
   mostrarToast('Produto salvo.');
@@ -1897,6 +2325,7 @@ document.getElementById('btnSalvarProduto').addEventListener('click', () => {
 document.getElementById('btnExcluirProduto').addEventListener('click', () => {
   const id = document.getElementById('produtoId').value;
   if (!confirm('Excluir este produto?')) return;
+  apagarMidias(idsDasMidias(carregar(CHAVES.produtos).find((p) => p.id === id)));
   salvar(CHAVES.produtos, carregar(CHAVES.produtos).filter((p) => p.id !== id));
   document.getElementById('modalProduto').classList.add('hidden');
   renderProdutos();
@@ -4854,7 +5283,8 @@ async function atualizarCatalogoNaNuvem() {
   if (!nuvemAuth || !nuvemAuth.currentUser) return;
   const produtos = carregar(CHAVES.produtos);
   const responsavel = carregarResponsavel();
-  const itensCatalogo = produtos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, precoPromocional: p.precoPromocional || null, foto: p.foto || '', estoqueAtual: p.estoqueAtual || 0, unidade: p.unidade || '', descricao: p.descricao || '' }));
+  const itensCatalogo = produtos.map((p) => ({ id: p.id, nome: p.nome, preco: p.preco, precoPromocional: p.precoPromocional || null, foto: p.foto || '', estoqueAtual: p.estoqueAtual || 0, unidade: p.unidade || '', descricao: p.descricao || '',
+    galeria: Array.isArray(p.galeria) ? p.galeria : [], video: p.video || null }));
   try {
     await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({
       itens: itensCatalogo,
