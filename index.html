@@ -196,6 +196,17 @@
   .cor-clientes { --cor-icone: #ec4899; }
   .cor-financas { --cor-icone: #b45309; }
   .cor-servicos { --cor-icone: #475569; }
+  .cor-adubacao { --cor-icone: #0ea5e9; }
+  .meta-adubo { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 0.84rem; margin: 4px 0 10px; line-height: 1.5; }
+  .meta-adubo strong { font-size: 0.95rem; }
+  .aviso-adubo { font-size: 0.8rem; background: #fef3c7; color: #92400e; border-radius: 10px; padding: 9px 12px; margin: 10px 0; line-height: 1.4; }
+  .texto-adubo { font-size: 0.84rem; line-height: 1.5; padding-bottom: 12px; }
+  .texto-adubo ol, .texto-adubo ul { padding-left: 20px; margin: 0; }
+  .texto-adubo li { margin-bottom: 6px; }
+  .diag { border-radius: 10px; padding: 9px 12px; font-size: 0.84rem; margin: 8px 0 0; line-height: 1.45; }
+  .diag.ok { background: #dcfce7; color: #166534; }
+  .diag.atencao { background: #fef3c7; color: #92400e; }
+  .diag.ruim { background: #fee2e2; color: #991b1b; }
 
   .modal-overlay {
     position: fixed; inset: 0; z-index: 50;
@@ -303,7 +314,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.9.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.10.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -349,6 +360,9 @@
         </button>
         <button class="icone-item" data-ir="servicos">
           <span class="icone-app cor-servicos">🔧</span><span class="icone-legenda">Serviços</span>
+        </button>
+        <button class="icone-item" data-ir="adubacao">
+          <span class="icone-app cor-adubacao">🧪</span><span class="icone-legenda">Adubação</span>
         </button>
       </div>
     </div>
@@ -775,6 +789,139 @@
     <button class="primario" id="btnNovoFinanceiro" style="width:100%;margin-bottom:12px">+ Novo registro</button>
     <div class="lista" id="listaFinancas"></div>
   </div>
+</main>
+
+<!-- ===================== ADUBAÇÃO (SOLUÇÃO NUTRITIVA) ===================== -->
+<main id="tab-adubacao">
+  <button type="button" class="fantasma btn-voltar-inicio" onclick="irParaAba('inicio')" style="width:auto;margin-bottom:12px">← Início</button>
+  <h2 class="titulo" style="margin-top:0">🧪 Solução nutritiva — Alface e Coentro</h2>
+  <p class="dica-box">Uma solução só para as duas culturas no mesmo reservatório (hidroponia), com os ajustes para <strong>calor forte</strong>.
+    Receita base: IAC (Furlani) para folhosas, a mais usada no Brasil — tem bastante cálcio (ajuda contra a queima das bordas da alface) e pouco amônio (melhor no calor).</p>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 10px">🧮 Quanto colocar</h3>
+    <div class="linha">
+      <label>Litros no reservatório
+        <input type="number" id="adubVolume" min="1" step="1" inputmode="numeric">
+      </label>
+      <label>CE da sua água
+        <input type="number" id="adubCeAgua" min="0" step="0.05" inputmode="decimal">
+      </label>
+    </div>
+    <label>Situação agora
+      <select id="adubSituacao"></select>
+    </label>
+    <label>Ferro que você usa
+      <select id="adubFerro">
+        <option value="eddha">EDDHA 6% (Tenso-Fe, Ferrilene)</option>
+        <option value="edta">EDTA 13% (Dissolvine)</option>
+      </select>
+    </label>
+    <div class="meta-adubo" id="adubMeta"></div>
+    <div class="lista" id="adubTabela"></div>
+    <p class="aviso-adubo">⚠️ Dissolva cada adubo num balde separado. <strong>Nunca misture o nitrato de cálcio concentrado com os outros</strong> (principalmente sulfato de magnésio e MAP): vira "pedra" no fundo e a planta fica sem cálcio e fósforo.</p>
+    <details class="config-catalogo">
+      <summary>📋 Como preparar o reservatório</summary>
+      <div class="texto-adubo">
+        <ol>
+          <li>Encha o reservatório com uns 80% da água.</li>
+          <li>Dissolva cada adubo num balde com água (água morna ajuda), um de cada vez.</li>
+          <li>Despeje no reservatório nesta ordem, misturando bem entre um e outro: nitrato de potássio → MAP → sulfato de magnésio → micronutrientes → nitrato de cálcio → ferro.</li>
+          <li>Complete a água até o volume certo e ligue a bomba por 20 a 30 minutos.</li>
+          <li>Meça CE e pH e acerte em "Medição de hoje", aqui embaixo.</li>
+        </ol>
+        <p style="margin:8px 0 0">Use MAP <strong>purificado</strong> (12-61-0): o MAP comum de lavoura deixa resíduo no sistema. Uma balança de cozinha de 0,1 g já resolve.</p>
+      </div>
+    </details>
+    <details class="config-catalogo">
+      <summary>🪣 Concentrado A e B (repor sem pesar todo dia)</summary>
+      <div class="texto-adubo" id="adubConcentrado"></div>
+    </details>
+    <details class="config-catalogo" style="margin-bottom:0">
+      <summary>🧂 Concentrado de micronutrientes</summary>
+      <div class="texto-adubo">
+        <p style="margin:0 0 8px">Os micronutrientes vão em quantidade muito pequena. Faça este concentrado uma vez e use em mL (a calculadora já faz a conta):</p>
+        <ul>
+          <li>Em <strong>1 litro de água morna</strong>: 15 g de ácido bórico, 15 g de sulfato de manganês, 5 g de sulfato de zinco, 1,5 g de sulfato de cobre e 1,5 g de molibdato de sódio.</li>
+          <li>Rende: <strong>100 mL para cada 1.000 litros</strong> de solução na força total.</li>
+          <li>Guarde fechado e na sombra. Se preferir, use um micronutriente pronto para hidroponia, seguindo o rótulo.</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 10px">📏 Medição de hoje</h3>
+    <div class="linha">
+      <label>CE
+        <input type="number" id="adubMedCe" min="0" step="0.01" inputmode="decimal" placeholder="Ex: 1,4">
+      </label>
+      <label>pH
+        <input type="number" id="adubMedPh" min="0" max="14" step="0.1" inputmode="decimal" placeholder="Ex: 6">
+      </label>
+      <label>Temp. °C
+        <input type="number" id="adubMedTemp" step="0.5" inputmode="decimal" placeholder="Ex: 25">
+      </label>
+    </div>
+    <button class="primario" id="btnDiagnosticarSolucao">Ver o que fazer</button>
+    <div id="adubDiagnostico"></div>
+    <button class="fantasma hidden" id="btnGuardarMedicao" style="width:100%;margin-top:10px">💾 Guardar esta medição</button>
+    <h4 style="margin:16px 0 8px;font-size:0.88rem">Últimas medições</h4>
+    <div class="lista" id="adubHistorico"></div>
+  </div>
+
+  <details class="config-catalogo" open>
+    <summary>☀️ Cuidados para o calor forte</summary>
+    <div class="texto-adubo">
+      <ul>
+        <li><strong>Temperatura da solução:</strong> o ideal é de 20 a 25 °C. Acima de 26 °C falta oxigênio para a raiz e aparece podridão (raiz marrom e mole). Acima de 30 °C a raiz sofre de verdade.</li>
+        <li><strong>Reservatório:</strong> enterrado ou na sombra, pintado de branco ou coberto com isopor/manta térmica. Nunca caixa escura no sol.</li>
+        <li><strong>Volume:</strong> quanto mais solução, mais devagar ela esquenta e menos a CE varia. No calor, tenha de 0,5 a 1 litro de solução por planta.</li>
+        <li><strong>Horas mais quentes (11h às 15h):</strong> garrafas PET com água congelada dentro do reservatório ajudam a segurar a temperatura.</li>
+        <li><strong>Oxigênio:</strong> deixe o retorno cair "borbulhando" no reservatório ou use um aerador (bomba de aquário) ligado direto.</li>
+        <li><strong>Bomba (NFT):</strong> de dia, 15 min ligada e 15 min desligada; nos dias acima de 33 °C, deixe ligada direto das 10h às 16h. À noite, 15 min a cada hora — é à noite que a raiz empurra o cálcio para as folhas novas da alface.</li>
+        <li><strong>Sombra e vento:</strong> tela de sombreamento de 30% a 50% (melhor a aluminizada/termorrefletora) sobre a estufa no verão, e laterais abertas com tela antiafídeo para ventilar.</li>
+        <li><strong>Canos/perfis</strong> brancos por fora esquentam bem menos que os escuros.</li>
+      </ul>
+    </div>
+  </details>
+  <details class="config-catalogo">
+    <summary>📅 Rotina do dia e troca da solução</summary>
+    <div class="texto-adubo">
+      <ol>
+        <li>Complete o nível com <strong>água pura</strong> (sem adubo): no calor a planta bebe muita água e a CE sobe se você completar com solução.</li>
+        <li>Ligue a bomba uns 15 minutos para misturar.</li>
+        <li>Meça CE, pH e temperatura (sempre no mesmo horário) e anote em "Medição de hoje".</li>
+        <li>Acerte primeiro a CE (adubo ou água) e depois o pH.</li>
+        <li>Olhe as raízes: brancas e firmes = bom; marrons, moles ou com cheiro ruim = solução quente ou pouco oxigênio.</li>
+      </ol>
+      <p style="margin:8px 0 0"><strong>Troca completa:</strong> no calor, a cada 15 a 21 dias (no máximo 30), ou antes se a CE e o pH ficarem instáveis, a solução turvar ou cheirar mal. Na troca, lave reservatório e canos com água e um pouco de água sanitária e enxágue bem.</p>
+      <p style="margin:8px 0 0"><strong>Acertar o pH:</strong> para baixar, ácido fosfórico ou nítrico; para subir, hidróxido de potássio. Sempre diluído num balde, pouco por vez, esperando 15 minutos para medir de novo. Use luvas e óculos — ácido sempre na água, nunca água no ácido.</p>
+      <p style="margin:8px 0 0"><strong>Aparelhos:</strong> calibre o pHmetro de tempos em tempos com a solução de calibração. Meça também a CE da sua água uma vez: água de poço salobra pode passar de 0,5 e tira espaço dos adubos.</p>
+    </div>
+  </details>
+  <details class="config-catalogo">
+    <summary>🥬 Alface no calor</summary>
+    <div class="texto-adubo">
+      <ul>
+        <li><strong>Queima das bordas (tipburn):</strong> é falta de cálcio nas folhas novas, puxada pelo calor, crescimento rápido e pouca ventilação. Previna com a CE mais baixa no calor, ventilação, bomba funcionando à noite e colheita sem atraso.</li>
+        <li><strong>Pendoamento (espicha e amarga):</strong> prefira cultivares de verão, tolerantes ao pendoamento (ex.: crespas Vanda e Vera), e colha no ponto — no calor o ciclo encurta.</li>
+        <li><strong>Murcha no meio do dia e fica boa à noite:</strong> sinal de raiz quente ou com pouco oxigênio.</li>
+      </ul>
+    </div>
+  </details>
+  <details class="config-catalogo">
+    <summary>🌿 Coentro no calor</summary>
+    <div class="texto-adubo">
+      <ul>
+        <li>Vai muito bem na mesma solução e aguenta um pouco mais de sal que a alface — por isso a meta de CE é pensada na alface, que é a mais sensível.</li>
+        <li>No calor ele floresce (pendoa) rápido: colha assim que atingir o tamanho de venda, sem esperar.</li>
+        <li>É sensível a raiz quente e a fungos de raiz (tombamento): mesmo cuidado com temperatura e oxigênio. Nas mudas, não deixe a espuma encharcada no sol.</li>
+        <li>Folhas amarelando por igual: geralmente CE baixa (falta de nitrogênio) — confira a CE.</li>
+      </ul>
+    </div>
+  </details>
+  <p style="font-size:0.74rem;color:var(--texto-suave);margin:4px 0 24px">São recomendações gerais para hidroponia de folhosas. Se puder, faça uma análise da água e acompanhe com um técnico da sua região.</p>
 </main>
 
 <nav class="bottom-nav">
@@ -1593,8 +1740,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.9.0';
-const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos' };
+const APP_VERSION = '3.10.0';
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -1689,6 +1836,7 @@ function irParaAba(nome) {
   if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); renderPrevisaoColheita(); }
   if (nome === 'tarefas') renderTarefas();
   if (nome === 'servicos') renderServicos();
+  if (nome === 'adubacao') renderAdubacao();
   if (nome === 'financas') {
     const subabaDividasAtiva = document.getElementById('painelFinancasDividas').style.display !== 'none';
     if (subabaDividasAtiva) renderFinancas(); else renderFinancasRenda();
@@ -5523,6 +5671,209 @@ document.getElementById('btnBannerCatalogo').addEventListener('click', () => {
   }
   document.getElementById('arquivoBannerCatalogo').click();
 });
+
+// ============================================================
+// ADUBAÇÃO — SOLUÇÃO NUTRITIVA (ALFACE + COENTRO NO MESMO RESERVATÓRIO)
+// Receita base: IAC (Furlani) para folhosas, em gramas por 1.000 L na força total
+// (dá N 199, P 40, K 182, Ca 142, Mg 39, S 52 mg/L; CE perto de 1,9 mS/cm).
+// No calor a força é reduzida para chegar na CE da situação escolhida.
+// ============================================================
+const RECEITA_FOLHOSAS = [
+  { nome: 'Nitrato de cálcio', curto: 'nitrato de cálcio', obs: 'balde A', g: 750 },
+  { nome: 'Ferro', curto: 'ferro', obs: 'balde A', ferro: true },
+  { nome: 'Nitrato de potássio', curto: 'nitrato de potássio', obs: 'balde B', g: 500 },
+  { nome: 'MAP purificado (12-61-0)', curto: 'MAP', obs: 'balde B', g: 150 },
+  { nome: 'Sulfato de magnésio', curto: 'sulfato de magnésio', obs: 'balde B', g: 400 },
+  { nome: 'Micronutrientes (concentrado)', curto: 'concentrado de micronutrientes', obs: 'balde B', ml: 100 }
+];
+const FERRO_POR_1000L = { eddha: { g: 30, nome: 'Ferro EDDHA 6%' }, edta: { g: 13.8, nome: 'Ferro EDTA 13%' } };
+const CE_RECEITA_CHEIA = 1.9; // CE que a receita na força total soma à água (aproximado — o condutivímetro manda)
+const SITUACOES_SOLUCAO = {
+  mudas: { nome: '🌱 Mudas / berçário', ceMin: 0.8, ceMax: 1.0 },
+  calorForte: { nome: '🔥 Calor forte (solução acima de 26 °C ou dia acima de 33 °C)', ceMin: 1.1, ceMax: 1.3 },
+  calor: { nome: '☀️ Calor do dia a dia', ceMin: 1.3, ceMax: 1.5 },
+  ameno: { nome: '🌤️ Dias mais amenos', ceMin: 1.5, ceMax: 1.8 }
+};
+const PH_MIN = 5.5, PH_MAX = 6.5, PH_IDEAL_MIN = 5.8, PH_IDEAL_MAX = 6.2;
+const CHAVE_CONFIG_ADUBACAO = 'hg_adubacao_config';
+
+function carregarConfigAdubacao() {
+  let c = {};
+  try { c = JSON.parse(localStorage.getItem(CHAVE_CONFIG_ADUBACAO) || '{}'); } catch (e) { c = {}; }
+  return {
+    volume: c.volume > 0 ? c.volume : 500,
+    ceAgua: c.ceAgua >= 0 ? c.ceAgua : 0.1,
+    situacao: SITUACOES_SOLUCAO[c.situacao] ? c.situacao : 'calor',
+    ferro: FERRO_POR_1000L[c.ferro] ? c.ferro : 'eddha'
+  };
+}
+function lerConfigAdubacaoDaTela() {
+  const atual = carregarConfigAdubacao();
+  const volume = parseFloat(document.getElementById('adubVolume').value);
+  const ceAgua = parseFloat(document.getElementById('adubCeAgua').value);
+  const c = {
+    volume: volume > 0 ? volume : atual.volume,
+    ceAgua: ceAgua >= 0 ? ceAgua : atual.ceAgua,
+    situacao: document.getElementById('adubSituacao').value || atual.situacao,
+    ferro: document.getElementById('adubFerro').value || atual.ferro
+  };
+  localStorage.setItem(CHAVE_CONFIG_ADUBACAO, JSON.stringify(c));
+  return c;
+}
+function fmtNum(n, casas) { return Number(n).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas }); }
+function fmtMl(ml) { return ml >= 1000 ? `${fmtNum(ml / 1000, 2)} L` : `${fmtNum(ml, 0)} mL`; }
+function fmtQtd(n, unidade) {
+  const casas = n >= 10 ? 0 : (n >= 1 ? 1 : 2);
+  return `${fmtNum(n, casas)} ${unidade}`;
+}
+// Força da receita (fração da força total) para chegar no meio da faixa de CE da situação.
+function contasAdubacao(c) {
+  const sit = SITUACOES_SOLUCAO[c.situacao];
+  const alvo = (sit.ceMin + sit.ceMax) / 2;
+  const forca = Math.min(1, Math.max(0.2, (alvo - c.ceAgua) / CE_RECEITA_CHEIA));
+  return { sit, alvo, forca, ceEsperada: c.ceAgua + forca * CE_RECEITA_CHEIA };
+}
+// Quanto de cada adubo para "fracao" da força total em "litros" de solução.
+function linhasDaReceita(litros, fracao, ferro) {
+  return RECEITA_FOLHOSAS.map((item) => {
+    if (item.ferro) return { nome: FERRO_POR_1000L[ferro].nome, curto: item.curto, obs: item.obs, texto: fmtQtd(FERRO_POR_1000L[ferro].g * litros / 1000 * fracao, 'g') };
+    if (item.ml) return { nome: item.nome, curto: item.curto, obs: item.obs, texto: fmtQtd(item.ml * litros / 1000 * fracao, 'mL') };
+    return { nome: item.nome, curto: item.curto, obs: item.obs, texto: fmtQtd(item.g * litros / 1000 * fracao, 'g') };
+  });
+}
+
+function renderAdubacao() {
+  const c = carregarConfigAdubacao();
+  const selSit = document.getElementById('adubSituacao');
+  if (!selSit.options.length) {
+    selSit.innerHTML = Object.entries(SITUACOES_SOLUCAO).map(([k, s]) => `<option value="${k}">${s.nome}</option>`).join('');
+  }
+  document.getElementById('adubVolume').value = c.volume;
+  document.getElementById('adubCeAgua').value = c.ceAgua;
+  selSit.value = c.situacao;
+  document.getElementById('adubFerro').value = c.ferro;
+  atualizarCalculadoraAdubacao();
+  renderMedicoesSolucao();
+}
+
+function atualizarCalculadoraAdubacao() {
+  const c = lerConfigAdubacaoDaTela();
+  const { sit, forca, ceEsperada } = contasAdubacao(c);
+  document.getElementById('adubMeta').innerHTML =
+    `<strong>Meta: CE ${fmtNum(sit.ceMin, 1)} a ${fmtNum(sit.ceMax, 1)} · pH ${fmtNum(PH_IDEAL_MIN, 1)} a ${fmtNum(PH_IDEAL_MAX, 1)} · solução até 25 °C</strong><br>` +
+    `Receita a ${Math.round(forca * 100)}% da força total para ${fmtNum(c.volume, 0)} litros → CE esperada ≈ ${fmtNum(ceEsperada, 1)} (confira com o condutivímetro).` +
+    (c.ceAgua >= 0.5 ? '<br>⚠️ Sua água já tem bastante sal (CE 0,5 ou mais). Vale fazer uma análise: pode sobrar pouco espaço para os adubos.' : '');
+  document.getElementById('adubTabela').innerHTML = linhasDaReceita(c.volume, forca, c.ferro).map((l) => `
+    <div class="item">
+      <div class="info"><strong>${l.nome}</strong><small>${l.obs}</small></div>
+      <span class="valor-direita">${l.texto}</span>
+    </div>`).join('');
+  const litrosAB = c.volume * forca * 10 / 1000;
+  const reservatorios = 1000 / (c.volume * forca);
+  document.getElementById('adubConcentrado').innerHTML = `
+    <p style="margin:0 0 8px">Faça uma vez, em dois baldes de 10 litros (de preferência escuros, com tampa, guardados na sombra):</p>
+    <ul>
+      <li><strong>Balde A</strong> (10 L de água): 750 g de nitrato de cálcio + ${fmtNum(FERRO_POR_1000L[c.ferro].g, 1)} g de ${FERRO_POR_1000L[c.ferro].nome}.</li>
+      <li><strong>Balde B</strong> (10 L de água): 500 g de nitrato de potássio + 150 g de MAP purificado + 400 g de sulfato de magnésio + 100 mL do concentrado de micronutrientes.</li>
+    </ul>
+    <p style="margin:8px 0 0"><strong>Para montar seus ${fmtNum(c.volume, 0)} litros nesta situação:</strong> ${fmtNum(litrosAB, 2)} L de A + ${fmtNum(litrosAB, 2)} L de B, cada um num canto do reservatório, com a bomba ligada.</p>
+    <p style="margin:8px 0 0"><strong>Para repor no dia a dia:</strong> cada 50 mL de A + 50 mL de B sobem a CE uns 0,1 em 100 litros. A "Medição de hoje" faz essa conta para você.</p>
+    <p style="margin:8px 0 0">Os 20 litros de concentrado rendem 1.000 litros na força total (≈ ${fmtNum(reservatorios, 1)} reservatórios como o seu nesta situação). Nunca junte A e B puros no mesmo balde.</p>`;
+}
+['adubVolume', 'adubCeAgua'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
+['adubSituacao', 'adubFerro'].forEach((id) => document.getElementById(id).addEventListener('change', atualizarCalculadoraAdubacao));
+
+// -------- Medição de hoje: diz o que fazer com a CE, o pH e a temperatura --------
+function lerNumeroCampo(id) {
+  const v = parseFloat(String(document.getElementById(id).value).replace(',', '.'));
+  return Number.isFinite(v) ? v : null;
+}
+function avaliarMedicao(m, c) {
+  const { sit, alvo } = contasAdubacao(c);
+  const r = [];
+  if (m.ce !== null) {
+    if (m.ce > sit.ceMax + 0.05) {
+      const litros = c.volume * (m.ce - alvo) / Math.max(0.1, alvo - c.ceAgua);
+      r.push({ tipo: m.ce > sit.ceMax + 0.4 ? 'ruim' : 'atencao', campo: 'ce',
+        texto: `⬇️ <strong>CE alta (${fmtNum(m.ce, 2)}).</strong> Acrescente uns <strong>${fmtNum(litros, 0)} litros de água pura</strong> para voltar a ${fmtNum(alvo, 1)}. Se não couber, tire esse tanto de solução (pode regar outras plantas) e complete com água. No calor a CE sobe porque a planta bebe mais água do que adubo — completar o nível só com água todo dia evita isso.` });
+    } else if (m.ce < sit.ceMin - 0.05) {
+      const fracao = (alvo - m.ce) / CE_RECEITA_CHEIA;
+      const mlAB = c.volume * fracao * 10;
+      const gramas = linhasDaReceita(c.volume, fracao, c.ferro).map((l) => `${l.texto} de ${l.curto}`).join(', ');
+      r.push({ tipo: m.ce < sit.ceMin - 0.4 ? 'ruim' : 'atencao', campo: 'ce',
+        texto: `⬆️ <strong>CE baixa (${fmtNum(m.ce, 2)}).</strong> Para chegar a ${fmtNum(alvo, 1)}: <strong>${fmtMl(mlAB)} do concentrado A + ${fmtMl(mlAB)} do B</strong> (ou, pesando: ${gramas}). Coloque a metade, ligue a bomba 15 min, meça e complete se precisar.` });
+    } else {
+      r.push({ tipo: 'ok', campo: 'ce', texto: `✅ <strong>CE boa (${fmtNum(m.ce, 2)}).</strong> Meta desta situação: ${fmtNum(sit.ceMin, 1)} a ${fmtNum(sit.ceMax, 1)}.` });
+    }
+  }
+  if (m.ph !== null) {
+    if (m.ph > PH_MAX) r.push({ tipo: 'ruim', campo: 'ph', texto: `⬇️ <strong>pH alto (${fmtNum(m.ph, 1)}).</strong> Baixe com ácido fosfórico ou nítrico diluído num balde, pouco por vez, até ficar entre ${fmtNum(PH_IDEAL_MIN, 1)} e ${fmtNum(PH_IDEAL_MAX, 1)}. Com pH alto o ferro e o fósforo travam (folha nova amarelada).` });
+    else if (m.ph < PH_MIN) r.push({ tipo: 'ruim', campo: 'ph', texto: `⬆️ <strong>pH baixo (${fmtNum(m.ph, 1)}).</strong> Suba com hidróxido de potássio diluído, pouco por vez, até ficar entre ${fmtNum(PH_IDEAL_MIN, 1)} e ${fmtNum(PH_IDEAL_MAX, 1)}. pH muito baixo queima a raiz.` });
+    else if (m.ph > PH_IDEAL_MAX) r.push({ tipo: 'atencao', campo: 'ph', texto: `🟡 <strong>pH ${fmtNum(m.ph, 1)}:</strong> ainda aceitável, mas um pouco alto. Se continuar subindo, baixe um pouquinho.` });
+    else if (m.ph < PH_IDEAL_MIN) r.push({ tipo: 'atencao', campo: 'ph', texto: `🟡 <strong>pH ${fmtNum(m.ph, 1)}:</strong> ainda aceitável, mas um pouco baixo. Fique de olho.` });
+    else r.push({ tipo: 'ok', campo: 'ph', texto: `✅ <strong>pH bom (${fmtNum(m.ph, 1)}).</strong>` });
+  }
+  if (m.temp !== null) {
+    if (m.temp > 28) r.push({ tipo: 'ruim', campo: 'temp', texto: `🔥 <strong>Solução muito quente (${fmtNum(m.temp, 1)} °C).</strong> Falta oxigênio e vem podridão de raiz. Hoje: garrafas PET congeladas no reservatório nas horas quentes, sombra sobre ele, aerador e bomba ligados direto.` });
+    else if (m.temp > 25) r.push({ tipo: 'atencao', campo: 'temp', texto: `⚠️ <strong>Solução quente (${fmtNum(m.temp, 1)} °C).</strong> Proteja o reservatório do sol (enterrado, isopor/manta) e aumente a oxigenação.` });
+    else r.push({ tipo: 'ok', campo: 'temp', texto: `✅ <strong>Temperatura boa (${fmtNum(m.temp, 1)} °C).</strong>` });
+    if (m.temp > 26 && (c.situacao === 'calor' || c.situacao === 'ameno')) {
+      r.push({ tipo: 'atencao', campo: 'dica', texto: '💡 Com a solução acima de 26 °C, mude a "Situação agora" para <strong>🔥 Calor forte</strong> e trabalhe com a CE mais baixa.' });
+    }
+  }
+  return r;
+}
+
+let ultimaMedicaoSolucao = null;
+document.getElementById('btnDiagnosticarSolucao').addEventListener('click', () => {
+  const m = { ce: lerNumeroCampo('adubMedCe'), ph: lerNumeroCampo('adubMedPh'), temp: lerNumeroCampo('adubMedTemp') };
+  const caixa = document.getElementById('adubDiagnostico');
+  if (m.ce === null && m.ph === null && m.temp === null) {
+    caixa.innerHTML = '<p class="diag atencao">Digite pelo menos a CE, o pH ou a temperatura.</p>';
+    document.getElementById('btnGuardarMedicao').classList.add('hidden');
+    return;
+  }
+  const c = lerConfigAdubacaoDaTela();
+  caixa.innerHTML = avaliarMedicao(m, c).map((x) => `<p class="diag ${x.tipo}">${x.texto}</p>`).join('');
+  ultimaMedicaoSolucao = { ...m, situacao: c.situacao };
+  document.getElementById('btnGuardarMedicao').classList.remove('hidden');
+});
+
+document.getElementById('btnGuardarMedicao').addEventListener('click', () => {
+  if (!ultimaMedicaoSolucao) return;
+  const lista = carregar(CHAVES.medicoesSolucao);
+  lista.push({ id: gerarId(), data: new Date().toISOString(), ...ultimaMedicaoSolucao });
+  salvar(CHAVES.medicoesSolucao, lista.slice(-200));
+  ultimaMedicaoSolucao = null;
+  document.getElementById('btnGuardarMedicao').classList.add('hidden');
+  ['adubMedCe', 'adubMedPh', 'adubMedTemp'].forEach((id) => { document.getElementById(id).value = ''; });
+  renderMedicoesSolucao();
+  mostrarToast('Medição guardada.');
+});
+
+function renderMedicoesSolucao() {
+  const c = carregarConfigAdubacao();
+  const lista = [...carregar(CHAVES.medicoesSolucao)].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 10);
+  const el = document.getElementById('adubHistorico');
+  if (!lista.length) { el.innerHTML = '<p class="vazio">Nenhuma medição guardada ainda.</p>'; return; }
+  const icone = { ok: '✅', atencao: '🟡', ruim: '🔴' };
+  el.innerHTML = lista.map((m) => {
+    const aval = avaliarMedicao(m, { ...c, situacao: SITUACOES_SOLUCAO[m.situacao] ? m.situacao : c.situacao });
+    const st = (campo) => { const a = aval.find((x) => x.campo === campo); return a ? icone[a.tipo] : ''; };
+    const partes = [];
+    if (m.ce !== null && m.ce !== undefined) partes.push(`CE ${fmtNum(m.ce, 2)} ${st('ce')}`);
+    if (m.ph !== null && m.ph !== undefined) partes.push(`pH ${fmtNum(m.ph, 1)} ${st('ph')}`);
+    if (m.temp !== null && m.temp !== undefined) partes.push(`${fmtNum(m.temp, 1)} °C ${st('temp')}`);
+    return `<div class="item">
+      <div class="info"><strong>${partes.join(' · ')}</strong><small>${formatarDataHora(m.data)}</small></div>
+      <button class="perigo" style="padding:6px 10px" data-apagar-medicao="${m.id}" aria-label="Apagar medição">×</button>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('[data-apagar-medicao]').forEach((b) => b.addEventListener('click', () => {
+    salvar(CHAVES.medicoesSolucao, carregar(CHAVES.medicoesSolucao).filter((m) => m.id !== b.dataset.apagarMedicao));
+    renderMedicoesSolucao();
+  }));
+}
 
 // ============================================================
 // AVISO DE PEDIDO NO CELULAR (app ntfy, grátis, chega com o app da horta fechado)
