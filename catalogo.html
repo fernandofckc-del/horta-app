@@ -84,6 +84,37 @@
   }
   .produto .foto-wrap { width: 100%; height: 150px; background: #fff; display: flex; align-items: center; justify-content: center; }
   .produto .foto-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .produto [data-galeria-idx] { position: relative; cursor: zoom-in; }
+  .selos-midia { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; }
+  .selo-midia {
+    background: rgba(0,0,0,0.62); color: #fff; font-size: 0.72rem; font-weight: 700;
+    padding: 3px 8px; border-radius: 999px; line-height: 1.3;
+  }
+  .galeria { position: fixed; inset: 0; z-index: 300; background: #000; display: flex; flex-direction: column; }
+  .galeria-palco {
+    flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+    padding: 64px 8px 8px; touch-action: pan-y pinch-zoom;
+  }
+  .galeria-palco img, .galeria-palco video { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+  .galeria-aviso { color: rgba(255,255,255,0.85); font-size: 0.92rem; text-align: center; padding: 20px; }
+  .galeria-botao {
+    position: absolute; width: 44px; height: 44px; border-radius: 999px; border: none;
+    background: rgba(255,255,255,0.16); color: #fff; font-size: 1.3rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .galeria-fechar { top: 12px; right: 12px; }
+  .galeria-anterior, .galeria-proxima { top: 50%; transform: translateY(-50%); font-size: 1.8rem; }
+  .galeria-anterior { left: 8px; }
+  .galeria-proxima { right: 8px; }
+  .galeria-rodape { padding: 10px 16px calc(16px + env(safe-area-inset-bottom)); color: #fff; text-align: center; }
+  .galeria-rodape strong { font-size: 1rem; }
+  .galeria-miniaturas { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+  .galeria-miniaturas button {
+    width: 56px; height: 56px; border-radius: 10px; border: 2px solid transparent; padding: 0; overflow: hidden;
+    background: #2a2a2a; color: #fff; font-size: 1.2rem; cursor: pointer; opacity: 0.6;
+  }
+  .galeria-miniaturas button.ativa { border-color: #fff; opacity: 1; }
+  .galeria-miniaturas img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .produto .sem-foto { width: 100%; height: 150px; background: var(--verde-claro); display: flex; align-items: center; justify-content: center; font-size: 2rem; }
   .produto .info { padding: 12px 14px 14px; }
   .produto .info strong { display: block; font-size: 0.95rem; margin-bottom: 8px; }
@@ -316,6 +347,17 @@
 <main>
   <div id="conteudo" class="vazio">Carregando catálogo...</div>
 </main>
+
+<div id="galeria" class="galeria hidden" role="dialog" aria-modal="true" aria-label="Fotos do produto">
+  <div class="galeria-palco" id="galeriaPalco"></div>
+  <button type="button" class="galeria-botao galeria-fechar" id="galeriaFechar" aria-label="Fechar">✕</button>
+  <button type="button" class="galeria-botao galeria-anterior" id="galeriaAnterior" aria-label="Anterior">‹</button>
+  <button type="button" class="galeria-botao galeria-proxima" id="galeriaProxima" aria-label="Próxima">›</button>
+  <div class="galeria-rodape">
+    <strong id="galeriaTitulo"></strong>
+    <div class="galeria-miniaturas" id="galeriaMiniaturas"></div>
+  </div>
+</div>
 
 <button type="button" id="carrinhoBarra" class="carrinho-barra-fixa">
   🛒 <span class="badge-qtd" id="carrinhoBadgeQtd">0</span>
@@ -969,6 +1011,154 @@ function montarBuscaCatalogo(grid) {
   conteudo.appendChild(aviso);
 }
 
+// ===== Galeria: tocar na foto amplia; dá pra passar as fotos e ver o vídeo curto =====
+// As fotos grandes e o vídeo ficam em catalogos/{uid}/midias e só são baixados quando o
+// cliente abre a galeria (o catálogo continua leve pra carregar).
+const cacheMidias = new Map();
+function docMidia(id) { return db.collection('catalogos').doc(uid).collection('midias').doc(id); }
+function buscarFotoGrande(id) {
+  if (!cacheMidias.has(id)) {
+    cacheMidias.set(id, docMidia(id).get()
+      .then((d) => (d.exists && d.data().dados) || '')
+      .catch((err) => { cacheMidias.delete(id); throw err; }));
+  }
+  return cacheMidias.get(id);
+}
+function buscarVideo(v) {
+  const chave = 'video:' + v.id;
+  if (!cacheMidias.has(chave)) {
+    const partes = [];
+    for (let i = 0; i < v.partes; i++) partes.push(docMidia(`${v.id}_${i}`).get());
+    cacheMidias.set(chave, Promise.all(partes).then((docs) => {
+      const pedacos = docs.map((d) => {
+        if (!d.exists) throw new Error('parte do vídeo faltando');
+        const bin = atob(d.data().dados);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+      });
+      return URL.createObjectURL(new Blob(pedacos, { type: v.mime || 'video/mp4' }));
+    }).catch((err) => { cacheMidias.delete(chave); throw err; }));
+  }
+  return cacheMidias.get(chave);
+}
+function slidesDoProduto(p) {
+  const galeria = Array.isArray(p.galeria) ? p.galeria : [];
+  const slides = [];
+  const qtd = Math.min(3, Math.max(galeria.length, p.foto ? 1 : 0));
+  for (let i = 0; i < qtd; i++) {
+    const s = { tipo: 'foto', id: galeria[i] || '', pequena: i === 0 ? (p.foto || '') : '' };
+    if (s.id || s.pequena) slides.push(s);
+  }
+  if (p.video && p.video.id && p.video.partes > 0) slides.push({ tipo: 'video', video: p.video });
+  return slides;
+}
+
+let galeriaAtual = null; // { produto, slides, indice }
+let galeriaVez = 0;      // evita mostrar foto atrasada de um slide que o cliente já passou
+function abrirGaleria(produto, inicio) {
+  const slides = slidesDoProduto(produto);
+  if (!slides.length) return;
+  const indice = inicio === 'video' ? slides.findIndex((s) => s.tipo === 'video') : 0;
+  const jaAberta = !!galeriaAtual;
+  galeriaAtual = { produto, slides, indice: Math.max(0, indice) };
+  document.getElementById('galeriaTitulo').textContent = produto.nome || '';
+  const varias = slides.length > 1;
+  document.getElementById('galeriaAnterior').classList.toggle('hidden', !varias);
+  document.getElementById('galeriaProxima').classList.toggle('hidden', !varias);
+  const mini = document.getElementById('galeriaMiniaturas');
+  mini.innerHTML = varias ? slides.map((s, i) => `<button type="button" data-slide="${i}" aria-label="${s.tipo === 'video' ? 'Vídeo' : 'Foto ' + (i + 1)}">${
+    s.tipo === 'video' ? '▶' : (s.pequena ? `<img src="${s.pequena}" alt="">` : '📷')}</button>`).join('') : '';
+  mini.querySelectorAll('[data-slide]').forEach((b) => b.addEventListener('click', () => mostrarSlide(Number(b.dataset.slide))));
+  // Já vai buscando as fotos grandes (pra trocar a miniatura e ficar pronto ao passar)
+  slides.forEach((s, i) => {
+    if (s.tipo !== 'foto' || !s.id) return;
+    buscarFotoGrande(s.id).then((src) => {
+      const b = mini.querySelector(`[data-slide="${i}"]`);
+      if (src && b && !s.pequena) b.innerHTML = `<img src="${src}" alt="">`;
+    }).catch(() => {});
+  });
+  document.getElementById('galeria').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  // O botão "voltar" do celular fecha a galeria em vez de sair do catálogo
+  if (!jaAberta) history.pushState({ galeria: true }, '');
+  mostrarSlide(galeriaAtual.indice);
+}
+
+function mostrarSlide(i) {
+  if (!galeriaAtual) return;
+  const total = galeriaAtual.slides.length;
+  galeriaAtual.indice = (i + total) % total;
+  const s = galeriaAtual.slides[galeriaAtual.indice];
+  const vez = ++galeriaVez;
+  const palco = document.getElementById('galeriaPalco');
+  const nome = galeriaAtual.produto.nome || '';
+  palco.innerHTML = '';
+  document.querySelectorAll('#galeriaMiniaturas [data-slide]').forEach((b) => b.classList.toggle('ativa', Number(b.dataset.slide) === galeriaAtual.indice));
+
+  const aviso = (texto) => { palco.innerHTML = `<div class="galeria-aviso">${texto}</div>`; };
+  if (s.tipo === 'foto') {
+    const img = document.createElement('img');
+    img.alt = nome;
+    if (s.pequena) { img.src = s.pequena; palco.appendChild(img); } else aviso('Carregando foto...');
+    if (s.id) {
+      buscarFotoGrande(s.id).then((src) => {
+        if (vez !== galeriaVez || !src) return;
+        img.src = src;
+        if (!img.isConnected) { palco.innerHTML = ''; palco.appendChild(img); }
+      }).catch(() => { if (vez === galeriaVez && !s.pequena) aviso('Não deu para carregar a foto. Confira a internet.'); });
+    }
+  } else {
+    aviso('Carregando vídeo...');
+    buscarVideo(s.video).then((url) => {
+      if (vez !== galeriaVez) return;
+      const video = document.createElement('video');
+      video.src = url;
+      video.muted = true;
+      video.loop = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.controls = true;
+      video.setAttribute('playsinline', '');
+      palco.innerHTML = '';
+      palco.appendChild(video);
+      video.play().catch(() => { /* o cliente toca no play */ });
+    }).catch(() => { if (vez === galeriaVez) aviso('Não deu para carregar o vídeo. Confira a internet.'); });
+  }
+}
+
+function fecharGaleria(peloVoltar) {
+  if (!galeriaAtual) return;
+  galeriaAtual = null;
+  galeriaVez++;
+  document.getElementById('galeriaPalco').innerHTML = ''; // para o vídeo
+  document.getElementById('galeria').classList.add('hidden');
+  document.body.style.overflow = '';
+  if (!peloVoltar) history.back();
+}
+window.addEventListener('popstate', () => { if (galeriaAtual) fecharGaleria(true); });
+document.getElementById('galeriaFechar').addEventListener('click', () => fecharGaleria(false));
+document.getElementById('galeriaAnterior').addEventListener('click', () => mostrarSlide(galeriaAtual.indice - 1));
+document.getElementById('galeriaProxima').addEventListener('click', () => mostrarSlide(galeriaAtual.indice + 1));
+document.getElementById('galeriaPalco').addEventListener('click', (ev) => { if (ev.target.id === 'galeriaPalco') fecharGaleria(false); });
+document.addEventListener('keydown', (ev) => {
+  if (!galeriaAtual) return;
+  if (ev.key === 'Escape') fecharGaleria(false);
+  else if (ev.key === 'ArrowLeft') mostrarSlide(galeriaAtual.indice - 1);
+  else if (ev.key === 'ArrowRight') mostrarSlide(galeriaAtual.indice + 1);
+});
+// Arrastar pro lado troca de foto
+let toqueInicioX = null;
+document.getElementById('galeriaPalco').addEventListener('touchstart', (ev) => {
+  toqueInicioX = ev.touches.length === 1 ? ev.touches[0].clientX : null;
+}, { passive: true });
+document.getElementById('galeriaPalco').addEventListener('touchend', (ev) => {
+  if (toqueInicioX === null || !galeriaAtual || galeriaAtual.slides.length < 2) return;
+  const dx = ev.changedTouches[0].clientX - toqueInicioX;
+  toqueInicioX = null;
+  if (Math.abs(dx) > 50) mostrarSlide(galeriaAtual.indice + (dx < 0 ? 1 : -1));
+});
+
 if (!uid) {
   conteudo.textContent = 'Link inválido.';
 } else {
@@ -1023,9 +1213,16 @@ if (!uid) {
       const semEstoque = !(p.estoqueAtual > 0);
       if (!semEstoque) selecionado[idx] = 1;
       const emPromocao = p.precoPromocional && p.precoPromocional > 0 && p.precoPromocional < p.preco;
+      const slides = slidesDoProduto(p);
+      const qtdFotos = slides.filter((s) => s.tipo === 'foto').length;
+      const temVideo = slides.some((s) => s.tipo === 'video');
+      const selos = (qtdFotos > 1 || temVideo)
+        ? `<div class="selos-midia">${qtdFotos > 1 ? `<span class="selo-midia">📷 ${qtdFotos}</span>` : ''}${temVideo ? '<span class="selo-midia" data-abrir-video>▶ vídeo</span>' : ''}</div>`
+        : '';
+      const abreGaleria = slides.length ? ` data-galeria-idx="${idx}" role="button" tabindex="0" aria-label="Ver fotos de ${escapeHTML(p.nome)}"` : '';
       return `
       <div class="produto" data-busca="${escapeHTML(normalizarBusca(p.nome + ' ' + (p.descricao || '')))}" data-promo="${emPromocao ? 1 : 0}">
-        ${p.foto ? `<div class="foto-wrap"><img src="${p.foto}" alt="${escapeHTML(p.nome)}"></div>` : `<div class="sem-foto">🌿</div>`}
+        ${p.foto ? `<div class="foto-wrap"${abreGaleria}><img src="${p.foto}" alt="${escapeHTML(p.nome)}">${selos}</div>` : `<div class="sem-foto"${abreGaleria}>🌿${selos}</div>`}
         <div class="info">
           <strong>${escapeHTML(p.nome)}</strong>
           ${p.descricao ? `<span class="descricao">${escapeHTML(p.descricao)}</span>` : ''}
@@ -1058,6 +1255,14 @@ if (!uid) {
     montarBuscaCatalogo(grid);
     conteudo.appendChild(grid);
 
+    grid.querySelectorAll('[data-galeria-idx]').forEach((el) => {
+      const abrir = (ev) => {
+        const p = itensCatalogo[el.dataset.galeriaIdx];
+        abrirGaleria(p, ev && ev.target.closest && ev.target.closest('[data-abrir-video]') ? 'video' : 0);
+      };
+      el.addEventListener('click', abrir);
+      el.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrir(null); } });
+    });
     grid.querySelectorAll('[data-menos-idx]').forEach((btn) => btn.addEventListener('click', () => mudarQtdSelecionada(btn.dataset.menosIdx, -1)));
     grid.querySelectorAll('[data-mais-idx]').forEach((btn) => btn.addEventListener('click', () => mudarQtdSelecionada(btn.dataset.maisIdx, 1)));
     grid.querySelectorAll('[data-add-idx]').forEach((btn) => btn.addEventListener('click', () => adicionarAoCarrinho(btn.dataset.addIdx, btn)));
