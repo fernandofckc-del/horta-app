@@ -203,6 +203,7 @@
   .texto-adubo { font-size: 0.84rem; line-height: 1.5; padding-bottom: 12px; }
   .texto-adubo ol, .texto-adubo ul { padding-left: 20px; margin: 0; }
   .texto-adubo li { margin-bottom: 6px; }
+  details.config-catalogo.falta-calcio { border-left: 4px solid #ef4444; }
   .diag { border-radius: 10px; padding: 9px 12px; font-size: 0.84rem; margin: 8px 0 0; line-height: 1.45; }
   .diag.ok { background: #dcfce7; color: #166534; }
   .diag.atencao { background: #fef3c7; color: #92400e; }
@@ -314,7 +315,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.10.1</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.11.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -825,35 +826,84 @@
         <option value="edta">EDTA 13% (Dissolvine)</option>
       </select>
     </label>
+    <label>Fósforo que você usa
+      <select id="adubFosfato">
+        <option value="mkp">MKP — fosfato monopotássico (0-52-34)</option>
+        <option value="map">MAP purificado (12-61-0)</option>
+      </select>
+    </label>
+    <label>Micronutrientes
+      <select id="adubMicro">
+        <option value="pronto">Pronto, comprado (uso a dose do rótulo)</option>
+        <option value="caseiro">Concentrado caseiro (receita do app)</option>
+      </select>
+    </label>
+    <div class="linha" id="adubMicroDoseLinha">
+      <label>Dose do rótulo para 1.000 litros
+        <input type="number" id="adubMicroDose" min="0" step="0.1" inputmode="decimal" placeholder="Ex: 30">
+      </label>
+      <label style="max-width:90px">Em
+        <select id="adubMicroUnidade">
+          <option value="g">g</option>
+          <option value="mL">mL</option>
+        </select>
+      </label>
+    </div>
     <div class="meta-adubo" id="adubMeta"></div>
     <div class="lista" id="adubTabela"></div>
-    <p class="aviso-adubo">⚠️ Dissolva cada adubo num balde separado. <strong>Nunca misture o nitrato de cálcio concentrado com os outros</strong> (principalmente sulfato de magnésio e MAP): vira "pedra" no fundo e a planta fica sem cálcio e fósforo.</p>
+    <p class="aviso-adubo">⚠️ Dissolva cada adubo num balde separado. <strong>Nunca misture o nitrato de cálcio concentrado com os outros</strong> (principalmente sulfato de magnésio e o MKP/MAP): vira "pedra" no fundo e a planta fica sem cálcio e fósforo.</p>
+    <details class="config-catalogo falta-calcio">
+      <summary>🚨 Faltou nitrato de cálcio? Leia isto</summary>
+      <div class="texto-adubo">
+        <p style="margin:0 0 8px">O nitrato de cálcio é o adubo mais importante da receita: dá <strong>todo o cálcio</strong> e uns <strong>2/3 do nitrogênio</strong>. Sem ele, em poucos dias aparecem:</p>
+        <ul>
+          <li><strong>Falta de nitrogênio:</strong> folhas de baixo (mais velhas) amarelando por igual e a planta parando de crescer.</li>
+          <li><strong>Falta de cálcio:</strong> bordas das folhas novas queimadas, miolo escurecendo, folhas novas deformadas. No calor isso vem rápido.</li>
+        </ul>
+        <p style="margin:10px 0 6px"><strong>O que fazer agora:</strong></p>
+        <ol>
+          <li><strong>Compre nitrato de cálcio o quanto antes</strong> (agropecuária ou internet — procure "nitrato de cálcio hidroponia"). Nada substitui direito.</li>
+          <li><strong>Não aumente</strong> nitrato de potássio, MKP ou sulfato de magnésio para "compensar": o ppm sobe, mas o cálcio continua faltando — e potássio sobrando ainda atrapalha a planta a pegar cálcio. Sem nitrato de cálcio, o medidor pode mostrar um número "bom" com a planta passando fome.</li>
+          <li><strong>Não use</strong> cal, calcário ou gesso de construção: não dissolvem direito, sobem o pH e entopem o sistema.</li>
+          <li>Se o balde A não foi feito, a planta também está sem ferro (ele vai no A). Coloque o ferro direto no reservatório, dissolvido num balde: <strong id="adubFaltaFerro"></strong>.</li>
+          <li>Colha o que já está no ponto, mantenha a solução fresca e o pH entre 5,8 e 6,2.</li>
+        </ol>
+        <p style="margin:10px 0 0"><strong>Quando o nitrato chegar:</strong> o melhor é <strong>trocar toda a solução</strong> pela receita completa. Se não der, dissolva o nitrato de cálcio sozinho num balde e coloque no reservatório: <strong id="adubFaltaNitrato"></strong>. Depois meça e, se passar da meta, complete com água.</p>
+        <p style="margin:8px 0 0">Dica: tenha sempre um saco de reserva — é o adubo que mais gasta.</p>
+      </div>
+    </details>
     <details class="config-catalogo">
       <summary>📋 Como preparar o reservatório</summary>
       <div class="texto-adubo">
         <ol>
           <li>Encha o reservatório com uns 80% da água.</li>
           <li>Dissolva cada adubo num balde com água (água morna ajuda), um de cada vez.</li>
-          <li>Despeje no reservatório nesta ordem, misturando bem entre um e outro: nitrato de potássio → MAP → sulfato de magnésio → micronutrientes → nitrato de cálcio → ferro.</li>
+          <li>Despeje no reservatório nesta ordem, misturando bem entre um e outro: nitrato de potássio → MKP (ou MAP) → sulfato de magnésio → micronutrientes → nitrato de cálcio → ferro.</li>
           <li>Complete a água até o volume certo e ligue a bomba por 20 a 30 minutos.</li>
           <li>Meça CE e pH e acerte em "Medição de hoje", aqui embaixo.</li>
         </ol>
-        <p style="margin:8px 0 0">Use MAP <strong>purificado</strong> (12-61-0): o MAP comum de lavoura deixa resíduo no sistema. Uma balança de cozinha de 0,1 g já resolve.</p>
+        <p style="margin:8px 0 0"><strong>MKP</strong> já é próprio para hidroponia; com ele o pH tende a subir um pouco mais rápido (não tem amônio), então confira o pH todo dia. Se usar <strong>MAP</strong>, que seja o purificado (12-61-0): o MAP comum de lavoura deixa resíduo. Uma balança de cozinha de 0,1 g já resolve.</p>
       </div>
     </details>
     <details class="config-catalogo">
       <summary>🪣 Concentrado A e B (repor sem pesar todo dia)</summary>
-      <div class="texto-adubo" id="adubConcentrado"></div>
+      <div class="texto-adubo">
+        <label>Água em cada balde do concentrado (litros)
+          <input type="number" id="adubBalde" min="1" step="1" inputmode="numeric">
+        </label>
+        <div id="adubConcentrado"></div>
+      </div>
     </details>
     <details class="config-catalogo" style="margin-bottom:0">
-      <summary>🧂 Concentrado de micronutrientes</summary>
+      <summary>🧂 Micronutrientes</summary>
       <div class="texto-adubo">
-        <p style="margin:0 0 8px">Os micronutrientes vão em quantidade muito pequena. Faça este concentrado uma vez e use em mL (a calculadora já faz a conta):</p>
+        <p style="margin:0 0 6px"><strong>Pronto (comprado):</strong> procure no rótulo a dose para <strong>hidroponia ou fertirrigação</strong> e coloque no campo "Dose do rótulo para 1.000 litros" — a calculadora faz a conta para o seu reservatório e para o balde B.</p>
         <ul>
-          <li>Em <strong>1 litro de água morna</strong>: 15 g de ácido bórico, 15 g de sulfato de manganês, 5 g de sulfato de zinco, 1,5 g de sulfato de cobre e 1,5 g de molibdato de sódio.</li>
-          <li>Rende: <strong>100 mL para cada 1.000 litros</strong> de solução na força total.</li>
-          <li>Guarde fechado e na sombra. Se preferir, use um micronutriente pronto para hidroponia, seguindo o rótulo.</li>
+          <li>Se o rótulo der a dose para 100 litros, multiplique por 10; se der por litro de solução, multiplique por 1.000.</li>
+          <li>Prefira um próprio para hidroponia (todo dissolvido em água, com boro, cobre, manganês, molibdênio e zinco).</li>
+          <li>Mesmo que ele tenha um pouco de ferro, continue usando o ferro separado da receita.</li>
         </ul>
+        <p style="margin:10px 0 6px"><strong>Caseiro:</strong> em <strong>1 litro de água morna</strong>, 15 g de ácido bórico, 15 g de sulfato de manganês, 5 g de sulfato de zinco, 1,5 g de sulfato de cobre e 1,5 g de molibdato de sódio. Rende <strong>100 mL para cada 1.000 litros</strong> na força total. Guarde fechado e na sombra.</p>
       </div>
     </details>
   </div>
@@ -928,6 +978,21 @@
         <li>É sensível a raiz quente e a fungos de raiz (tombamento): mesmo cuidado com temperatura e oxigênio. Nas mudas, não deixe a espuma encharcada no sol.</li>
         <li>Folhas amarelando por igual: geralmente a solução está fraca (ppm/CE baixo, falta de nitrogênio) — confira no medidor.</li>
       </ul>
+    </div>
+  </details>
+  <details class="config-catalogo">
+    <summary>🩺 Sinais de falta de nutrientes (olhe as folhas)</summary>
+    <div class="texto-adubo">
+      <p style="margin:0 0 8px">Primeiro veja <strong>onde</strong> aparece: nas folhas <strong>velhas</strong> (de baixo/de fora) ou nas <strong>novas</strong> (miolo/ponteiro).</p>
+      <ul>
+        <li><strong>Nitrogênio</strong> — folhas velhas amarelando por igual; planta pequena e clara. → Solução fraca ou faltou nitrato (de cálcio ou de potássio).</li>
+        <li><strong>Magnésio</strong> — folhas velhas amarelando entre as nervuras, que continuam verdes. → Faltou sulfato de magnésio ou tem potássio demais.</li>
+        <li><strong>Potássio</strong> — bordas das folhas velhas amarelando e depois secando. → Faltou nitrato de potássio ou MKP.</li>
+        <li><strong>Fósforo</strong> — planta parada, folhas velhas verde-escuras ou arroxeadas. → Faltou MKP/MAP.</li>
+        <li><strong>Cálcio</strong> — bordas das folhas novas queimadas, miolo escuro, folhas novas deformadas. → Faltou nitrato de cálcio, ou é o calor, pouca ventilação ou potássio demais.</li>
+        <li><strong>Ferro</strong> — folhas novas amarelo-claras com as nervuras verdes. → Faltou ferro ou o pH passou de 6,5.</li>
+      </ul>
+      <p style="margin:8px 0 0">Raiz marrom, mole ou com cheiro ruim não é falta de adubo: é solução quente ou com pouco oxigênio.</p>
     </div>
   </details>
   <p style="font-size:0.74rem;color:var(--texto-suave);margin:4px 0 24px">São recomendações gerais para hidroponia de folhosas. Se puder, faça uma análise da água e acompanhe com um técnico da sua região.</p>
@@ -1749,7 +1814,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.10.1';
+const APP_VERSION = '3.11.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -5691,10 +5756,16 @@ const RECEITA_FOLHOSAS = [
   { nome: 'Nitrato de cálcio', curto: 'nitrato de cálcio', obs: 'balde A', g: 750 },
   { nome: 'Ferro', curto: 'ferro', obs: 'balde A', ferro: true },
   { nome: 'Nitrato de potássio', curto: 'nitrato de potássio', obs: 'balde B', g: 500 },
-  { nome: 'MAP purificado (12-61-0)', curto: 'MAP', obs: 'balde B', g: 150 },
+  { nome: 'Fosfato', curto: 'fosfato', obs: 'balde B', fosfato: true },
   { nome: 'Sulfato de magnésio', curto: 'sulfato de magnésio', obs: 'balde B', g: 400 },
-  { nome: 'Micronutrientes (concentrado)', curto: 'concentrado de micronutrientes', obs: 'balde B', ml: 100 }
+  { nome: 'Micronutrientes', curto: 'micronutrientes', obs: 'balde B', micro: true }
 ];
+// MKP no lugar do MAP, mesma quantidade: P 34 mg/L (em vez de 40), K sobe para ~225 mg/L e
+// sai o amônio do MAP (o pH tende a subir um pouco mais rápido). Continua dentro da faixa de folhosas.
+const FOSFATOS = {
+  mkp: { nome: 'MKP (fosfato monopotássico)', curto: 'MKP', g: 150 },
+  map: { nome: 'MAP purificado (12-61-0)', curto: 'MAP', g: 150 }
+};
 const FERRO_POR_1000L = { eddha: { g: 30, nome: 'Ferro EDDHA 6%' }, edta: { g: 13.8, nome: 'Ferro EDTA 13%' } };
 const CE_RECEITA_CHEIA = 1.9; // CE que a receita na força total soma à água (aproximado — o condutivímetro manda)
 const SITUACOES_SOLUCAO = {
@@ -5725,7 +5796,12 @@ function carregarConfigAdubacao() {
     ceAgua: c.ceAgua >= 0 ? c.ceAgua : 0.1,
     situacao: SITUACOES_SOLUCAO[c.situacao] ? c.situacao : 'calor',
     ferro: FERRO_POR_1000L[c.ferro] ? c.ferro : 'eddha',
-    unidade: UNIDADES_MEDIDOR[c.unidade] ? c.unidade : 'ppm500'
+    unidade: UNIDADES_MEDIDOR[c.unidade] ? c.unidade : 'ppm500',
+    fosfato: FOSFATOS[c.fosfato] ? c.fosfato : 'mkp',
+    micro: c.micro === 'caseiro' ? 'caseiro' : 'pronto',
+    microDose: c.microDose > 0 ? c.microDose : null,
+    microUnidade: c.microUnidade === 'mL' ? 'mL' : 'g',
+    balde: c.balde > 0 ? c.balde : 18
   };
 }
 function lerConfigAdubacaoDaTela() {
@@ -5737,7 +5813,12 @@ function lerConfigAdubacaoDaTela() {
     ceAgua: agua >= 0 ? paraCE(agua, atual) : atual.ceAgua,
     situacao: document.getElementById('adubSituacao').value || atual.situacao,
     ferro: document.getElementById('adubFerro').value || atual.ferro,
-    unidade: atual.unidade
+    unidade: atual.unidade,
+    fosfato: document.getElementById('adubFosfato').value || atual.fosfato,
+    micro: document.getElementById('adubMicro').value || atual.micro,
+    microDose: parseFloat(document.getElementById('adubMicroDose').value) > 0 ? parseFloat(document.getElementById('adubMicroDose').value) : null,
+    microUnidade: document.getElementById('adubMicroUnidade').value || atual.microUnidade,
+    balde: parseFloat(document.getElementById('adubBalde').value) > 0 ? parseFloat(document.getElementById('adubBalde').value) : atual.balde
   };
   localStorage.setItem(CHAVE_CONFIG_ADUBACAO, JSON.stringify(c));
   return c;
@@ -5756,11 +5837,17 @@ function contasAdubacao(c) {
   return { sit, alvo, forca, ceEsperada: c.ceAgua + forca * CE_RECEITA_CHEIA };
 }
 // Quanto de cada adubo para "fracao" da força total em "litros" de solução.
-function linhasDaReceita(litros, fracao, ferro) {
+function linhasDaReceita(litros, fracao, c) {
+  const k = litros / 1000 * fracao;
   return RECEITA_FOLHOSAS.map((item) => {
-    if (item.ferro) return { nome: FERRO_POR_1000L[ferro].nome, curto: item.curto, obs: item.obs, texto: fmtQtd(FERRO_POR_1000L[ferro].g * litros / 1000 * fracao, 'g') };
-    if (item.ml) return { nome: item.nome, curto: item.curto, obs: item.obs, texto: fmtQtd(item.ml * litros / 1000 * fracao, 'mL') };
-    return { nome: item.nome, curto: item.curto, obs: item.obs, texto: fmtQtd(item.g * litros / 1000 * fracao, 'g') };
+    if (item.ferro) return { nome: FERRO_POR_1000L[c.ferro].nome, curto: item.curto, obs: item.obs, texto: fmtQtd(FERRO_POR_1000L[c.ferro].g * k, 'g') };
+    if (item.fosfato) { const f = FOSFATOS[c.fosfato]; return { nome: f.nome, curto: f.curto, obs: item.obs, texto: fmtQtd(f.g * k, 'g') }; }
+    if (item.micro) {
+      if (c.micro === 'caseiro') return { nome: 'Micronutrientes (concentrado caseiro)', curto: 'concentrado de micronutrientes', obs: item.obs, texto: fmtQtd(100 * k, 'mL') };
+      if (!c.microDose) return { nome: 'Micronutrientes (pronto)', curto: 'micronutrientes', obs: 'balde B · preencha a dose do rótulo acima', texto: '—', semDose: true };
+      return { nome: 'Micronutrientes (pronto)', curto: 'micronutrientes', obs: item.obs, texto: fmtQtd(c.microDose * k, c.microUnidade) };
+    }
+    return { nome: item.nome, curto: item.curto, obs: item.obs, texto: fmtQtd(item.g * k, 'g') };
   });
 }
 
@@ -5775,6 +5862,11 @@ function renderAdubacao() {
   selSit.value = c.situacao;
   document.getElementById('adubFerro').value = c.ferro;
   document.getElementById('adubUnidade').value = c.unidade;
+  document.getElementById('adubFosfato').value = c.fosfato;
+  document.getElementById('adubMicro').value = c.micro;
+  document.getElementById('adubMicroDose').value = c.microDose || '';
+  document.getElementById('adubMicroUnidade').value = c.microUnidade;
+  document.getElementById('adubBalde').value = c.balde;
   const ppm = ehPpm(c);
   document.getElementById('adubUnidadeDica').classList.toggle('hidden', !ppm);
   document.getElementById('adubCeAguaRotulo').textContent = ppm ? 'ppm da sua água' : 'CE da sua água';
@@ -5795,25 +5887,35 @@ function atualizarCalculadoraAdubacao() {
     `<strong> · pH ${fmtNum(PH_IDEAL_MIN, 1)} a ${fmtNum(PH_IDEAL_MAX, 1)} · solução até 25 °C</strong><br>` +
     `Receita a ${Math.round(forca * 100)}% da força total para ${fmtNum(c.volume, 0)} litros → deve dar ≈ ${textoMeta(ceEsperada, c)} (confira no medidor).` +
     (c.ceAgua >= 0.5 ? `<br>⚠️ Sua água já tem bastante sal (${textoMeta(0.5, c)} ou mais). Vale fazer uma análise: pode sobrar pouco espaço para os adubos.` : '');
-  document.getElementById('adubTabela').innerHTML = linhasDaReceita(c.volume, forca, c.ferro).map((l) => `
+  document.getElementById('adubMicroDoseLinha').classList.toggle('hidden', c.micro !== 'pronto');
+  document.getElementById('adubFaltaFerro').textContent = `${fmtQtd(FERRO_POR_1000L[c.ferro].g * c.volume / 1000 * forca, 'g')} de ${FERRO_POR_1000L[c.ferro].nome} para os seus ${fmtNum(c.volume, 0)} litros`;
+  document.getElementById('adubFaltaNitrato').textContent = `${fmtQtd(750 * c.volume / 1000 * forca, 'g')} de nitrato de cálcio para os seus ${fmtNum(c.volume, 0)} litros`;
+  document.getElementById('adubTabela').innerHTML = linhasDaReceita(c.volume, forca, c).map((l) => `
     <div class="item">
       <div class="info"><strong>${l.nome}</strong><small>${l.obs}</small></div>
       <span class="valor-direita">${l.texto}</span>
     </div>`).join('');
+  // Concentrado 100×: cada balde de X litros rende X × 100 litros de solução na força total
+  // (10 mL de A + 10 mL de B por litro). Nessa diluição tudo dissolve bem, mesmo no frio.
   const litrosAB = c.volume * forca * 10 / 1000;
-  const reservatorios = 1000 / (c.volume * forca);
+  const rendeLitros = c.balde * 100;
+  const reservatorios = rendeLitros / (c.volume * forca);
+  const kb = rendeLitros / 1000;
+  const microB = c.micro === 'caseiro' ? `${fmtQtd(100 * kb, 'mL')} do concentrado caseiro de micronutrientes`
+    : (c.microDose ? `${fmtQtd(c.microDose * kb, c.microUnidade)} do micronutriente pronto` : `o micronutriente pronto na dose do rótulo para ${fmtNum(rendeLitros, 0)} litros`);
   document.getElementById('adubConcentrado').innerHTML = `
-    <p style="margin:0 0 8px">Faça uma vez, em dois baldes de 10 litros (de preferência escuros, com tampa, guardados na sombra):</p>
+    <p style="margin:8px 0 8px">Em dois baldes de ${fmtNum(c.balde, 0)} litros (de preferência escuros, com tampa, guardados na sombra):</p>
     <ul>
-      <li><strong>Balde A</strong> (10 L de água): 750 g de nitrato de cálcio + ${fmtNum(FERRO_POR_1000L[c.ferro].g, 1)} g de ${FERRO_POR_1000L[c.ferro].nome}.</li>
-      <li><strong>Balde B</strong> (10 L de água): 500 g de nitrato de potássio + 150 g de MAP purificado + 400 g de sulfato de magnésio + 100 mL do concentrado de micronutrientes.</li>
+      <li><strong>Balde A</strong> (${fmtNum(c.balde, 0)} L de água): ${fmtQtd(750 * kb, 'g')} de nitrato de cálcio + ${fmtQtd(FERRO_POR_1000L[c.ferro].g * kb, 'g')} de ${FERRO_POR_1000L[c.ferro].nome}.</li>
+      <li><strong>Balde B</strong> (${fmtNum(c.balde, 0)} L de água): ${fmtQtd(500 * kb, 'g')} de nitrato de potássio + ${fmtQtd(FOSFATOS[c.fosfato].g * kb, 'g')} de ${FOSFATOS[c.fosfato].curto} + ${fmtQtd(400 * kb, 'g')} de sulfato de magnésio + ${microB}.</li>
     </ul>
     <p style="margin:8px 0 0"><strong>Para montar seus ${fmtNum(c.volume, 0)} litros nesta situação:</strong> ${fmtNum(litrosAB, 2)} L de A + ${fmtNum(litrosAB, 2)} L de B, cada um num canto do reservatório, com a bomba ligada.</p>
     <p style="margin:8px 0 0"><strong>Para repor no dia a dia:</strong> cada 50 mL de A + 50 mL de B sobem uns ${ehPpm(c) ? `${fmtNum(0.1 * fatorMedidor(c), 0)} ppm` : '0,1 de CE'} em 100 litros. A "Medição de hoje" faz essa conta para você.</p>
-    <p style="margin:8px 0 0">Os 20 litros de concentrado rendem 1.000 litros na força total (≈ ${fmtNum(reservatorios, 1)} reservatórios como o seu nesta situação). Nunca junte A e B puros no mesmo balde.</p>`;
+    <p style="margin:8px 0 0">Cada par de baldes rende ${fmtNum(rendeLitros, 0)} litros na força total (≈ ${fmtNum(reservatorios, 1)} reservatórios como o seu nesta situação). Nunca junte A e B puros no mesmo balde.</p>`;
 }
 ['adubVolume', 'adubCeAgua'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
-['adubSituacao', 'adubFerro'].forEach((id) => document.getElementById(id).addEventListener('change', atualizarCalculadoraAdubacao));
+['adubSituacao', 'adubFerro', 'adubFosfato', 'adubMicro', 'adubMicroUnidade'].forEach((id) => document.getElementById(id).addEventListener('change', atualizarCalculadoraAdubacao));
+['adubMicroDose', 'adubBalde'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
 document.getElementById('adubUnidade').addEventListener('change', (e) => {
   const c = carregarConfigAdubacao();
   c.unidade = e.target.value;
@@ -5841,7 +5943,7 @@ function avaliarMedicao(m, c) {
     } else if (m.ce < sit.ceMin - 0.05) {
       const fracao = (alvo - m.ce) / CE_RECEITA_CHEIA;
       const mlAB = c.volume * fracao * 10;
-      const gramas = linhasDaReceita(c.volume, fracao, c.ferro).map((l) => `${l.texto} de ${l.curto}`).join(', ');
+      const gramas = linhasDaReceita(c.volume, fracao, c).filter((l) => !l.semDose).map((l) => `${l.texto} de ${l.curto}`).join(', ');
       r.push({ tipo: m.ce < sit.ceMin - 0.4 ? 'ruim' : 'atencao', campo: 'ce',
         texto: `⬆️ <strong>${ehPpm(c) ? 'ppm baixo' : 'CE baixa'} (${textoLeitura(m.ce, c)}).</strong> Para chegar a ${textoMeta(alvo, c)}: <strong>${fmtMl(mlAB)} do concentrado A + ${fmtMl(mlAB)} do B</strong> (ou, pesando: ${gramas}). Coloque a metade, ligue a bomba 15 min, meça e complete se precisar.` });
     } else {
