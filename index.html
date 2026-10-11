@@ -314,7 +314,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.10.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.10.1</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -800,12 +800,20 @@
 
   <div class="card" style="margin-bottom:14px">
     <h3 style="margin:0 0 10px">🧮 Quanto colocar</h3>
+    <label>Seu medidor mostra
+      <select id="adubUnidade">
+        <option value="ppm500">ppm — escala 500 (canetinha TDS comum)</option>
+        <option value="ppm700">ppm — escala 700</option>
+        <option value="ce">CE (mS/cm)</option>
+      </select>
+    </label>
+    <p class="dica-box" id="adubUnidadeDica" style="margin-top:-4px">Não sabe a escala? Na maioria das canetinhas TDS é a <strong>500</strong> (700 ppm = CE 1,4). Se o seu medidor também mostra CE, compare: CE 1,0 dando 500 ppm é escala 500; dando 700 ppm é escala 700.</p>
     <div class="linha">
       <label>Litros no reservatório
         <input type="number" id="adubVolume" min="1" step="1" inputmode="numeric">
       </label>
-      <label>CE da sua água
-        <input type="number" id="adubCeAgua" min="0" step="0.05" inputmode="decimal">
+      <label><span id="adubCeAguaRotulo">ppm da sua água</span>
+        <input type="number" id="adubCeAgua" min="0" step="1" inputmode="decimal">
       </label>
     </div>
     <label>Situação agora
@@ -853,8 +861,8 @@
   <div class="card" style="margin-bottom:14px">
     <h3 style="margin:0 0 10px">📏 Medição de hoje</h3>
     <div class="linha">
-      <label>CE
-        <input type="number" id="adubMedCe" min="0" step="0.01" inputmode="decimal" placeholder="Ex: 1,4">
+      <label><span id="adubMedCeRotulo">ppm</span>
+        <input type="number" id="adubMedCe" min="0" step="1" inputmode="decimal" placeholder="Ex: 700">
       </label>
       <label>pH
         <input type="number" id="adubMedPh" min="0" max="14" step="0.1" inputmode="decimal" placeholder="Ex: 6">
@@ -891,13 +899,14 @@
       <ol>
         <li>Complete o nível com <strong>água pura</strong> (sem adubo): no calor a planta bebe muita água e a CE sobe se você completar com solução.</li>
         <li>Ligue a bomba uns 15 minutos para misturar.</li>
-        <li>Meça CE, pH e temperatura (sempre no mesmo horário) e anote em "Medição de hoje".</li>
+        <li>Meça o ppm (ou a CE), o pH e a temperatura, sempre no mesmo horário, e anote em "Medição de hoje".</li>
         <li>Acerte primeiro a CE (adubo ou água) e depois o pH.</li>
         <li>Olhe as raízes: brancas e firmes = bom; marrons, moles ou com cheiro ruim = solução quente ou pouco oxigênio.</li>
       </ol>
       <p style="margin:8px 0 0"><strong>Troca completa:</strong> no calor, a cada 15 a 21 dias (no máximo 30), ou antes se a CE e o pH ficarem instáveis, a solução turvar ou cheirar mal. Na troca, lave reservatório e canos com água e um pouco de água sanitária e enxágue bem.</p>
       <p style="margin:8px 0 0"><strong>Acertar o pH:</strong> para baixar, ácido fosfórico ou nítrico; para subir, hidróxido de potássio. Sempre diluído num balde, pouco por vez, esperando 15 minutos para medir de novo. Use luvas e óculos — ácido sempre na água, nunca água no ácido.</p>
-      <p style="margin:8px 0 0"><strong>Aparelhos:</strong> calibre o pHmetro de tempos em tempos com a solução de calibração. Meça também a CE da sua água uma vez: água de poço salobra pode passar de 0,5 e tira espaço dos adubos.</p>
+      <p style="margin:8px 0 0"><strong>Aparelhos:</strong> calibre o pHmetro de tempos em tempos com a solução de calibração. Meça também a sua água pura uma vez: água de poço salobra pode passar de 250 ppm (CE 0,5) e tira espaço dos adubos.</p>
+      <p style="margin:8px 0 0"><strong>ppm e CE</strong> são a mesma medida em escalas diferentes. Na canetinha TDS comum (escala 500): ppm = CE × 500 — CE 1,4 = 700 ppm. O app faz a conversão sozinho.</p>
     </div>
   </details>
   <details class="config-catalogo">
@@ -917,7 +926,7 @@
         <li>Vai muito bem na mesma solução e aguenta um pouco mais de sal que a alface — por isso a meta de CE é pensada na alface, que é a mais sensível.</li>
         <li>No calor ele floresce (pendoa) rápido: colha assim que atingir o tamanho de venda, sem esperar.</li>
         <li>É sensível a raiz quente e a fungos de raiz (tombamento): mesmo cuidado com temperatura e oxigênio. Nas mudas, não deixe a espuma encharcada no sol.</li>
-        <li>Folhas amarelando por igual: geralmente CE baixa (falta de nitrogênio) — confira a CE.</li>
+        <li>Folhas amarelando por igual: geralmente a solução está fraca (ppm/CE baixo, falta de nitrogênio) — confira no medidor.</li>
       </ul>
     </div>
   </details>
@@ -1740,7 +1749,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.10.0';
+const APP_VERSION = '3.10.1';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -5696,6 +5705,17 @@ const SITUACOES_SOLUCAO = {
 };
 const PH_MIN = 5.5, PH_MAX = 6.5, PH_IDEAL_MIN = 5.8, PH_IDEAL_MAX = 6.2;
 const CHAVE_CONFIG_ADUBACAO = 'hg_adubacao_config';
+// Por dentro tudo é CE (mS/cm); na tela aparece como o medidor mostra.
+// ppm (escala 500) = CE × 500 — a canetinha TDS comum; escala 700 = CE × 700.
+const UNIDADES_MEDIDOR = { ppm500: { fator: 500 }, ppm700: { fator: 700 }, ce: { fator: 1 } };
+function fatorMedidor(c) { return (UNIDADES_MEDIDOR[c.unidade] || UNIDADES_MEDIDOR.ppm500).fator; }
+function ehPpm(c) { return fatorMedidor(c) > 1; }
+function paraCE(valor, c) { return valor / fatorMedidor(c); }
+function valorNoMedidor(ce, c) { return ehPpm(c) ? Math.round(ce * fatorMedidor(c)) : Math.round(ce * 100) / 100; }
+function textoLeitura(ce, c) { return ehPpm(c) ? `${fmtNum(Math.round(ce * fatorMedidor(c)), 0)} ppm` : `CE ${fmtNum(ce, 2)}`; }
+function ppmRedondo(ce, c) { return fmtNum(Math.round(ce * fatorMedidor(c) / 10) * 10, 0); }
+function textoMeta(ce, c) { return ehPpm(c) ? `${ppmRedondo(ce, c)} ppm` : `CE ${fmtNum(ce, 1)}`; }
+function textoFaixa(min, max, c) { return ehPpm(c) ? `${ppmRedondo(min, c)} a ${ppmRedondo(max, c)} ppm` : `CE ${fmtNum(min, 1)} a ${fmtNum(max, 1)}`; }
 
 function carregarConfigAdubacao() {
   let c = {};
@@ -5704,18 +5724,20 @@ function carregarConfigAdubacao() {
     volume: c.volume > 0 ? c.volume : 500,
     ceAgua: c.ceAgua >= 0 ? c.ceAgua : 0.1,
     situacao: SITUACOES_SOLUCAO[c.situacao] ? c.situacao : 'calor',
-    ferro: FERRO_POR_1000L[c.ferro] ? c.ferro : 'eddha'
+    ferro: FERRO_POR_1000L[c.ferro] ? c.ferro : 'eddha',
+    unidade: UNIDADES_MEDIDOR[c.unidade] ? c.unidade : 'ppm500'
   };
 }
 function lerConfigAdubacaoDaTela() {
   const atual = carregarConfigAdubacao();
   const volume = parseFloat(document.getElementById('adubVolume').value);
-  const ceAgua = parseFloat(document.getElementById('adubCeAgua').value);
+  const agua = parseFloat(document.getElementById('adubCeAgua').value);
   const c = {
     volume: volume > 0 ? volume : atual.volume,
-    ceAgua: ceAgua >= 0 ? ceAgua : atual.ceAgua,
+    ceAgua: agua >= 0 ? paraCE(agua, atual) : atual.ceAgua,
     situacao: document.getElementById('adubSituacao').value || atual.situacao,
-    ferro: document.getElementById('adubFerro').value || atual.ferro
+    ferro: document.getElementById('adubFerro').value || atual.ferro,
+    unidade: atual.unidade
   };
   localStorage.setItem(CHAVE_CONFIG_ADUBACAO, JSON.stringify(c));
   return c;
@@ -5749,9 +5771,17 @@ function renderAdubacao() {
     selSit.innerHTML = Object.entries(SITUACOES_SOLUCAO).map(([k, s]) => `<option value="${k}">${s.nome}</option>`).join('');
   }
   document.getElementById('adubVolume').value = c.volume;
-  document.getElementById('adubCeAgua').value = c.ceAgua;
+  document.getElementById('adubCeAgua').value = valorNoMedidor(c.ceAgua, c);
   selSit.value = c.situacao;
   document.getElementById('adubFerro').value = c.ferro;
+  document.getElementById('adubUnidade').value = c.unidade;
+  const ppm = ehPpm(c);
+  document.getElementById('adubUnidadeDica').classList.toggle('hidden', !ppm);
+  document.getElementById('adubCeAguaRotulo').textContent = ppm ? 'ppm da sua água' : 'CE da sua água';
+  document.getElementById('adubCeAgua').step = ppm ? '1' : '0.05';
+  document.getElementById('adubMedCeRotulo').textContent = ppm ? 'ppm' : 'CE';
+  document.getElementById('adubMedCe').step = ppm ? '1' : '0.01';
+  document.getElementById('adubMedCe').placeholder = ppm ? `Ex: ${valorNoMedidor(1.4, c)}` : 'Ex: 1,4';
   atualizarCalculadoraAdubacao();
   renderMedicoesSolucao();
 }
@@ -5760,9 +5790,11 @@ function atualizarCalculadoraAdubacao() {
   const c = lerConfigAdubacaoDaTela();
   const { sit, forca, ceEsperada } = contasAdubacao(c);
   document.getElementById('adubMeta').innerHTML =
-    `<strong>Meta: CE ${fmtNum(sit.ceMin, 1)} a ${fmtNum(sit.ceMax, 1)} · pH ${fmtNum(PH_IDEAL_MIN, 1)} a ${fmtNum(PH_IDEAL_MAX, 1)} · solução até 25 °C</strong><br>` +
-    `Receita a ${Math.round(forca * 100)}% da força total para ${fmtNum(c.volume, 0)} litros → CE esperada ≈ ${fmtNum(ceEsperada, 1)} (confira com o condutivímetro).` +
-    (c.ceAgua >= 0.5 ? '<br>⚠️ Sua água já tem bastante sal (CE 0,5 ou mais). Vale fazer uma análise: pode sobrar pouco espaço para os adubos.' : '');
+    `<strong>Meta: ${textoFaixa(sit.ceMin, sit.ceMax, c)}</strong>` +
+    (ehPpm(c) ? ` <small>(= CE ${fmtNum(sit.ceMin, 1)} a ${fmtNum(sit.ceMax, 1)})</small>` : '') +
+    `<strong> · pH ${fmtNum(PH_IDEAL_MIN, 1)} a ${fmtNum(PH_IDEAL_MAX, 1)} · solução até 25 °C</strong><br>` +
+    `Receita a ${Math.round(forca * 100)}% da força total para ${fmtNum(c.volume, 0)} litros → deve dar ≈ ${textoMeta(ceEsperada, c)} (confira no medidor).` +
+    (c.ceAgua >= 0.5 ? `<br>⚠️ Sua água já tem bastante sal (${textoMeta(0.5, c)} ou mais). Vale fazer uma análise: pode sobrar pouco espaço para os adubos.` : '');
   document.getElementById('adubTabela').innerHTML = linhasDaReceita(c.volume, forca, c.ferro).map((l) => `
     <div class="item">
       <div class="info"><strong>${l.nome}</strong><small>${l.obs}</small></div>
@@ -5777,11 +5809,21 @@ function atualizarCalculadoraAdubacao() {
       <li><strong>Balde B</strong> (10 L de água): 500 g de nitrato de potássio + 150 g de MAP purificado + 400 g de sulfato de magnésio + 100 mL do concentrado de micronutrientes.</li>
     </ul>
     <p style="margin:8px 0 0"><strong>Para montar seus ${fmtNum(c.volume, 0)} litros nesta situação:</strong> ${fmtNum(litrosAB, 2)} L de A + ${fmtNum(litrosAB, 2)} L de B, cada um num canto do reservatório, com a bomba ligada.</p>
-    <p style="margin:8px 0 0"><strong>Para repor no dia a dia:</strong> cada 50 mL de A + 50 mL de B sobem a CE uns 0,1 em 100 litros. A "Medição de hoje" faz essa conta para você.</p>
+    <p style="margin:8px 0 0"><strong>Para repor no dia a dia:</strong> cada 50 mL de A + 50 mL de B sobem uns ${ehPpm(c) ? `${fmtNum(0.1 * fatorMedidor(c), 0)} ppm` : '0,1 de CE'} em 100 litros. A "Medição de hoje" faz essa conta para você.</p>
     <p style="margin:8px 0 0">Os 20 litros de concentrado rendem 1.000 litros na força total (≈ ${fmtNum(reservatorios, 1)} reservatórios como o seu nesta situação). Nunca junte A e B puros no mesmo balde.</p>`;
 }
 ['adubVolume', 'adubCeAgua'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
 ['adubSituacao', 'adubFerro'].forEach((id) => document.getElementById(id).addEventListener('change', atualizarCalculadoraAdubacao));
+document.getElementById('adubUnidade').addEventListener('change', (e) => {
+  const c = carregarConfigAdubacao();
+  c.unidade = e.target.value;
+  localStorage.setItem(CHAVE_CONFIG_ADUBACAO, JSON.stringify(c));
+  // O que estava digitado era na unidade antiga
+  document.getElementById('adubMedCe').value = '';
+  document.getElementById('adubDiagnostico').innerHTML = '';
+  document.getElementById('btnGuardarMedicao').classList.add('hidden');
+  renderAdubacao();
+});
 
 // -------- Medição de hoje: diz o que fazer com a CE, o pH e a temperatura --------
 function lerNumeroCampo(id) {
@@ -5795,15 +5837,15 @@ function avaliarMedicao(m, c) {
     if (m.ce > sit.ceMax + 0.05) {
       const litros = c.volume * (m.ce - alvo) / Math.max(0.1, alvo - c.ceAgua);
       r.push({ tipo: m.ce > sit.ceMax + 0.4 ? 'ruim' : 'atencao', campo: 'ce',
-        texto: `⬇️ <strong>CE alta (${fmtNum(m.ce, 2)}).</strong> Acrescente uns <strong>${fmtNum(litros, 0)} litros de água pura</strong> para voltar a ${fmtNum(alvo, 1)}. Se não couber, tire esse tanto de solução (pode regar outras plantas) e complete com água. No calor a CE sobe porque a planta bebe mais água do que adubo — completar o nível só com água todo dia evita isso.` });
+        texto: `⬇️ <strong>${ehPpm(c) ? 'ppm alto' : 'CE alta'} (${textoLeitura(m.ce, c)}).</strong> Acrescente uns <strong>${fmtNum(litros, 0)} litros de água pura</strong> para voltar a ${textoMeta(alvo, c)}. Se não couber, tire esse tanto de solução (pode regar outras plantas) e complete com água. No calor a leitura sobe porque a planta bebe mais água do que adubo — completar o nível só com água todo dia evita isso.` });
     } else if (m.ce < sit.ceMin - 0.05) {
       const fracao = (alvo - m.ce) / CE_RECEITA_CHEIA;
       const mlAB = c.volume * fracao * 10;
       const gramas = linhasDaReceita(c.volume, fracao, c.ferro).map((l) => `${l.texto} de ${l.curto}`).join(', ');
       r.push({ tipo: m.ce < sit.ceMin - 0.4 ? 'ruim' : 'atencao', campo: 'ce',
-        texto: `⬆️ <strong>CE baixa (${fmtNum(m.ce, 2)}).</strong> Para chegar a ${fmtNum(alvo, 1)}: <strong>${fmtMl(mlAB)} do concentrado A + ${fmtMl(mlAB)} do B</strong> (ou, pesando: ${gramas}). Coloque a metade, ligue a bomba 15 min, meça e complete se precisar.` });
+        texto: `⬆️ <strong>${ehPpm(c) ? 'ppm baixo' : 'CE baixa'} (${textoLeitura(m.ce, c)}).</strong> Para chegar a ${textoMeta(alvo, c)}: <strong>${fmtMl(mlAB)} do concentrado A + ${fmtMl(mlAB)} do B</strong> (ou, pesando: ${gramas}). Coloque a metade, ligue a bomba 15 min, meça e complete se precisar.` });
     } else {
-      r.push({ tipo: 'ok', campo: 'ce', texto: `✅ <strong>CE boa (${fmtNum(m.ce, 2)}).</strong> Meta desta situação: ${fmtNum(sit.ceMin, 1)} a ${fmtNum(sit.ceMax, 1)}.` });
+      r.push({ tipo: 'ok', campo: 'ce', texto: `✅ <strong>${ehPpm(c) ? 'ppm bom' : 'CE boa'} (${textoLeitura(m.ce, c)}).</strong> Meta desta situação: ${textoFaixa(sit.ceMin, sit.ceMax, c)}.` });
     }
   }
   if (m.ph !== null) {
@@ -5818,7 +5860,7 @@ function avaliarMedicao(m, c) {
     else if (m.temp > 25) r.push({ tipo: 'atencao', campo: 'temp', texto: `⚠️ <strong>Solução quente (${fmtNum(m.temp, 1)} °C).</strong> Proteja o reservatório do sol (enterrado, isopor/manta) e aumente a oxigenação.` });
     else r.push({ tipo: 'ok', campo: 'temp', texto: `✅ <strong>Temperatura boa (${fmtNum(m.temp, 1)} °C).</strong>` });
     if (m.temp > 26 && (c.situacao === 'calor' || c.situacao === 'ameno')) {
-      r.push({ tipo: 'atencao', campo: 'dica', texto: '💡 Com a solução acima de 26 °C, mude a "Situação agora" para <strong>🔥 Calor forte</strong> e trabalhe com a CE mais baixa.' });
+      r.push({ tipo: 'atencao', campo: 'dica', texto: '💡 Com a solução acima de 26 °C, mude a "Situação agora" para <strong>🔥 Calor forte</strong> e trabalhe com a meta mais baixa.' });
     }
   }
   return r;
@@ -5826,14 +5868,18 @@ function avaliarMedicao(m, c) {
 
 let ultimaMedicaoSolucao = null;
 document.getElementById('btnDiagnosticarSolucao').addEventListener('click', () => {
-  const m = { ce: lerNumeroCampo('adubMedCe'), ph: lerNumeroCampo('adubMedPh'), temp: lerNumeroCampo('adubMedTemp') };
-  const caixa = document.getElementById('adubDiagnostico');
-  if (m.ce === null && m.ph === null && m.temp === null) {
-    caixa.innerHTML = '<p class="diag atencao">Digite pelo menos a CE, o pH ou a temperatura.</p>';
-    document.getElementById('btnGuardarMedicao').classList.add('hidden');
-    return;
-  }
   const c = lerConfigAdubacaoDaTela();
+  const leitura = lerNumeroCampo('adubMedCe');
+  const m = { ce: leitura === null ? null : paraCE(leitura, c), ph: lerNumeroCampo('adubMedPh'), temp: lerNumeroCampo('adubMedTemp') };
+  const caixa = document.getElementById('adubDiagnostico');
+  const recusar = (texto) => {
+    caixa.innerHTML = `<p class="diag atencao">${texto}</p>`;
+    document.getElementById('btnGuardarMedicao').classList.add('hidden');
+  };
+  if (m.ce === null && m.ph === null && m.temp === null) return recusar(`Digite pelo menos ${ehPpm(c) ? 'o ppm' : 'a CE'}, o pH ou a temperatura.`);
+  // Número que não combina com a unidade escolhida (ex.: 1,4 com o medidor em ppm)
+  if (leitura !== null && ehPpm(c) && leitura < 20) return recusar(`${fmtNum(leitura, 2)} parece CE, não ppm. Se o seu medidor mostra CE, troque "Seu medidor mostra" para CE lá em cima; se mostra ppm, confira o número.`);
+  if (leitura !== null && !ehPpm(c) && leitura > 20) return recusar(`${fmtNum(leitura, 0)} parece ppm, não CE. Troque "Seu medidor mostra" para ppm lá em cima.`);
   caixa.innerHTML = avaliarMedicao(m, c).map((x) => `<p class="diag ${x.tipo}">${x.texto}</p>`).join('');
   ultimaMedicaoSolucao = { ...m, situacao: c.situacao };
   document.getElementById('btnGuardarMedicao').classList.remove('hidden');
@@ -5861,7 +5907,7 @@ function renderMedicoesSolucao() {
     const aval = avaliarMedicao(m, { ...c, situacao: SITUACOES_SOLUCAO[m.situacao] ? m.situacao : c.situacao });
     const st = (campo) => { const a = aval.find((x) => x.campo === campo); return a ? icone[a.tipo] : ''; };
     const partes = [];
-    if (m.ce !== null && m.ce !== undefined) partes.push(`CE ${fmtNum(m.ce, 2)} ${st('ce')}`);
+    if (m.ce !== null && m.ce !== undefined) partes.push(`${textoLeitura(m.ce, c)} ${st('ce')}`);
     if (m.ph !== null && m.ph !== undefined) partes.push(`pH ${fmtNum(m.ph, 1)} ${st('ph')}`);
     if (m.temp !== null && m.temp !== undefined) partes.push(`${fmtNum(m.temp, 1)} °C ${st('temp')}`);
     return `<div class="item">
