@@ -215,6 +215,9 @@
   }
 
   .resumo-caixa { background: var(--bg); border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; display: flex; justify-content: space-between; margin: 10px 0; }
+  .resumo-desconto { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--texto-suave); padding: 2px 12px; }
+  .resumo-desconto.desconto { color: var(--verde); font-weight: 600; }
+  .resumo-desconto.erro { color: var(--vermelho); font-weight: 600; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 600; }
   .badge.andamento { background: #fef3c7; color: #b45309; }
   .mapa-horta-area {
@@ -282,7 +285,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.7.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.8.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -418,6 +421,18 @@
 
   <div class="lista" id="vendaItensLista"></div>
 
+  <div class="linha" style="margin-top:12px">
+    <label>Desconto (opcional)
+      <input type="number" id="vendaDesconto" min="0" step="0.01" inputmode="decimal" placeholder="Ex: 2">
+    </label>
+    <label style="max-width:100px">Em
+      <select id="vendaDescontoTipo">
+        <option value="reais">R$</option>
+        <option value="porcento">%</option>
+      </select>
+    </label>
+  </div>
+  <div id="vendaDescontoResumo"></div>
   <div class="resumo-caixa">
     <span>Total</span><strong id="vendaTotalTexto">R$ 0,00</strong>
   </div>
@@ -961,6 +976,21 @@
         <option value="Fiado">Fiado</option>
       </select>
     </label>
+    <div class="linha">
+      <label>Desconto (opcional)
+        <input type="number" id="registrarPedidoDesconto" min="0" step="0.01" inputmode="decimal" placeholder="Ex: 2">
+      </label>
+      <label style="max-width:100px">Em
+        <select id="registrarPedidoDescontoTipo">
+          <option value="reais">R$</option>
+          <option value="porcento">%</option>
+        </select>
+      </label>
+    </div>
+    <div id="registrarPedidoDescontoResumo"></div>
+    <div class="resumo-caixa">
+      <span>Total da venda</span><strong id="registrarPedidoTotalTexto">R$ 0,00</strong>
+    </div>
     <p style="font-size:0.76rem;color:var(--texto-suave);margin:4px 0 0">Ao confirmar, a venda entra em "Últimas vendas" e os itens saem do estoque.</p>
     <div class="acoes">
       <button class="fantasma" id="btnCancelarRegistrarPedido">Cancelar</button>
@@ -1438,6 +1468,7 @@
     <input type="hidden" id="vendaDetalheId">
     <p style="font-size:0.85rem;color:var(--texto-suave)" id="vendaDetalheInfo"></p>
     <div class="lista" id="vendaDetalheItens"></div>
+    <div id="vendaDetalheDesconto" style="margin-top:10px"></div>
     <div class="resumo-caixa">
       <span>Total</span><strong id="vendaDetalheTotal">R$ 0,00</strong>
     </div>
@@ -1517,7 +1548,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.7.0';
+const APP_VERSION = '3.8.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -2144,6 +2175,53 @@ document.getElementById('btnEnviarExtrato').addEventListener('click', () => {
 // ============================================================
 let itensVendaAtual = [];
 
+// -------------------- DESCONTO NA VENDA --------------------
+// Em reais (ex: 2) ou em porcentagem (ex: 10%). A venda guarda o total já com desconto
+// (é ele que entra no fiado, no lucro e nos relatórios) e também subtotal/desconto pra mostrar.
+function calcularDesconto(subtotal, valorDigitado, tipo) {
+  const valor = parseFloat(String(valorDigitado || '').replace(',', '.'));
+  if (!(valor > 0) || !(subtotal > 0)) return { subtotal, desconto: 0, percentual: null, total: arred(subtotal, 2), erro: '' };
+  let desconto, percentual = null;
+  if (tipo === 'porcento') {
+    if (valor > 100) return { subtotal, desconto: 0, percentual: null, total: arred(subtotal, 2), erro: 'O desconto não pode passar de 100%.' };
+    desconto = arred(subtotal * valor / 100, 2);
+    percentual = valor;
+  } else {
+    if (valor > subtotal + 0.001) return { subtotal, desconto: 0, percentual: null, total: arred(subtotal, 2), erro: 'O desconto não pode ser maior que o total da venda.' };
+    desconto = arred(valor, 2);
+  }
+  return { subtotal, desconto, percentual, total: arred(Math.max(0, subtotal - desconto), 2), erro: '' };
+}
+function contasDaVenda(subtotal, idValor, idTipo) {
+  return calcularDesconto(arred(subtotal, 2), document.getElementById(idValor).value, document.getElementById(idTipo).value);
+}
+function rotuloDesconto(percentual) {
+  return percentual ? `Desconto (${formatarQtd(percentual)}%)` : 'Desconto';
+}
+// Linhas "Subtotal / Desconto" acima do total (ou o aviso, se o desconto for inválido).
+function htmlResumoDesconto(c) {
+  if (c.erro) return `<div class="resumo-desconto erro">⚠️ ${c.erro}</div>`;
+  if (!(c.desconto > 0)) return '';
+  return `<div class="resumo-desconto"><span>Subtotal</span><span>${formatarMoeda(c.subtotal)}</span></div>
+    <div class="resumo-desconto desconto"><span>🏷️ ${rotuloDesconto(c.percentual)}</span><span>− ${formatarMoeda(c.desconto)}</span></div>`;
+}
+// O que vai salvo na venda (só quando teve desconto).
+function camposDescontoVenda(c) {
+  if (!(c.desconto > 0)) return {};
+  return c.percentual ? { subtotal: c.subtotal, desconto: c.desconto, descontoPercentual: c.percentual } : { subtotal: c.subtotal, desconto: c.desconto };
+}
+function ligarCamposDesconto(idValor, idTipo, aoMudar) {
+  const campo = document.getElementById(idValor);
+  const tipo = document.getElementById(idTipo);
+  campo.addEventListener('input', aoMudar);
+  tipo.addEventListener('change', () => { campo.placeholder = tipo.value === 'porcento' ? 'Ex: 10' : 'Ex: 2'; aoMudar(); });
+}
+function limparCamposDesconto(idValor, idTipo) {
+  document.getElementById(idValor).value = '';
+  document.getElementById(idTipo).value = 'reais';
+  document.getElementById(idValor).placeholder = 'Ex: 2';
+}
+
 function preencherSelects() {
   const clientes = carregar(CHAVES.clientes);
   const selectCliente = document.getElementById('vendaCliente');
@@ -2192,9 +2270,14 @@ function renderItensVenda() {
       btn.addEventListener('click', () => { itensVendaAtual.splice(Number(btn.dataset.idx), 1); renderItensVenda(); });
     });
   }
-  const total = itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
-  document.getElementById('vendaTotalTexto').textContent = formatarMoeda(total);
+  atualizarTotalVenda();
 }
+function atualizarTotalVenda() {
+  const contas = contasDaVenda(itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), 'vendaDesconto', 'vendaDescontoTipo');
+  document.getElementById('vendaDescontoResumo').innerHTML = htmlResumoDesconto(contas);
+  document.getElementById('vendaTotalTexto').textContent = formatarMoeda(contas.total);
+}
+ligarCamposDesconto('vendaDesconto', 'vendaDescontoTipo', atualizarTotalVenda);
 
 // Data da venda: começa sempre em "hoje"; dá pra escolher um dia passado
 function prepararDataVenda() {
@@ -2218,7 +2301,8 @@ document.getElementById('btnFinalizarVenda').addEventListener('click', () => {
   const diaVenda = document.getElementById('vendaData').value || hojeISO();
   if (diaVenda > hojeISO()) { mostrarToast('A data da venda não pode ser no futuro.'); return; }
 
-  const total = arred(itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), 2);
+  const contas = contasDaVenda(itensVendaAtual.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), 'vendaDesconto', 'vendaDescontoTipo');
+  if (contas.erro) { mostrarToast(contas.erro); return; }
   const cliente = clienteId ? carregar(CHAVES.clientes).find((c) => c.id === clienteId) : null;
 
   const venda = {
@@ -2227,8 +2311,9 @@ document.getElementById('btnFinalizarVenda').addEventListener('click', () => {
     clienteId: clienteId || '',
     clienteNome: cliente ? cliente.nome : 'Venda avulsa',
     itens: itensVendaAtual,
-    total,
-    formaPagamento
+    total: contas.total,
+    formaPagamento,
+    ...camposDescontoVenda(contas)
   };
   const vendas = carregar(CHAVES.vendas);
   vendas.push(venda);
@@ -2243,6 +2328,7 @@ document.getElementById('btnFinalizarVenda').addEventListener('click', () => {
   salvar(CHAVES.produtos, produtos);
 
   itensVendaAtual = [];
+  limparCamposDesconto('vendaDesconto', 'vendaDescontoTipo');
   renderItensVenda();
   document.getElementById('vendaCliente').value = '';
   document.getElementById('vendaFormaPagamento').value = 'Dinheiro';
@@ -2265,7 +2351,7 @@ function renderVendasRecentes() {
     const itensTexto = (v.itens || []).map((i) => `${formatarQtd(i.quantidade)}x ${i.nome}`).join(', ');
     return `
     <div class="item" data-id="${v.id}">
-      <div class="info"><strong>${escapeHTML(v.clienteNome)}</strong><small>${formatarDataHora(v.data)} · ${escapeHTML(v.formaPagamento)}</small><small style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(itensTexto)}</small></div>
+      <div class="info"><strong>${escapeHTML(v.clienteNome)}</strong><small>${formatarDataHora(v.data)} · ${escapeHTML(v.formaPagamento)}${v.desconto > 0 ? ` · 🏷️ −${formatarMoeda(v.desconto)}` : ''}</small><small style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(itensTexto)}</small></div>
       <span class="valor-direita">${formatarMoeda(v.total)}</span>
     </div>
   `;
@@ -2286,6 +2372,9 @@ function abrirDetalheVenda(id) {
       <span class="valor-direita">${formatarMoeda(item.quantidade * item.precoUnitario)}</span>
     </div>
   `).join('');
+  document.getElementById('vendaDetalheDesconto').innerHTML = venda.desconto > 0
+    ? htmlResumoDesconto({ subtotal: venda.subtotal, desconto: venda.desconto, percentual: venda.descontoPercentual })
+    : '';
   document.getElementById('vendaDetalheTotal').textContent = formatarMoeda(venda.total);
   document.getElementById('modalVendaDetalhe').classList.remove('hidden');
 }
@@ -2298,7 +2387,9 @@ function enviarComprovanteVenda(id) {
   const cliente = venda.clienteId ? carregar(CHAVES.clientes).find((c) => c.id === venda.clienteId) : null;
   const linhas = ['🧾 *Comprovante de compra*', formatarDataHora(venda.data), ''];
   (venda.itens || []).forEach((i) => linhas.push(`${formatarQtd(i.quantidade)}x ${i.nome} — ${formatarMoeda(i.quantidade * i.precoUnitario)}`));
-  linhas.push('', `*Total: ${formatarMoeda(venda.total)}*`, `Pagamento: ${venda.formaPagamento}`);
+  linhas.push('');
+  if (venda.desconto > 0) linhas.push(`Subtotal: ${formatarMoeda(venda.subtotal)}`, `${rotuloDesconto(venda.descontoPercentual)}: -${formatarMoeda(venda.desconto)}`);
+  linhas.push(`*Total: ${formatarMoeda(venda.total)}*`, `Pagamento: ${venda.formaPagamento}`);
   if (venda.formaPagamento === 'Fiado' && cliente) {
     const saldo = saldoDevedor(cliente.id);
     if (saldo > 0.009) linhas.push(`Fiado em aberto (total): ${formatarMoeda(saldo)}`);
@@ -3094,10 +3185,12 @@ function renderDesempenhoCulturas() {
   const totaisPorCultura = {};
   vendas.forEach((v) => {
     const chave = chaveBucket(v.data, agrupamento);
+    // Venda com desconto: cada item entra com a mesma proporção do desconto.
+    const fatorDesconto = v.desconto > 0 && v.subtotal > 0 ? v.total / v.subtotal : 1;
     (v.itens || []).forEach((item) => {
       const cultura = mapaCultura[item.produtoId] || item.nome;
       totaisPorCultura[cultura] = totaisPorCultura[cultura] || {};
-      totaisPorCultura[cultura][chave] = (totaisPorCultura[cultura][chave] || 0) + item.quantidade * item.precoUnitario;
+      totaisPorCultura[cultura][chave] = (totaisPorCultura[cultura][chave] || 0) + item.quantidade * item.precoUnitario * fatorDesconto;
     });
   });
 
@@ -4377,7 +4470,8 @@ document.getElementById('btnGerarExtratoPdf').addEventListener('click', async ()
     doc.setFontSize(10);
     vendas.forEach((v) => {
       novaPaginaSeNecessario(14);
-      const itensTexto = v.itens.map((i) => `${i.quantidade}x ${i.nome}`).join(', ');
+      const itensTexto = v.itens.map((i) => `${i.quantidade}x ${i.nome}`).join(', ') +
+        (v.desconto > 0 ? ` (desconto de ${formatarMoeda(v.desconto)})` : '');
       doc.text(formatarDataBR(diaDe(v.data)), 14, y);
       doc.text(v.formaPagamento, 60, y);
       doc.text(formatarMoeda(v.total), margemDireita, y, { align: 'right' });
@@ -5366,6 +5460,22 @@ document.querySelectorAll('[data-filtro-pedidos]').forEach((b) => b.addEventList
   renderPedidosCatalogo();
 }));
 
+// Itens do pedido do catálogo no formato de venda (preço do pedido; se faltar, o preço atual do produto).
+function itensDoPedidoParaVenda(p, produtos) {
+  return (p.itens || []).map((i) => {
+    const prod = produtos.find((x) => x.id === i.produtoId);
+    const preco = Number(i.precoUnitario) > 0 ? Number(i.precoUnitario) : precoVigente(prod);
+    return { produtoId: i.produtoId, nome: i.nome || (prod ? prod.nome : 'Produto'), precoUnitario: preco, quantidade: Number(i.quantidade) || 0 };
+  }).filter((i) => i.quantidade > 0);
+}
+let subtotalRegistrarPedido = 0;
+function atualizarTotalRegistrarPedido() {
+  const contas = contasDaVenda(subtotalRegistrarPedido, 'registrarPedidoDesconto', 'registrarPedidoDescontoTipo');
+  document.getElementById('registrarPedidoDescontoResumo').innerHTML = htmlResumoDesconto(contas);
+  document.getElementById('registrarPedidoTotalTexto').textContent = formatarMoeda(contas.total);
+}
+ligarCamposDesconto('registrarPedidoDesconto', 'registrarPedidoDescontoTipo', atualizarTotalRegistrarPedido);
+
 function abrirRegistrarPedido(pedidoId) {
   const p = pedidosCatalogoCache.find((x) => x.id === pedidoId);
   if (!p) return;
@@ -5404,6 +5514,9 @@ function abrirRegistrarPedido(pedidoId) {
   atualizarCampoNovoCliente();
 
   document.getElementById('registrarPedidoPagamento').value = p.origem === 'pix' ? 'PIX' : (p.origem === 'link' ? 'Cartão' : 'Dinheiro');
+  subtotalRegistrarPedido = itensDoPedidoParaVenda(p, produtos).reduce((s, i) => s + i.quantidade * i.precoUnitario, 0);
+  limparCamposDesconto('registrarPedidoDesconto', 'registrarPedidoDescontoTipo');
+  atualizarTotalRegistrarPedido();
   document.getElementById('modalRegistrarPedido').classList.remove('hidden');
 }
 function atualizarCampoNovoCliente() {
@@ -5417,6 +5530,13 @@ document.getElementById('btnConfirmarRegistrarPedido').addEventListener('click',
   const p = pedidosCatalogoCache.find((x) => x.id === pedidoId);
   if (!p) return;
   if (registroProcessado(pedidoId)) { mostrarToast('Esse pedido já foi registrado.'); return; }
+
+  // Confere itens e desconto antes de cadastrar cliente novo, pra não sobrar cadastro se der erro.
+  const produtos = carregar(CHAVES.produtos);
+  const itens = itensDoPedidoParaVenda(p, produtos);
+  if (itens.length === 0) { mostrarToast('Pedido sem itens válidos.'); return; }
+  const contas = contasDaVenda(itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0), 'registrarPedidoDesconto', 'registrarPedidoDescontoTipo');
+  if (contas.erro) { mostrarToast(contas.erro); return; }
 
   let clienteId = document.getElementById('registrarPedidoCliente').value;
   const formaPagamento = document.getElementById('registrarPedidoPagamento').value;
@@ -5433,23 +5553,16 @@ document.getElementById('btnConfirmarRegistrarPedido').addEventListener('click',
   if (formaPagamento === 'Fiado' && !clienteId) { mostrarToast('Venda fiado precisa de um cliente.'); return; }
   const cliente = clienteId ? clientes.find((c) => c.id === clienteId) : null;
 
-  const produtos = carregar(CHAVES.produtos);
-  const itens = (p.itens || []).map((i) => {
-    const prod = produtos.find((x) => x.id === i.produtoId);
-    const preco = Number(i.precoUnitario) > 0 ? Number(i.precoUnitario) : precoVigente(prod);
-    return { produtoId: i.produtoId, nome: i.nome || (prod ? prod.nome : 'Produto'), precoUnitario: preco, quantidade: Number(i.quantidade) || 0 };
-  }).filter((i) => i.quantidade > 0);
-  if (itens.length === 0) { mostrarToast('Pedido sem itens válidos.'); return; }
-
   const venda = {
     id: gerarId(),
     data: new Date().toISOString(),
     clienteId: clienteId || '',
     clienteNome: cliente ? cliente.nome : 'Venda avulsa',
     itens,
-    total: itens.reduce((s, i) => s + i.quantidade * i.precoUnitario, 0),
+    total: contas.total,
     formaPagamento,
-    pedidoId
+    pedidoId,
+    ...camposDescontoVenda(contas)
   };
   const vendas = carregar(CHAVES.vendas);
   vendas.push(venda);
