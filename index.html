@@ -204,6 +204,10 @@
   .texto-adubo ol, .texto-adubo ul { padding-left: 20px; margin: 0; }
   .texto-adubo li { margin-bottom: 6px; }
   details.config-catalogo.falta-calcio { border-left: 4px solid #ef4444; }
+  .dias-semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 10px; }
+  .dias-semana button { padding: 10px 0; font-size: 0.8rem; width: 100%; }
+  .atalhos-dias { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .atalhos-dias button { width: auto; padding: 6px 10px; font-size: 0.78rem; }
   .diag { border-radius: 10px; padding: 9px 12px; font-size: 0.84rem; margin: 8px 0 0; line-height: 1.45; }
   .diag.ok { background: #dcfce7; color: #166534; }
   .diag.atencao { background: #fef3c7; color: #92400e; }
@@ -315,7 +319,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.11.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.12.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -405,6 +409,7 @@
     <div class="config-catalogo-botoes">
       <button class="fantasma" id="btnLinkPagamento">💳 Pagamento (PIX e cartão)</button>
       <button class="fantasma" id="btnEntregaMinima">🚚 Entrega mínima</button>
+      <button class="fantasma" id="btnDiasPedido">📅 Dias de pedido</button>
       <button class="fantasma" id="btnClientesCatalogo">👥 Clientes do catálogo</button>
       <button class="fantasma" id="btnTemaCatalogo">🎨 Tema do catálogo</button>
       <button class="fantasma" id="btnBannerCatalogo">🖼️ Trocar banner</button>
@@ -1398,6 +1403,30 @@
   </div>
 </div>
 
+<div id="modalDiasPedido" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>📅 Dias de pedido</h3>
+    <p style="font-size:0.8rem;color:var(--texto-suave);margin-top:-8px">
+      Escolha em que dias os clientes podem fazer pedido pelo catálogo. Nos outros dias o catálogo continua aberto para olhar, mas sem os botões de comprar, e mostra qual é o próximo dia de pedido.
+    </p>
+    <div class="dias-semana" id="diasPedidoBotoes"></div>
+    <div class="atalhos-dias">
+      <button type="button" class="fantasma" data-atalho-dias="todos">Todos os dias</button>
+      <button type="button" class="fantasma" data-atalho-dias="semana">Seg a sex</button>
+      <button type="button" class="fantasma" data-atalho-dias="fds">Fim de semana</button>
+      <button type="button" class="fantasma" data-atalho-dias="nenhum">Nenhum (pausar)</button>
+    </div>
+    <p class="dica-box" id="diasPedidoResumo"></p>
+    <label>Recado nos dias sem pedido (opcional)
+      <input type="text" id="diasPedidoRecado" maxlength="120" placeholder="Ex: Colhemos na terça e entregamos na quarta">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarDiasPedido">Cancelar</button>
+      <button class="primario" id="btnSalvarDiasPedido">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <div id="modalEntregaMinima" class="modal-overlay hidden">
   <div class="modal-box">
     <h3>🚚 Entrega mínima</h3>
@@ -1814,7 +1843,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.11.0';
+const APP_VERSION = '3.12.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -6151,6 +6180,83 @@ function abrirPedidosSeVeioDoAviso() {
   document.getElementById('modalPedidosCatalogo').classList.remove('hidden');
 }
 window.addEventListener('hashchange', abrirPedidosSeVeioDoAviso);
+
+// ============================================================
+// DIAS DE PEDIDO — catalogos/{uid}.diasPedido = dias da semana em que o catálogo aceita
+// pedido (0 = domingo ... 6 = sábado, como o getDay()). Sem o campo = todos os dias.
+// ============================================================
+const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0];
+const NOME_DIA_CURTO = { 0: 'Dom', 1: 'Seg', 2: 'Ter', 3: 'Qua', 4: 'Qui', 5: 'Sex', 6: 'Sáb' };
+const NOME_DIA = { 0: 'domingo', 1: 'segunda', 2: 'terça', 3: 'quarta', 4: 'quinta', 5: 'sexta', 6: 'sábado' };
+const ATALHOS_DIAS = { todos: [0, 1, 2, 3, 4, 5, 6], semana: [1, 2, 3, 4, 5], fds: [6, 0], nenhum: [] };
+let diasPedidoForm = [...ATALHOS_DIAS.todos];
+
+// [1,2,3,4,5] -> "segunda a sexta"; [1,3,5] -> "segunda, quarta e sexta"
+function textoDiasSemana(dias) {
+  if (dias.length === 7) return 'todos os dias';
+  const grupos = [];
+  let atual = [];
+  ORDEM_DIAS.forEach((d) => {
+    if (dias.includes(d)) atual.push(d);
+    else if (atual.length) { grupos.push(atual); atual = []; }
+  });
+  if (atual.length) grupos.push(atual);
+  const partes = grupos.flatMap((g) => (g.length >= 3 ? [`${NOME_DIA[g[0]]} a ${NOME_DIA[g[g.length - 1]]}`] : g.map((d) => NOME_DIA[d])));
+  return partes.length > 1 ? `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}` : (partes[0] || '');
+}
+
+function renderDiasPedido() {
+  const caixa = document.getElementById('diasPedidoBotoes');
+  caixa.innerHTML = ORDEM_DIAS.map((d) => {
+    const ligado = diasPedidoForm.includes(d);
+    return `<button type="button" class="fantasma${ligado ? ' active' : ''}" data-dia="${d}" aria-pressed="${ligado}">${NOME_DIA_CURTO[d]}</button>`;
+  }).join('');
+  caixa.querySelectorAll('[data-dia]').forEach((b) => b.addEventListener('click', () => {
+    const d = Number(b.dataset.dia);
+    diasPedidoForm = diasPedidoForm.includes(d) ? diasPedidoForm.filter((x) => x !== d) : [...diasPedidoForm, d];
+    renderDiasPedido();
+  }));
+  document.getElementById('diasPedidoResumo').innerHTML = diasPedidoForm.length
+    ? `✅ Os clientes vão poder fazer pedido: <strong>${textoDiasSemana(diasPedidoForm)}</strong>.`
+    : '⚠️ Nenhum dia marcado: o catálogo fica só para olhar, sem receber pedidos (bom para férias ou falta de produto).';
+}
+document.querySelectorAll('[data-atalho-dias]').forEach((b) => b.addEventListener('click', () => {
+  diasPedidoForm = [...ATALHOS_DIAS[b.dataset.atalhoDias]];
+  renderDiasPedido();
+}));
+
+document.getElementById('btnDiasPedido').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) {
+    mostrarToast('Entre com sua conta Google (menu Backup) primeiro.');
+    return;
+  }
+  try {
+    const doc = await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).get();
+    const dados = doc.exists ? doc.data() : {};
+    diasPedidoForm = Array.isArray(dados.diasPedido) ? dados.diasPedido.filter((d) => ATALHOS_DIAS.todos.includes(d)) : [...ATALHOS_DIAS.todos];
+    document.getElementById('diasPedidoRecado').value = dados.recadoFechado || '';
+  } catch (err) {
+    mostrarToast('Erro ao carregar: ' + (err.code || err.message));
+    return;
+  }
+  renderDiasPedido();
+  document.getElementById('modalDiasPedido').classList.remove('hidden');
+});
+document.getElementById('btnCancelarDiasPedido').addEventListener('click', () => document.getElementById('modalDiasPedido').classList.add('hidden'));
+document.getElementById('btnSalvarDiasPedido').addEventListener('click', async () => {
+  if (!nuvemAuth || !nuvemAuth.currentUser) return;
+  const dias = ORDEM_DIAS.filter((d) => diasPedidoForm.includes(d));
+  try {
+    await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({
+      diasPedido: dias,
+      recadoFechado: document.getElementById('diasPedidoRecado').value.trim()
+    }, { merge: true });
+    document.getElementById('modalDiasPedido').classList.add('hidden');
+    mostrarToast(dias.length ? `Salvo! Pedidos: ${textoDiasSemana(dias)}.` : 'Salvo! O catálogo está sem receber pedidos.');
+  } catch (err) {
+    mostrarToast('Erro ao salvar: ' + (err.code || err.message));
+  }
+});
 
 // ============================================================
 // ENTREGA MÍNIMA (config em catalogos/{uid}.entrega, contador em contadores/{uid})
