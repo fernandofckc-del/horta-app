@@ -251,6 +251,11 @@
     border-radius: var(--radius); box-shadow: 0 4px 14px rgba(22,163,74,0.1);
   }
   .faixa-entrega.hidden { display: none; }
+  .aviso-fechado {
+    background: #fef3c7; color: #92400e; border-radius: var(--radius); padding: 14px 16px;
+    margin-bottom: 14px; font-size: 0.9rem; line-height: 1.45;
+  }
+  .aviso-fechado strong { display: block; font-size: 1rem; margin-bottom: 4px; }
   .faixa-entrega .titulo-entrega {
     font-weight: 800; font-size: 1.05rem; margin-bottom: 10px;
     display: flex; align-items: center; gap: 8px;
@@ -518,6 +523,33 @@ document.getElementById('btnConfirmarIdentificacao').addEventListener('click', (
 
 let itensCatalogo = [];
 let telefoneVendedor = '';
+// Dias da semana em que o vendedor aceita pedido (0 = domingo ... 6 = sábado). null = todos.
+let diasPedido = null;
+let recadoFechado = '';
+let podeComprar = false;
+const NOME_DIA = { 0: 'domingo', 1: 'segunda', 2: 'terça', 3: 'quarta', 4: 'quinta', 5: 'sexta', 6: 'sábado' };
+const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0];
+function catalogoAbertoHoje() { return !diasPedido || diasPedido.includes(new Date().getDay()); }
+function textoDiasSemana(dias) {
+  if (dias.length === 7) return 'todos os dias';
+  const grupos = [];
+  let atual = [];
+  ORDEM_DIAS.forEach((d) => {
+    if (dias.includes(d)) atual.push(d);
+    else if (atual.length) { grupos.push(atual); atual = []; }
+  });
+  if (atual.length) grupos.push(atual);
+  const partes = grupos.flatMap((g) => (g.length >= 3 ? [`${NOME_DIA[g[0]]} a ${NOME_DIA[g[g.length - 1]]}`] : g.map((d) => NOME_DIA[d])));
+  return partes.length > 1 ? `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}` : (partes[0] || '');
+}
+function textoProximoDiaDePedido() {
+  const hoje = new Date().getDay();
+  for (let i = 1; i <= 7; i++) {
+    const d = (hoje + i) % 7;
+    if (diasPedido.includes(d)) return i === 1 ? `amanhã (${NOME_DIA[d]})` : `${d === 0 || d === 6 ? 'no' : 'na'} ${NOME_DIA[d]}`;
+  }
+  return '';
+}
 let entregaConfig = { ativo: false, minimoItensCliente: 0, minimoPedidos: 0, recado: '' };
 let entregaContador = 0;
 function textoUnidade(p) {
@@ -727,6 +759,12 @@ function totalItensCheckout() {
 
 function verificarMinimoItens() {
   const aviso = document.getElementById('avisoCarrinhoModal');
+  // A página pode ter ficado aberta e virado o dia
+  if (!catalogoAbertoHoje()) {
+    aviso.textContent = `Hoje não estamos recebendo pedidos. ${diasPedido.length ? 'Próximo dia de pedido: ' + textoProximoDiaDePedido() + '.' : ''}`;
+    aviso.classList.remove('hidden');
+    return false;
+  }
   if (entregaConfig.ativo && entregaConfig.minimoItensCliente > 0) {
     const total = totalItensCheckout();
     if (total < entregaConfig.minimoItensCliente) {
@@ -953,9 +991,22 @@ if (statusRetorno) {
   }
 }
 
+// Nos dias sem pedido: o catálogo continua para olhar, com o próximo dia de pedido.
+function montarAvisoDiasPedido() {
+  if (catalogoAbertoHoje()) return;
+  const aviso = document.createElement('div');
+  aviso.className = 'aviso-fechado';
+  const hoje = NOME_DIA[new Date().getDay()];
+  const recado = recadoFechado ? `<br>${escapeHTML(recadoFechado)}` : '';
+  aviso.innerHTML = diasPedido.length
+    ? `<strong>🗓️ Hoje (${hoje}) não estamos recebendo pedidos.</strong>Próximo dia de pedido: <b>${textoProximoDiaDePedido()}</b>. Dias de pedido: ${textoDiasSemana(diasPedido)}.${recado}<br>Pode olhar os produtos à vontade. 🌱`
+    : `<strong>🗓️ Pedidos pausados no momento.</strong>Logo voltamos a receber pedidos.${recado}<br>Pode olhar os produtos à vontade. 🌱`;
+  conteudo.appendChild(aviso);
+}
+
 // "Repetir meu último pedido": quem compra toda semana enche o carrinho com um toque.
 function montarRepetirPedido() {
-  if (!telefoneVendedor) return;
+  if (!podeComprar) return;
   let ultimo = {};
   try { ultimo = JSON.parse(localStorage.getItem(ULTIMO_PEDIDO_KEY) || '{}'); } catch (err) { return; }
   const disponiveis = [];
@@ -1170,6 +1221,9 @@ if (!uid) {
     const dados = doc.data();
     itensCatalogo = dados.itens;
     telefoneVendedor = dados.telefone || '';
+    diasPedido = Array.isArray(dados.diasPedido) ? dados.diasPedido.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) : null;
+    recadoFechado = String(dados.recadoFechado || '').slice(0, 140);
+    podeComprar = !!telefoneVendedor && catalogoAbertoHoje();
     entregaConfig = dados.entrega || entregaConfig;
     aplicarTemaCatalogo(dados.tema);
     linkPagamento = String(dados.linkPagamento || '').trim();
@@ -1234,7 +1288,7 @@ if (!uid) {
                 : formatarMoeda(p.preco)}
             </span>${p.unidade ? `<span class="unidade">/ ${escapeHTML(p.unidade)}</span>` : ''}
           </div>
-          ${semEstoque ? `<span class="sem-estoque-tag">Sem estoque no momento</span>` : (telefoneVendedor ? `
+          ${semEstoque ? `<span class="sem-estoque-tag">Sem estoque no momento</span>` : (podeComprar ? `
             <div class="qtd-controle">
               <button data-menos-idx="${idx}">−</button>
               <span id="qtd-${idx}">1</span>
@@ -1251,6 +1305,7 @@ if (!uid) {
     }).join('');
     conteudo.className = '';
     conteudo.innerHTML = '';
+    montarAvisoDiasPedido();
     montarRepetirPedido();
     montarBuscaCatalogo(grid);
     conteudo.appendChild(grid);
@@ -1272,7 +1327,7 @@ if (!uid) {
       abrirModalCarrinho({ [idx]: qtd }, false);
     }));
 
-    if (!telefoneVendedor) {
+    if (!podeComprar) {
       document.getElementById('carrinhoBarra').style.display = 'none';
     }
   }).catch(() => {
