@@ -319,7 +319,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.12.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.13.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -1582,6 +1582,12 @@
     <button class="fantasma" id="btnEnviarExtrato" style="margin-top:8px;width:100%">📄 Enviar extrato completo no WhatsApp</button>
 
     <h2 class="titulo">Extrato em PDF</h2>
+    <div class="atalhos-dias" id="extratoAtalhos">
+      <button type="button" class="fantasma" data-periodo="mes">Este mês</button>
+      <button type="button" class="fantasma" data-periodo="mesPassado">Mês passado</button>
+      <button type="button" class="fantasma" data-periodo="30">Últimos 30 dias</button>
+      <button type="button" class="fantasma" data-periodo="tudo">Tudo</button>
+    </div>
     <div class="linha">
       <label>De (opcional)
         <input type="date" id="extratoPdfDataInicio">
@@ -1590,7 +1596,17 @@
         <input type="date" id="extratoPdfDataFim">
       </label>
     </div>
-    <button class="primario" id="btnGerarExtratoPdf" style="width:100%;margin-bottom:14px">📄 Gerar extrato PDF (compras, pagamentos e saldo)</button>
+    <label>Mostrar
+      <select id="extratoPdfFiltro">
+        <option value="todas">Todas as compras</option>
+        <option value="fiado">Só as compras no fiado</option>
+      </select>
+    </label>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="primario" id="btnGerarExtratoPdf" style="flex:1">⬇️ Baixar PDF</button>
+      <button class="fantasma" id="btnEnviarExtratoPdf" style="flex:1">📤 Enviar PDF</button>
+    </div>
+    <button type="button" class="fantasma" id="btnDadosDocumentos" style="width:100%;margin-bottom:14px;font-size:0.8rem">⚙️ Nome da horta e mensagem dos documentos</button>
 
     <h2 class="titulo">Histórico</h2>
     <div class="lista" id="detalheHistorico"></div>
@@ -1768,10 +1784,31 @@
       <span>Total</span><strong id="vendaDetalheTotal">R$ 0,00</strong>
     </div>
     <button class="whatsapp" id="btnComprovanteVenda" style="margin-top:4px">📲 Enviar comprovante no WhatsApp</button>
+    <button class="fantasma" id="btnComprovantePdf" style="width:100%;margin-top:8px">📄 Comprovante em PDF</button>
     <p style="font-size:0.78rem;color:var(--texto-suave)">Cancelar devolve os itens ao estoque e remove o valor do fiado do cliente (se houver).</p>
     <div class="acoes">
       <button class="fantasma" id="btnFecharVendaDetalhe">Fechar</button>
       <button class="perigo" id="btnCancelarVendaRegistrada">Cancelar esta venda</button>
+    </div>
+  </div>
+</div>
+
+<div id="modalDadosDocumentos" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3>⚙️ Dados dos documentos</h3>
+    <p style="font-size:0.8rem;color:var(--texto-suave);margin-top:-8px" id="dadosDocumentosIntro">Aparecem no topo do extrato e do comprovante, e nas mensagens que você manda para os clientes.</p>
+    <label>Nome da horta
+      <input type="text" id="docNomeHorta" maxlength="40" placeholder="Ex: Horta do Fernando">
+    </label>
+    <label>Telefone para contato (opcional)
+      <input type="tel" id="docTelefone" placeholder="(77) 99999-8888">
+    </label>
+    <label>Mensagem no final
+      <input type="text" id="docMensagem" maxlength="80" placeholder="Obrigado pela preferência!">
+    </label>
+    <div class="acoes">
+      <button class="fantasma" id="btnCancelarDadosDocumentos">Cancelar</button>
+      <button class="primario" id="btnSalvarDadosDocumentos">Salvar</button>
     </div>
   </div>
 </div>
@@ -1843,7 +1880,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.12.0';
+const APP_VERSION = '3.13.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -2837,17 +2874,10 @@ document.getElementById('btnEnviarExtrato').addEventListener('click', () => {
 
   if (eventos.length === 0) { mostrarToast('Esse cliente não tem movimentação de fiado ainda.'); return; }
 
-  const linhas = [`📋 *Extrato - ${cliente.nome}*`, ''];
-  eventos.forEach((e) => {
-    const dataFmt = new Date(e.data).toLocaleDateString('pt-BR');
-    linhas.push(`${dataFmt} — ${e.texto}: ${e.sinal}${formatarMoeda(e.valor)}`);
+  garantirDadosDocumentos(async () => {
+    const mensagem = await textoExtratoWhatsapp(cliente, vendasFiado, pagamentos);
+    window.open(`https://wa.me/${telefoneWhats(cliente.telefone)}?text=${encodeURIComponent(mensagem)}`, '_blank');
   });
-  linhas.push('');
-  linhas.push(`*Saldo devedor atual: ${formatarMoeda(saldoDevedor(clienteId))}*`);
-
-  const mensagem = linhas.join('\n');
-  const telefone = cliente.telefone.length <= 11 ? '55' + cliente.telefone : cliente.telefone;
-  window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`, '_blank');
 });
 
 // ============================================================
@@ -3065,20 +3095,17 @@ function enviarComprovanteVenda(id) {
   const venda = carregar(CHAVES.vendas).find((v) => v.id === id);
   if (!venda) return;
   const cliente = venda.clienteId ? carregar(CHAVES.clientes).find((c) => c.id === venda.clienteId) : null;
-  const linhas = ['🧾 *Comprovante de compra*', formatarDataHora(venda.data), ''];
-  (venda.itens || []).forEach((i) => linhas.push(`${formatarQtd(i.quantidade)}x ${i.nome} — ${formatarMoeda(i.quantidade * i.precoUnitario)}`));
-  linhas.push('');
-  if (venda.desconto > 0) linhas.push(`Subtotal: ${formatarMoeda(venda.subtotal)}`, `${rotuloDesconto(venda.descontoPercentual)}: -${formatarMoeda(venda.desconto)}`);
-  linhas.push(`*Total: ${formatarMoeda(venda.total)}*`, `Pagamento: ${venda.formaPagamento}`);
-  if (venda.formaPagamento === 'Fiado' && cliente) {
-    const saldo = saldoDevedor(cliente.id);
-    if (saldo > 0.009) linhas.push(`Fiado em aberto (total): ${formatarMoeda(saldo)}`);
-  }
-  linhas.push('', 'Obrigado pela preferência! 🌱');
-  const tel = cliente ? telefoneWhats(cliente.telefone) : '';
-  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(linhas.join('\n'))}`, '_blank');
+  garantirDadosDocumentos(async () => {
+    const texto = await textoComprovanteWhatsapp(venda, cliente);
+    const tel = cliente ? telefoneWhats(cliente.telefone) : '';
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(texto)}`, '_blank');
+  });
 }
 document.getElementById('btnComprovanteVenda').addEventListener('click', () => enviarComprovanteVenda(document.getElementById('vendaDetalheId').value));
+document.getElementById('btnComprovantePdf').addEventListener('click', () => {
+  const id = document.getElementById('vendaDetalheId').value;
+  garantirDadosDocumentos(() => gerarComprovantePdf(id, 'enviar'));
+});
 
 document.getElementById('btnCancelarVendaRegistrada').addEventListener('click', () => {
   const id = document.getElementById('vendaDetalheId').value;
@@ -4806,6 +4833,7 @@ document.getElementById('btnConfigPessoal').addEventListener('click', () => {
 document.getElementById('btnCancelarConfigPessoal').addEventListener('click', () => document.getElementById('modalConfigPessoal').classList.add('hidden'));
 document.getElementById('btnSalvarConfigPessoal').addEventListener('click', () => {
   salvarConfigPessoal({
+    ...carregarConfigPessoal(), // mantém os dados dos documentos (nome da horta etc.)
     salario: parseFloat(document.getElementById('cfgSalario').value) || 0,
     diaRecebimento: parseInt(document.getElementById('cfgDiaRecebimento').value) || 0,
     percentualReserva: parseFloat(document.getElementById('cfgPercentualReserva').value) || 0,
@@ -5079,112 +5107,601 @@ document.getElementById('btnGerarRelatorioPdf').addEventListener('click', async 
   mostrarToast('Relatório PDF gerado.');
 });
 
-// -------------------- EXTRATO EM PDF POR CLIENTE --------------------
-document.getElementById('btnGerarExtratoPdf').addEventListener('click', async () => {
-  if (typeof window.jspdf === 'undefined') {
-    mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.');
-    return;
+// ============================================================
+// DOCUMENTOS PARA O CLIENTE (comprovante e extrato em PDF e no WhatsApp)
+// ============================================================
+function dadosDocumentos() {
+  const cfg = carregarConfigPessoal();
+  return {
+    nome: String(cfg.nomeHorta || '').trim(),
+    telefone: String(cfg.telefoneDocs || '').trim(),
+    mensagem: String(cfg.mensagemDocs || '').trim() || 'Obrigado pela preferência!'
+  };
+}
+// Na primeira vez pergunta o nome da horta (vai no topo dos documentos); depois segue direto.
+let continuarDepoisDadosDocumentos = null;
+function abrirModalDadosDocumentos(continuar) {
+  const d = dadosDocumentos();
+  continuarDepoisDadosDocumentos = continuar || null;
+  document.getElementById('dadosDocumentosIntro').textContent = continuar
+    ? 'Antes, como se chama a sua horta? Isso aparece no topo do extrato e do comprovante (você só preenche uma vez).'
+    : 'Aparecem no topo do extrato e do comprovante, e nas mensagens que você manda para os clientes.';
+  document.getElementById('docNomeHorta').value = d.nome;
+  document.getElementById('docTelefone').value = d.telefone || (carregarResponsavel().telefone || '');
+  document.getElementById('docMensagem').value = String(carregarConfigPessoal().mensagemDocs || '');
+  document.getElementById('modalDadosDocumentos').classList.remove('hidden');
+}
+function garantirDadosDocumentos(continuar) {
+  if (dadosDocumentos().nome) continuar();
+  else abrirModalDadosDocumentos(continuar);
+}
+document.getElementById('btnDadosDocumentos').addEventListener('click', () => abrirModalDadosDocumentos(null));
+document.getElementById('btnCancelarDadosDocumentos').addEventListener('click', () => {
+  continuarDepoisDadosDocumentos = null;
+  document.getElementById('modalDadosDocumentos').classList.add('hidden');
+});
+document.getElementById('btnSalvarDadosDocumentos').addEventListener('click', () => {
+  const nome = document.getElementById('docNomeHorta').value.trim();
+  if (!nome) { mostrarToast('Digite o nome da horta.'); return; }
+  salvarConfigPessoal({
+    ...carregarConfigPessoal(),
+    nomeHorta: nome,
+    telefoneDocs: document.getElementById('docTelefone').value.trim(),
+    mensagemDocs: document.getElementById('docMensagem').value.trim()
+  });
+  document.getElementById('modalDadosDocumentos').classList.add('hidden');
+  const continuar = continuarDepoisDadosDocumentos;
+  continuarDepoisDadosDocumentos = null;
+  if (continuar) continuar(); else mostrarToast('Dados dos documentos salvos.');
+});
+
+// ---- PIX dos documentos: guardado no aparelho quando você abre/salva o Pagamento do catálogo ----
+const CHAVE_PIX_LOCAL = 'hg_pix_local';
+function guardarPixLocal(pix) {
+  try { localStorage.setItem(CHAVE_PIX_LOCAL, pix && pix.chave ? JSON.stringify(pix) : 'nenhum'); } catch (e) { /* sem espaço */ }
+}
+async function pixParaDocumentos() {
+  const guardado = localStorage.getItem(CHAVE_PIX_LOCAL);
+  if (guardado === 'nenhum') return null;
+  if (guardado) { try { const p = JSON.parse(guardado); if (p && p.chave) return p; } catch (e) { /* busca de novo */ } }
+  if (!nuvemAuth || !nuvemAuth.currentUser) return null;
+  try {
+    const doc = await comTempoLimite(nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).get(), 4000);
+    const pix = doc.exists ? doc.data().pix : null;
+    guardarPixLocal(pix);
+    return pix && pix.chave ? pix : null;
+  } catch (e) {
+    return null;
   }
-  const clienteId = document.getElementById('modalDetalheCliente').dataset.clienteId;
+}
+// PIX "copia e cola" (BR Code estático do Banco Central) — o mesmo do catálogo
+function pixSemAcento(s) {
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 ]/g, '').trim().toUpperCase();
+}
+function pixCampo(id, valor) { const v = String(valor); return id + String(v.length).padStart(2, '0') + v; }
+function pixCrc16(texto) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < texto.length; i++) {
+    crc ^= texto.charCodeAt(i) << 8;
+    for (let b = 0; b < 8; b++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+function gerarPixCopiaECola({ chave, nome, cidade, valor, txid }) {
+  const conta = pixCampo('00', 'br.gov.bcb.pix') + pixCampo('01', chave);
+  const nomeOk = (pixSemAcento(nome) || 'RECEBEDOR').slice(0, 25);
+  const cidadeOk = (pixSemAcento(cidade) || 'BRASIL').slice(0, 15);
+  const txidOk = (String(txid || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 25)) || '***';
+  const payload = pixCampo('00', '01') + pixCampo('26', conta) + pixCampo('52', '0000') + pixCampo('53', '986') +
+    (valor > 0 ? pixCampo('54', Number(valor).toFixed(2)) : '') + pixCampo('58', 'BR') + pixCampo('59', nomeOk) +
+    pixCampo('60', cidadeOk) + pixCampo('62', pixCampo('05', txidOk)) + '6304';
+  return payload + pixCrc16(payload);
+}
+
+// ---- Textos ----
+function mapaUnidadesProdutos() {
+  const mapa = {};
+  carregar(CHAVES.produtos).forEach((p) => { mapa[p.id] = p.unidade || ''; });
+  return mapa;
+}
+// "2 pés de Alface", "1,5 kg de Tomate", "3x Couve" (sem unidade cadastrada)
+function itemComUnidade(item, unidades) {
+  const u = unidades[item.produtoId] || '';
+  const n = formatarQtd(item.quantidade);
+  if (!u) return `${n}x ${item.nome}`;
+  if (u === 'kg') return `${n} kg de ${item.nome}`;
+  return `${n} ${u}${Number(item.quantidade) > 1 ? 's' : ''} de ${item.nome}`;
+}
+function dataHoraExtensa(iso) {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('pt-BR')} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+}
+const LINHA_WHATS = '━━━━━━━━━━━━━━';
+
+async function textoComprovanteWhatsapp(venda, cliente) {
+  const dados = dadosDocumentos();
+  const unidades = mapaUnidadesProdutos();
+  const L = [`🌱 *${dados.nome}*`, '🧾 *Comprovante de compra*', `📅 ${dataHoraExtensa(venda.data)}`];
+  if (cliente) L.push(`👤 ${cliente.nome}`);
+  L.push(LINHA_WHATS);
+  (venda.itens || []).forEach((i) => L.push(`• ${itemComUnidade(i, unidades)} — ${formatarMoeda(i.quantidade * i.precoUnitario)}`));
+  L.push(LINHA_WHATS);
+  if (venda.desconto > 0) {
+    L.push(`Subtotal: ${formatarMoeda(venda.subtotal)}`);
+    L.push(`🏷️ ${rotuloDesconto(venda.descontoPercentual)}: -${formatarMoeda(venda.desconto)}`);
+  }
+  L.push(`💰 *Total: ${formatarMoeda(venda.total)}*`);
+  L.push(`💳 Pagamento: ${venda.formaPagamento === 'Fiado' ? 'Fiado (fica na conta)' : venda.formaPagamento}`);
+  if (venda.formaPagamento === 'Fiado' && cliente) {
+    const saldo = saldoDevedor(cliente.id);
+    if (saldo > 0.009) {
+      L.push(LINHA_WHATS, `📒 Seu saldo em aberto: *${formatarMoeda(saldo)}*`);
+      const pix = await pixParaDocumentos();
+      if (pix) L.push(`💠 Para pagar no PIX: ${pix.chave}${pix.nome ? ` (${pix.nome})` : ''}`);
+    }
+  }
+  L.push(LINHA_WHATS, `${dados.mensagem} 🌱`);
+  if (dados.telefone) L.push(`📞 ${formatarTelefone(dados.telefone)}`);
+  return L.join('\n');
+}
+
+async function textoExtratoWhatsapp(cliente, vendasFiado, pagamentos) {
+  const dados = dadosDocumentos();
+  const unidades = mapaUnidadesProdutos();
+  const eventos = [
+    ...vendasFiado.map((v) => ({ data: v.data, tipo: 'compra', valor: v.total, itens: v.itens || [] })),
+    ...pagamentos.map((p) => ({ data: p.data, tipo: 'pagamento', valor: p.valor }))
+  ].sort((a, b) => new Date(a.data) - new Date(b.data));
+  const LIMITE = 20;
+  const mostrados = eventos.slice(-LIMITE);
+  const L = [`🌱 *${dados.nome}*`, '📋 *Extrato do fiado*', `👤 ${cliente.nome}`, `📅 Até ${new Date().toLocaleDateString('pt-BR')}`, LINHA_WHATS];
+  if (eventos.length > LIMITE) L.push(`_(últimas ${LIMITE} movimentações — o extrato em PDF tem tudo)_`);
+  mostrados.forEach((e) => {
+    const dia = new Date(e.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+    if (e.tipo === 'compra') {
+      L.push(`🛒 ${dia} · Compra — ${formatarMoeda(e.valor)}`);
+      const itens = e.itens.map((i) => itemComUnidade(i, unidades)).join(', ');
+      if (itens) L.push(`      _${itens}_`);
+    } else {
+      L.push(`✅ ${dia} · Pagamento — -${formatarMoeda(e.valor)}`);
+    }
+  });
+  const saldo = saldoDevedor(cliente.id);
+  L.push(LINHA_WHATS);
+  if (saldo > 0.009) {
+    L.push(`💰 *Saldo em aberto: ${formatarMoeda(saldo)}*`);
+    const pix = await pixParaDocumentos();
+    if (pix) L.push(`💠 Para pagar no PIX: ${pix.chave}${pix.nome ? ` (${pix.nome})` : ''}`);
+  } else {
+    L.push('✅ *Tudo pago — nada em aberto.*');
+  }
+  L.push(LINHA_WHATS, `${dados.mensagem} 🌱`);
+  if (dados.telefone) L.push(`📞 ${formatarTelefone(dados.telefone)}`);
+  return L.join('\n');
+}
+
+// ---- PDF: peças de desenho (A4 em mm) ----
+const COR_PDF = {
+  verdeEscuro: [22, 101, 52], verde: [22, 163, 74], verdeClaro: [220, 252, 231], verdeFundo: [240, 253, 244],
+  texto: [15, 23, 42], suave: [100, 116, 139], linha: [226, 232, 240], zebra: [248, 250, 252],
+  vermelho: [185, 28, 28], vermelhoFundo: [254, 242, 242]
+};
+// As fontes padrão do PDF não têm emoji nem alguns símbolos: tira o que não daria para desenhar.
+function txtPdf(s) {
+  return String(s == null ? '' : s).replace(/\u2212/g, '-').replace(/[^\x20-\x7E\xA0-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026]/g, '').replace(/\s{2,}/g, ' ').trim();
+}
+function corTexto(doc, cor) { doc.setTextColor(cor[0], cor[1], cor[2]); }
+function corFundo(doc, cor) { doc.setFillColor(cor[0], cor[1], cor[2]); }
+function corLinha(doc, cor) { doc.setDrawColor(cor[0], cor[1], cor[2]); }
+
+async function cabecalhoPdf(doc, titulo, direita) {
+  const dados = dadosDocumentos();
+  const W = doc.internal.pageSize.getWidth();
+  let y = 12;
+  const banner = localStorage.getItem('hg_banner_local');
+  if (banner) {
+    const dim = await dimensoesImagem(banner);
+    if (dim) {
+      let w = W - 28, h = w * dim.h / dim.w;
+      if (h > 36) { h = 36; w = h * dim.w / dim.h; }
+      try { doc.addImage(banner, 'JPEG', (W - w) / 2, 10, w, h); y = 10 + h + 5; } catch (e) { /* imagem inválida: segue sem */ }
+    }
+  }
+  corFundo(doc, COR_PDF.verdeEscuro);
+  doc.roundedRect(14, y, W - 28, 24, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(16); corTexto(doc, [255, 255, 255]);
+  doc.text(txtPdf(dados.nome) || 'Horta', 20, y + 10.5);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5);
+  doc.text(txtPdf(titulo), 20, y + 18);
+  doc.setFontSize(8.5);
+  (direita || []).forEach((linha, i) => doc.text(txtPdf(linha), W - 20, y + 10 + i * 6, { align: 'right' }));
+  return y + 24 + 8;
+}
+
+function blocoInfoPdf(doc, y, pares) {
+  const W = doc.internal.pageSize.getWidth();
+  const colunas = 2, larg = (W - 28) / colunas;
+  pares.forEach(([rotulo, valor], i) => {
+    const x = 14 + (i % colunas) * larg, yy = y + Math.floor(i / colunas) * 12;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); corTexto(doc, COR_PDF.suave);
+    doc.text(txtPdf(rotulo).toUpperCase(), x, yy);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); corTexto(doc, COR_PDF.texto);
+    doc.text(doc.splitTextToSize(txtPdf(valor) || '-', larg - 4)[0], x, yy + 5);
+  });
+  return y + Math.ceil(pares.length / colunas) * 12 + 2;
+}
+
+function cartoesResumoPdf(doc, y, cartoes) {
+  const W = doc.internal.pageSize.getWidth();
+  const gap = 5, n = cartoes.length, w = (W - 28 - gap * (n - 1)) / n, h = 20;
+  cartoes.forEach((c, i) => {
+    const x = 14 + i * (w + gap);
+    corFundo(doc, c.fundo || COR_PDF.zebra); corLinha(doc, c.borda || COR_PDF.linha); doc.setLineWidth(0.3);
+    doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); corTexto(doc, COR_PDF.suave);
+    doc.text(txtPdf(c.rotulo).toUpperCase(), x + 4, y + 6.5);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13.5); corTexto(doc, c.cor || COR_PDF.texto);
+    doc.text(txtPdf(c.valor), x + 4, y + 15);
+  });
+  return y + h + 9;
+}
+
+function novaPaginaPdf(doc) { doc.addPage(); return 18; }
+function limiteRodapePdf(doc) { return doc.internal.pageSize.getHeight() - 22; }
+
+// Tabela com cabeçalho verde, linhas zebradas, texto quebrando e total no fim.
+function tabelaPdf(doc, y, { titulo, colunas, linhas, total }) {
+  const x0 = 14;
+  const largTotal = colunas.reduce((s, c) => s + c.largura, 0);
+  const tituloSecao = () => {
+    corFundo(doc, COR_PDF.verde); doc.rect(x0, y - 4, 1.6, 6, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); corTexto(doc, COR_PDF.texto);
+    doc.text(txtPdf(titulo), x0 + 4, y + 0.8);
+    y += 6;
+  };
+  const cabecalho = () => {
+    corFundo(doc, COR_PDF.verdeClaro); doc.rect(x0, y, largTotal, 8, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); corTexto(doc, COR_PDF.verdeEscuro);
+    let x = x0;
+    colunas.forEach((c) => {
+      doc.text(txtPdf(c.titulo).toUpperCase(), c.alinhar === 'right' ? x + c.largura - 3 : x + 3, y + 5.4, { align: c.alinhar === 'right' ? 'right' : 'left' });
+      x += c.largura;
+    });
+    y += 8;
+  };
+  if (y + 24 > limiteRodapePdf(doc)) y = novaPaginaPdf(doc);
+  tituloSecao();
+  cabecalho();
+  linhas.forEach((linha, idx) => {
+    doc.setFontSize(9.5);
+    const celulas = linha.celulas.map((cel, i) => {
+      const c = typeof cel === 'object' ? cel : { texto: cel };
+      doc.setFont('helvetica', i === colunas.length - 1 ? 'bold' : 'normal'); doc.setFontSize(9.5);
+      const principal = doc.splitTextToSize(txtPdf(c.texto), colunas[i].largura - 6);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      const detalhe = c.detalhe ? doc.splitTextToSize(txtPdf(c.detalhe), colunas[i].largura - 6) : [];
+      return { principal, detalhe };
+    });
+    const altura = Math.max(...celulas.map((c) => c.principal.length * 4.3 + c.detalhe.length * 3.7)) + 4.5;
+    if (y + altura > limiteRodapePdf(doc)) { y = novaPaginaPdf(doc); cabecalho(); }
+    if (idx % 2 === 1) { corFundo(doc, COR_PDF.zebra); doc.rect(x0, y, largTotal, altura, 'F'); }
+    let x = x0;
+    celulas.forEach((c, i) => {
+      const col = colunas[i];
+      const xt = col.alinhar === 'right' ? x + col.largura - 3 : x + 3;
+      const opc = { align: col.alinhar === 'right' ? 'right' : 'left' };
+      doc.setFont('helvetica', i === colunas.length - 1 ? 'bold' : 'normal'); doc.setFontSize(9.5); corTexto(doc, COR_PDF.texto);
+      doc.text(c.principal, xt, y + 5.2, opc);
+      if (c.detalhe.length) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); corTexto(doc, COR_PDF.suave);
+        doc.text(c.detalhe, xt, y + 5.2 + c.principal.length * 4.3, opc);
+      }
+      x += col.largura;
+    });
+    y += altura;
+  });
+  corLinha(doc, COR_PDF.linha); doc.setLineWidth(0.3); doc.line(x0, y, x0 + largTotal, y);
+  if (total) {
+    if (y + 10 > limiteRodapePdf(doc)) y = novaPaginaPdf(doc);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); corTexto(doc, COR_PDF.texto);
+    doc.text(txtPdf(total[0]), x0 + largTotal - colunas[colunas.length - 1].largura - 3, y + 6.5, { align: 'right' });
+    corTexto(doc, COR_PDF.verdeEscuro);
+    doc.text(txtPdf(total[1]), x0 + largTotal - 3, y + 6.5, { align: 'right' });
+    y += 10;
+  }
+  return y + 8;
+}
+
+// Caixa "Pague com PIX": QR Code desenhado em vetor (fica nítido) + chave + copia e cola.
+// A altura sai do conteúdo, então funciona tanto na folha A4 quanto no comprovante estreito.
+function alturaLinhaPdf(pt) { return pt * 1.15 * 25.4 / 72; }
+function caixaPixPdf(doc, y, pix, valor, x0, largura, tamanhoQr) {
+  const codigo = gerarPixCopiaECola({ chave: pix.chave, nome: pix.nome, cidade: pix.cidade, valor });
+  const qr = qrcode(0, 'M');
+  qr.addData(codigo);
+  qr.make();
+  const n = qr.getModuleCount(), tam = tamanhoQr || 36, cel = tam / n;
+  const xt = x0 + tam + 11, lt = largura - tam - 15;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+  const chave = doc.splitTextToSize(`Chave: ${txtPdf(pix.chave)}${pix.nome ? ' (' + txtPdf(pix.nome) + ')' : ''}`, lt);
+  doc.setFontSize(7.5);
+  const instrucao = doc.splitTextToSize('No app do banco: Pix > Ler QR Code. Ou copie o código abaixo (Pix copia e cola):', lt);
+  doc.setFont('courier', 'normal'); doc.setFontSize(6);
+  const linhasCodigo = doc.splitTextToSize(codigo, lt);
+  const alturaTexto = 6 + alturaLinhaPdf(12) + 1.5 + alturaLinhaPdf(11) + 1.5 + chave.length * alturaLinhaPdf(8.5) + 1.5 +
+    instrucao.length * alturaLinhaPdf(7.5) + 1 + linhasCodigo.length * alturaLinhaPdf(6) + 4;
+  const altura = Math.max(tam + 10, alturaTexto);
+  if (y + altura > limiteRodapePdf(doc)) y = novaPaginaPdf(doc);
+  corFundo(doc, COR_PDF.verdeFundo); corLinha(doc, COR_PDF.verde); doc.setLineWidth(0.4);
+  doc.roundedRect(x0, y, largura, altura, 3, 3, 'FD');
+  const yq = y + (altura - tam) / 2;
+  corFundo(doc, [255, 255, 255]); doc.rect(x0 + 4, yq - 1, tam + 2, tam + 2, 'F');
+  corFundo(doc, [0, 0, 0]);
+  for (let r = 0; r < n; r++) {
+    // junta os quadradinhos pretos vizinhos da mesma linha num retângulo só (PDF mais leve)
+    for (let c = 0; c < n; c++) {
+      if (!qr.isDark(r, c)) continue;
+      let fimC = c;
+      while (fimC + 1 < n && qr.isDark(r, fimC + 1)) fimC++;
+      doc.rect(x0 + 5 + c * cel, yq + r * cel, (fimC - c + 1) * cel + 0.03, cel + 0.03, 'F');
+      c = fimC;
+    }
+  }
+  let yt = y + 6 + alturaLinhaPdf(12) * 0.8;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); corTexto(doc, COR_PDF.verdeEscuro);
+  doc.text('Pague com PIX', xt, yt);
+  yt += alturaLinhaPdf(11) + 1.5;
+  doc.setFontSize(11); corTexto(doc, COR_PDF.texto);
+  doc.text(`Valor: ${txtPdf(formatarMoeda(valor))}`, xt, yt);
+  yt += alturaLinhaPdf(8.5) + 1.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+  doc.text(chave, xt, yt);
+  yt += chave.length * alturaLinhaPdf(8.5) + 1;
+  doc.setFontSize(7.5); corTexto(doc, COR_PDF.suave);
+  doc.text(instrucao, xt, yt);
+  yt += instrucao.length * alturaLinhaPdf(7.5) + 1;
+  doc.setFont('courier', 'normal'); doc.setFontSize(6); corTexto(doc, COR_PDF.texto);
+  doc.text(linhasCodigo, xt, yt);
+  doc.setFont('helvetica', 'normal');
+  return y + altura + 8;
+}
+
+function rodapesPdf(doc) {
+  const dados = dadosDocumentos();
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+    corLinha(doc, COR_PDF.linha); doc.setLineWidth(0.3); doc.line(14, H - 14, W - 14, H - 14);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); corTexto(doc, COR_PDF.suave);
+    const esquerda = [dados.nome, dados.telefone ? formatarTelefone(dados.telefone) : '', 'Feito com Controle da Horta'].filter(Boolean).map(txtPdf).join('  ·  ');
+    doc.text(esquerda, 14, H - 9);
+    if (total > 1) doc.text(`Página ${i} de ${total}`, W - 14, H - 9, { align: 'right' });
+  }
+}
+
+function nomeArquivoPdf(prefixo, nome) {
+  const base = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'cliente';
+  return `${prefixo}_${base}_${hojeISO()}.pdf`;
+}
+// "enviar": abre o compartilhar do celular (WhatsApp, Drive...); se não der, baixa o arquivo.
+async function entregarPdf(doc, nomeArquivo, modo, titulo) {
+  if (modo === 'enviar') {
+    try {
+      const arquivo = new File([doc.output('blob')], nomeArquivo, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+        await navigator.share({ files: [arquivo], title: titulo });
+        return;
+      }
+      mostrarToast('Este aparelho não manda arquivo direto: o PDF foi baixado para você enviar.');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // a pessoa fechou o compartilhar
+    }
+  }
+  doc.save(nomeArquivo);
+  if (modo !== 'enviar') mostrarToast('PDF gerado.');
+}
+
+function itensDaVendaTexto(venda, unidades) {
+  return (venda.itens || []).map((i) => itemComUnidade(i, unidades)).join(', ');
+}
+
+async function gerarExtratoPdf(clienteId, modo) {
+  if (typeof window.jspdf === 'undefined') { mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.'); return; }
   const cliente = carregar(CHAVES.clientes).find((c) => c.id === clienteId);
   if (!cliente) return;
-
   const dataInicio = document.getElementById('extratoPdfDataInicio').value; // "AAAA-MM-DD" ou ""
   const dataFim = document.getElementById('extratoPdfDataFim').value;
-
-  const dentroDoIntervalo = (isoData) => {
-    const data = diaDe(isoData);
-    if (dataInicio && data < dataInicio) return false;
-    if (dataFim && data > dataFim) return false;
-    return true;
-  };
-
-  const vendas = carregar(CHAVES.vendas).filter((v) => v.clienteId === clienteId && dentroDoIntervalo(v.data))
+  const soFiado = document.getElementById('extratoPdfFiltro').value === 'fiado';
+  const dentro = (iso) => { const d = diaDe(iso); return !(dataInicio && d < dataInicio) && !(dataFim && d > dataFim); };
+  const vendas = carregar(CHAVES.vendas)
+    .filter((v) => v.clienteId === clienteId && dentro(v.data) && (!soFiado || v.formaPagamento === 'Fiado'))
     .sort((a, b) => a.data.localeCompare(b.data));
-  const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId && dentroDoIntervalo(p.data))
+  const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId && dentro(p.data))
     .sort((a, b) => a.data.localeCompare(b.data));
+  if (vendas.length === 0 && pagamentos.length === 0) { mostrarToast('Nenhuma movimentação encontrada nesse período.'); return; }
 
-  if (vendas.length === 0 && pagamentos.length === 0) {
-    mostrarToast('Nenhuma movimentação encontrada nesse período.');
-    return;
-  }
-
-  const totalComprado = vendas.reduce((s, v) => s + v.total, 0);
+  const totalCompras = vendas.reduce((s, v) => s + v.total, 0);
   const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0);
-  const saldoAtual = saldoDevedor(clienteId);
+  const saldo = saldoDevedor(clienteId);
+  const pix = saldo > 0.009 ? await pixParaDocumentos() : null;
+  const unidades = mapaUnidadesProdutos();
+  const periodo = dataInicio || dataFim
+    ? `${dataInicio ? formatarDataBR(dataInicio) : 'Início'} a ${dataFim ? formatarDataBR(dataFim) : 'hoje'}`
+    : 'Todo o histórico';
 
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  const margemDireita = 196;
-  let y = await desenharBannerPdf(doc);
+  const agora = new Date();
+  let y = await cabecalhoPdf(doc, 'Extrato de compras', [`Emitido em ${agora.toLocaleDateString('pt-BR')}`, `às ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`]);
+  y = blocoInfoPdf(doc, y, [
+    ['Cliente', cliente.nome],
+    ['Telefone', cliente.telefone ? formatarTelefone(cliente.telefone) : '-'],
+    ['Período', periodo],
+    ['Compras mostradas', soFiado ? 'Só as no fiado' : 'Todas']
+  ]);
+  const emAberto = saldo > 0.009;
+  y = cartoesResumoPdf(doc, y, [
+    { rotulo: 'Compras no período', valor: formatarMoeda(totalCompras) },
+    { rotulo: 'Pagamentos no período', valor: formatarMoeda(totalPago) },
+    emAberto
+      ? { rotulo: 'Saldo em aberto hoje', valor: formatarMoeda(saldo), cor: COR_PDF.vermelho, fundo: COR_PDF.vermelhoFundo, borda: [254, 202, 202] }
+      : { rotulo: 'Saldo em aberto hoje', valor: 'Tudo pago', cor: COR_PDF.verdeEscuro, fundo: COR_PDF.verdeFundo, borda: [187, 247, 208] }
+  ]);
+  if (vendas.length) {
+    y = tabelaPdf(doc, y, {
+      titulo: `Compras (${vendas.length})`,
+      colunas: [{ titulo: 'Data', largura: 24 }, { titulo: 'Produtos', largura: 102 }, { titulo: 'Pagamento', largura: 26 }, { titulo: 'Valor', largura: 30, alinhar: 'right' }],
+      linhas: vendas.map((v) => ({
+        celulas: [
+          formatarDataBR(diaDe(v.data)),
+          { texto: itensDaVendaTexto(v, unidades), detalhe: v.desconto > 0 ? `${rotuloDesconto(v.descontoPercentual)}: -${formatarMoeda(v.desconto)} (de ${formatarMoeda(v.subtotal)})` : '' },
+          v.formaPagamento,
+          formatarMoeda(v.total)
+        ]
+      })),
+      total: ['Total das compras', formatarMoeda(totalCompras)]
+    });
+  }
+  if (pagamentos.length) {
+    y = tabelaPdf(doc, y, {
+      titulo: `Pagamentos recebidos (${pagamentos.length})`,
+      colunas: [{ titulo: 'Data', largura: 24 }, { titulo: 'Descrição', largura: 128 }, { titulo: 'Valor', largura: 30, alinhar: 'right' }],
+      linhas: pagamentos.map((p) => ({ celulas: [formatarDataBR(diaDe(p.data)), 'Pagamento do fiado', formatarMoeda(p.valor)] })),
+      total: ['Total pago', formatarMoeda(totalPago)]
+    });
+  }
+  // Fechamento: com PIX, a caixa de pagamento (o saldo já está no quadro lá em cima);
+  // sem PIX, uma faixa com o saldo de hoje.
+  if (emAberto && pix) {
+    y = caixaPixPdf(doc, y, pix, saldo, 14, 182, 36);
+  } else {
+    if (y + 18 > limiteRodapePdf(doc)) y = novaPaginaPdf(doc);
+    corFundo(doc, emAberto ? COR_PDF.vermelhoFundo : COR_PDF.verdeFundo);
+    doc.roundedRect(14, y, 182, 13, 2.5, 2.5, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); corTexto(doc, emAberto ? COR_PDF.vermelho : COR_PDF.verdeEscuro);
+    doc.text(emAberto ? `Saldo em aberto hoje: ${txtPdf(formatarMoeda(saldo))}` : 'Tudo pago: não há saldo em aberto.', 19, y + 8.3);
+    y += 13 + 8;
+  }
+  // A mensagem final só entra se couber (não vale abrir uma página só para ela)
+  if (y + 8 <= limiteRodapePdf(doc)) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(10); corTexto(doc, COR_PDF.verdeEscuro);
+    doc.text(txtPdf(dadosDocumentos().mensagem), 105, y + 2, { align: 'center' });
+  }
+  rodapesPdf(doc);
+  await entregarPdf(doc, nomeArquivoPdf('extrato', cliente.nome), modo, `Extrato de ${cliente.nome}`);
+}
 
-  const novaPaginaSeNecessario = (espacoNecessario = 10) => {
-    if (y + espacoNecessario > 280) { doc.addPage(); y = 20; }
-  };
+// Comprovante de uma venda: PDF estreito, estilo cupom (fica bom de ver no celular).
+async function gerarComprovantePdf(vendaId, modo) {
+  if (typeof window.jspdf === 'undefined') { mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.'); return; }
+  const venda = carregar(CHAVES.vendas).find((v) => v.id === vendaId);
+  if (!venda) return;
+  const cliente = venda.clienteId ? carregar(CHAVES.clientes).find((c) => c.id === venda.clienteId) : null;
+  const saldo = venda.formaPagamento === 'Fiado' && cliente ? saldoDevedor(cliente.id) : 0;
+  const pix = saldo > 0.009 ? await pixParaDocumentos() : null;
+  const unidades = mapaUnidadesProdutos();
+  const dados = dadosDocumentos();
+  const { jsPDF } = window.jspdf;
+  const L = 100, M = 7, CW = L - 2 * M;
 
-  doc.setFontSize(16);
-  doc.text(`Extrato — ${cliente.nome}`, 14, y);
-  y += 8;
-  doc.setFontSize(10);
-  doc.setTextColor(120);
-  const periodoTexto = dataInicio || dataFim
-    ? `Período: ${dataInicio ? formatarDataBR(dataInicio) : 'início'} até ${dataFim ? formatarDataBR(dataFim) : 'hoje'}`
-    : 'Período: todo o histórico';
-  doc.text(periodoTexto, 14, y);
-  doc.setTextColor(0);
-  y += 12;
-
-  doc.setFontSize(13);
-  doc.text('Resumo', 14, y); y += 8;
-  doc.setFontSize(11);
-  doc.text(`Total comprado no período: ${formatarMoeda(totalComprado)}`, 14, y); y += 7;
-  doc.text(`Total pago no período: ${formatarMoeda(totalPago)}`, 14, y); y += 7;
-  doc.setFont(undefined, 'bold');
-  doc.text(`Saldo devedor atual: ${formatarMoeda(saldoAtual)}`, 14, y);
-  doc.setFont(undefined, 'normal');
-  y += 14;
-
-  if (vendas.length > 0) {
-    doc.setFontSize(13);
-    doc.text('Compras', 14, y); y += 8;
-    doc.setFontSize(10);
-    vendas.forEach((v) => {
-      novaPaginaSeNecessario(14);
-      const itensTexto = v.itens.map((i) => `${i.quantidade}x ${i.nome}`).join(', ') +
-        (v.desconto > 0 ? ` (desconto de ${formatarMoeda(v.desconto)})` : '');
-      doc.text(formatarDataBR(diaDe(v.data)), 14, y);
-      doc.text(v.formaPagamento, 60, y);
-      doc.text(formatarMoeda(v.total), margemDireita, y, { align: 'right' });
+  // Desenha numa folha comprida para medir; depois desenha de novo na altura certa.
+  const desenhar = (doc) => {
+    let y = 7;
+    corFundo(doc, COR_PDF.verdeEscuro); doc.roundedRect(M - 1, y, CW + 2, 21, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(13); corTexto(doc, [255, 255, 255]);
+    doc.text(doc.splitTextToSize(txtPdf(dados.nome) || 'Horta', CW - 6)[0], L / 2, y + 9, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    doc.text('Comprovante de compra', L / 2, y + 15.5, { align: 'center' });
+    y += 21 + 7;
+    const info = [['Data', dataHoraExtensa(venda.data)], ['Pedido', '#' + String(venda.id).slice(-6).toUpperCase()]];
+    if (cliente) info.push(['Cliente', cliente.nome]);
+    info.forEach(([k, v]) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); corTexto(doc, COR_PDF.suave); doc.text(txtPdf(k), M, y);
+      doc.setFont('helvetica', 'bold'); corTexto(doc, COR_PDF.texto); doc.text(doc.splitTextToSize(txtPdf(v), CW - 22)[0], L - M, y, { align: 'right' });
+      y += 5.5;
+    });
+    const tracejado = () => {
+      corLinha(doc, [203, 213, 225]); doc.setLineWidth(0.3);
+      for (let x = M; x < L - M; x += 2.4) doc.line(x, y, Math.min(x + 1.2, L - M), y);
       y += 5;
-      const linhasItens = doc.splitTextToSize(itensTexto, 175);
-      doc.setTextColor(120);
-      linhasItens.forEach((linha) => { novaPaginaSeNecessario(6); doc.text(linha, 14, y); y += 5; });
-      doc.setTextColor(0);
-      y += 3;
+    };
+    y += 1; tracejado();
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); corTexto(doc, COR_PDF.verdeEscuro);
+    doc.text('PRODUTOS', M, y); doc.text('VALOR', L - M, y, { align: 'right' });
+    y += 5;
+    (venda.itens || []).forEach((i) => {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); corTexto(doc, COR_PDF.texto);
+      const nome = doc.splitTextToSize(txtPdf(itemComUnidade(i, unidades)), CW - 26);
+      doc.text(nome, M, y);
+      doc.setFont('helvetica', 'bold'); doc.text(txtPdf(formatarMoeda(i.quantidade * i.precoUnitario)), L - M, y, { align: 'right' });
+      y += nome.length * 4.3;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); corTexto(doc, COR_PDF.suave);
+      doc.text(`${txtPdf(formatarMoeda(i.precoUnitario))} ${unidades[i.produtoId] === 'kg' ? 'o kg' : 'cada'}`, M, y);
+      y += 5;
     });
-    y += 6;
-  }
+    tracejado();
+    const linhaValor = (rotulo, valor, destaque) => {
+      doc.setFont('helvetica', destaque ? 'bold' : 'normal'); doc.setFontSize(destaque ? 12.5 : 9.5);
+      corTexto(doc, destaque ? COR_PDF.verdeEscuro : COR_PDF.texto);
+      doc.text(txtPdf(rotulo), M, y); doc.text(txtPdf(valor), L - M, y, { align: 'right' });
+      y += destaque ? 7 : 5.2;
+    };
+    if (venda.desconto > 0) {
+      linhaValor('Subtotal', formatarMoeda(venda.subtotal));
+      linhaValor(rotuloDesconto(venda.descontoPercentual), '-' + formatarMoeda(venda.desconto));
+    }
+    y += 1;
+    linhaValor('TOTAL', formatarMoeda(venda.total), true);
+    linhaValor('Pagamento', venda.formaPagamento === 'Fiado' ? 'Fiado (fica na conta)' : venda.formaPagamento);
+    if (saldo > 0.009) {
+      y += 2;
+      corFundo(doc, COR_PDF.vermelhoFundo); doc.roundedRect(M, y - 4, CW, 9, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); corTexto(doc, COR_PDF.vermelho);
+      doc.text(`Seu saldo em aberto: ${txtPdf(formatarMoeda(saldo))}`, L / 2, y + 1.6, { align: 'center' });
+      y += 11;
+      if (pix) y = caixaPixPdf(doc, y, pix, saldo, M, CW, 30) - 2;
+    }
+    y += 4;
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(10); corTexto(doc, COR_PDF.verdeEscuro);
+    doc.text(doc.splitTextToSize(txtPdf(dados.mensagem), CW), L / 2, y, { align: 'center' });
+    y += 7;
+    corLinha(doc, COR_PDF.linha); doc.line(M, y, L - M, y); y += 4.5;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); corTexto(doc, COR_PDF.suave);
+    const rod = [dados.telefone ? `Contato: ${formatarTelefone(dados.telefone)}` : '', 'Feito com Controle da Horta'].filter(Boolean).map(txtPdf).join('  ·  ');
+    doc.text(rod, L / 2, y, { align: 'center' });
+    return y + 6;
+  };
+  const altura = Math.ceil(desenhar(new jsPDF({ unit: 'mm', format: [L, 1000] })));
+  const doc = new jsPDF({ unit: 'mm', format: [L, Math.max(altura, 120)] });
+  desenhar(doc);
+  await entregarPdf(doc, nomeArquivoPdf('comprovante', cliente ? cliente.nome : 'venda'), modo, 'Comprovante de compra');
+}
 
-  if (pagamentos.length > 0) {
-    novaPaginaSeNecessario(16);
-    doc.setFontSize(13);
-    doc.text('Pagamentos recebidos', 14, y); y += 8;
-    doc.setFontSize(10);
-    pagamentos.forEach((p) => {
-      novaPaginaSeNecessario(7);
-      doc.text(formatarDataBR(diaDe(p.data)), 14, y);
-      doc.text(formatarMoeda(p.valor), margemDireita, y, { align: 'right' });
-      y += 7;
-    });
-  }
-
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 290);
-
-  doc.save(`extrato_${cliente.nome.replace(/\s+/g, '_')}.pdf`);
-  mostrarToast('Extrato PDF gerado.');
+// -------------------- EXTRATO EM PDF POR CLIENTE --------------------
+document.getElementById('btnGerarExtratoPdf').addEventListener('click', () => {
+  garantirDadosDocumentos(() => gerarExtratoPdf(document.getElementById('modalDetalheCliente').dataset.clienteId, 'baixar'));
 });
+document.getElementById('btnEnviarExtratoPdf').addEventListener('click', () => {
+  garantirDadosDocumentos(() => gerarExtratoPdf(document.getElementById('modalDetalheCliente').dataset.clienteId, 'enviar'));
+});
+// Atalhos de período do extrato
+document.querySelectorAll('#extratoAtalhos [data-periodo]').forEach((b) => b.addEventListener('click', () => {
+  const hoje = new Date();
+  let ini = '', fim = '';
+  if (b.dataset.periodo === 'mes') { ini = dataLocalISO(new Date(hoje.getFullYear(), hoje.getMonth(), 1)); fim = hojeISO(); }
+  if (b.dataset.periodo === 'mesPassado') {
+    ini = dataLocalISO(new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1));
+    fim = dataLocalISO(new Date(hoje.getFullYear(), hoje.getMonth(), 0));
+  }
+  if (b.dataset.periodo === '30') { ini = dataLocalISO(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 29)); fim = hojeISO(); }
+  document.getElementById('extratoPdfDataInicio').value = ini;
+  document.getElementById('extratoPdfDataFim').value = fim;
+  document.querySelectorAll('#extratoAtalhos [data-periodo]').forEach((x) => x.classList.toggle('active', x === b));
+}));
+['extratoPdfDataInicio', 'extratoPdfDataFim'].forEach((id) => document.getElementById(id).addEventListener('input', () => {
+  document.querySelectorAll('#extratoAtalhos [data-periodo]').forEach((x) => x.classList.remove('active'));
+}));
 
 document.getElementById('btnImportarBackup').addEventListener('click', () => document.getElementById('fileImportarBackup').click());
 document.getElementById('fileImportarBackup').addEventListener('change', (e) => {
@@ -6654,6 +7171,7 @@ document.getElementById('btnLinkPagamento').addEventListener('click', async () =
     const doc = await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).get();
     const d = doc.exists ? doc.data() : {};
     document.getElementById('inputLinkPagamento').value = d.linkPagamento || '';
+    guardarPixLocal(d.pix || null);
     if (d.pix && d.pix.chave) {
       document.getElementById('pixTipoChave').value = d.pix.tipo || 'celular';
       document.getElementById('pixChave').value = d.pix.chave;
@@ -6696,6 +7214,7 @@ document.getElementById('btnSalvarLinkPagamento').addEventListener('click', asyn
 
   try {
     await nuvemDb.collection('catalogos').doc(nuvemAuth.currentUser.uid).set({ pix, linkPagamento: link }, { merge: true });
+    guardarPixLocal(pix);
     const partes = [];
     if (pix) partes.push('PIX');
     if (link) partes.push('cartão');
