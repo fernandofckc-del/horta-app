@@ -319,7 +319,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.13.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.14.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -1581,7 +1581,7 @@
     <button class="whatsapp" id="btnCobrarWhatsapp" style="margin-top:10px">📲 Cobrar pelo WhatsApp</button>
     <button class="fantasma" id="btnEnviarExtrato" style="margin-top:8px;width:100%">📄 Enviar extrato completo no WhatsApp</button>
 
-    <h2 class="titulo">Extrato em PDF</h2>
+    <h2 class="titulo">Extrato para o cliente</h2>
     <div class="atalhos-dias" id="extratoAtalhos">
       <button type="button" class="fantasma" data-periodo="mes">Este mês</button>
       <button type="button" class="fantasma" data-periodo="mesPassado">Mês passado</button>
@@ -1606,6 +1606,7 @@
       <button class="primario" id="btnGerarExtratoPdf" style="flex:1">⬇️ Baixar PDF</button>
       <button class="fantasma" id="btnEnviarExtratoPdf" style="flex:1">📤 Enviar PDF</button>
     </div>
+    <button class="fantasma" id="btnEnviarExtratoImagem" style="width:100%;margin-bottom:8px">🖼️ Enviar como imagem</button>
     <button type="button" class="fantasma" id="btnDadosDocumentos" style="width:100%;margin-bottom:14px;font-size:0.8rem">⚙️ Nome da horta e mensagem dos documentos</button>
 
     <h2 class="titulo">Histórico</h2>
@@ -1784,7 +1785,10 @@
       <span>Total</span><strong id="vendaDetalheTotal">R$ 0,00</strong>
     </div>
     <button class="whatsapp" id="btnComprovanteVenda" style="margin-top:4px">📲 Enviar comprovante no WhatsApp</button>
-    <button class="fantasma" id="btnComprovantePdf" style="width:100%;margin-top:8px">📄 Comprovante em PDF</button>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="fantasma" id="btnComprovantePdf" style="flex:1">📄 Em PDF</button>
+      <button class="fantasma" id="btnComprovanteImagem" style="flex:1">🖼️ Em imagem</button>
+    </div>
     <p style="font-size:0.78rem;color:var(--texto-suave)">Cancelar devolve os itens ao estoque e remove o valor do fiado do cliente (se houver).</p>
     <div class="acoes">
       <button class="fantasma" id="btnFecharVendaDetalhe">Fechar</button>
@@ -1880,7 +1884,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.13.0';
+const APP_VERSION = '3.14.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -3105,6 +3109,10 @@ document.getElementById('btnComprovanteVenda').addEventListener('click', () => e
 document.getElementById('btnComprovantePdf').addEventListener('click', () => {
   const id = document.getElementById('vendaDetalheId').value;
   garantirDadosDocumentos(() => gerarComprovantePdf(id, 'enviar'));
+});
+document.getElementById('btnComprovanteImagem').addEventListener('click', () => {
+  const id = document.getElementById('vendaDetalheId').value;
+  garantirDadosDocumentos(() => gerarComprovantePdf(id, 'imagem'));
 });
 
 document.getElementById('btnCancelarVendaRegistrada').addEventListener('click', () => {
@@ -5304,7 +5312,11 @@ async function cabecalhoPdf(doc, titulo, direita) {
     if (dim) {
       let w = W - 28, h = w * dim.h / dim.w;
       if (h > 36) { h = 36; w = h * dim.w / dim.h; }
-      try { doc.addImage(banner, 'JPEG', (W - w) / 2, 10, w, h); y = 10 + h + 5; } catch (e) { /* imagem inválida: segue sem */ }
+      try {
+        if (doc.precarregarImagem) await doc.precarregarImagem(banner);
+        doc.addImage(banner, 'JPEG', (W - w) / 2, 10, w, h);
+        y = 10 + h + 5;
+      } catch (e) { /* imagem inválida: segue sem */ }
     }
   }
   corFundo(doc, COR_PDF.verdeEscuro);
@@ -5338,16 +5350,25 @@ function cartoesResumoPdf(doc, y, cartoes) {
     const x = 14 + i * (w + gap);
     corFundo(doc, c.fundo || COR_PDF.zebra); corLinha(doc, c.borda || COR_PDF.linha); doc.setLineWidth(0.3);
     doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); corTexto(doc, COR_PDF.suave);
+    doc.setFont('helvetica', 'normal'); corTexto(doc, COR_PDF.suave);
+    fonteQueCabe(doc, txtPdf(c.rotulo).toUpperCase(), w - 8, 7.5, 5.5);
     doc.text(txtPdf(c.rotulo).toUpperCase(), x + 4, y + 6.5);
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(13.5); corTexto(doc, c.cor || COR_PDF.texto);
+    doc.setFont('helvetica', 'bold'); corTexto(doc, c.cor || COR_PDF.texto);
+    fonteQueCabe(doc, txtPdf(c.valor), w - 8, 13.5, 9);
     doc.text(txtPdf(c.valor), x + 4, y + 15);
   });
   return y + h + 9;
 }
 
 function novaPaginaPdf(doc) { doc.addPage(); return 18; }
-function limiteRodapePdf(doc) { return doc.internal.pageSize.getHeight() - 22; }
+// Diminui a letra (até um mínimo) para o texto caber na largura.
+function fonteQueCabe(doc, texto, largura, tamanho, minimo) {
+  let t = tamanho;
+  doc.setFontSize(t);
+  while (t > minimo && doc.getTextWidth(texto) > largura) { t -= 0.5; doc.setFontSize(t); }
+}
+// Na imagem (e no cupom) é uma folha só: nunca quebra página.
+function limiteRodapePdf(doc) { return doc.semQuebraDePagina ? Infinity : doc.internal.pageSize.getHeight() - 22; }
 
 // Tabela com cabeçalho verde, linhas zebradas, texto quebrando e total no fim.
 function tabelaPdf(doc, y, { titulo, colunas, linhas, total }) {
@@ -5480,9 +5501,9 @@ function rodapesPdf(doc) {
   }
 }
 
-function nomeArquivoPdf(prefixo, nome) {
+function nomeArquivoPdf(prefixo, nome, extensao) {
   const base = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'cliente';
-  return `${prefixo}_${base}_${hojeISO()}.pdf`;
+  return `${prefixo}_${base}_${hojeISO()}.${extensao || 'pdf'}`;
 }
 // "enviar": abre o compartilhar do celular (WhatsApp, Drive...); se não der, baixa o arquivo.
 async function entregarPdf(doc, nomeArquivo, modo, titulo) {
@@ -5502,12 +5523,154 @@ async function entregarPdf(doc, nomeArquivo, modo, titulo) {
   if (modo !== 'enviar') mostrarToast('PDF gerado.');
 }
 
+// ---- Imagem: o mesmo desenho do PDF, pintado num canvas (PNG) ----
+// Entende os comandos do jsPDF que os documentos usam, em milímetros.
+class DocImagem {
+  constructor(larguraMm, alturaMm, escala, soMedir) {
+    this.k = escala;
+    this.semQuebraDePagina = true;
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = soMedir ? 1 : Math.round(larguraMm * escala);
+    this.canvas.height = soMedir ? 1 : Math.round(alturaMm * escala);
+    this.ctx = this.canvas.getContext('2d');
+    if (!soMedir) { this.ctx.fillStyle = '#ffffff'; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height); }
+    this.internal = { pageSize: { getWidth: () => larguraMm, getHeight: () => alturaMm } };
+    this.fonte = { familia: 'helvetica', estilo: 'normal', tamanho: 16 };
+    this.cores = { texto: 'rgb(0,0,0)', fundo: 'rgb(0,0,0)', linha: 'rgb(0,0,0)' };
+    this.espessura = 0.2;
+    this.imagens = {};
+  }
+  _aplicarFonte() {
+    const f = this.fonte;
+    const familia = f.familia === 'courier' ? '"Courier New", Courier, monospace' : 'Helvetica, Arial, Roboto, sans-serif';
+    const estilo = (f.estilo.includes('italic') ? 'italic ' : '') + (f.estilo.includes('bold') ? 'bold ' : '');
+    this.ctx.font = `${estilo}${(f.tamanho * 25.4 / 72) * this.k}px ${familia}`;
+  }
+  setFont(familia, estilo) { if (familia) this.fonte.familia = familia; if (estilo) this.fonte.estilo = estilo; return this; }
+  setFontSize(pt) { this.fonte.tamanho = pt; return this; }
+  setTextColor(r, g, b) { this.cores.texto = `rgb(${r},${g},${b})`; return this; }
+  setFillColor(r, g, b) { this.cores.fundo = `rgb(${r},${g},${b})`; return this; }
+  setDrawColor(r, g, b) { this.cores.linha = `rgb(${r},${g},${b})`; return this; }
+  setLineWidth(mm) { this.espessura = mm; return this; }
+  getNumberOfPages() { return 1; }
+  setPage() { return this; }
+  addPage() { return this; }
+  getTextWidth(texto) { this._aplicarFonte(); return this.ctx.measureText(String(texto)).width / this.k; }
+  splitTextToSize(texto, largura) {
+    const cabe = (t) => this.getTextWidth(t) <= largura;
+    const linhas = [];
+    String(texto).split('\n').forEach((paragrafo) => {
+      let atual = '';
+      paragrafo.split(' ').forEach((palavra) => {
+        const tentativa = atual ? atual + ' ' + palavra : palavra;
+        if (cabe(tentativa)) { atual = tentativa; return; }
+        if (atual) linhas.push(atual);
+        let resto = palavra; // palavra que sozinha não cabe (ex.: código PIX): quebra no meio
+        while (resto.length > 1 && !cabe(resto)) {
+          let n = resto.length - 1;
+          while (n > 1 && !cabe(resto.slice(0, n))) n--;
+          linhas.push(resto.slice(0, n));
+          resto = resto.slice(n);
+        }
+        atual = resto;
+      });
+      linhas.push(atual);
+    });
+    return linhas;
+  }
+  text(t, x, y, opcoes) {
+    this._aplicarFonte();
+    const c = this.ctx;
+    c.fillStyle = this.cores.texto;
+    c.textAlign = opcoes && opcoes.align === 'right' ? 'right' : (opcoes && opcoes.align === 'center' ? 'center' : 'left');
+    c.textBaseline = 'alphabetic';
+    const linhas = Array.isArray(t) ? t : String(t).split('\n');
+    const entreLinhas = this.fonte.tamanho * 1.15 * 25.4 / 72; // igual ao jsPDF
+    linhas.forEach((l, i) => c.fillText(String(l), x * this.k, (y + i * entreLinhas) * this.k));
+    return this;
+  }
+  _pintar(estilo) {
+    const s = estilo || 'S';
+    if (s.includes('F')) { this.ctx.fillStyle = this.cores.fundo; this.ctx.fill(); }
+    if (s.includes('D') || s === 'S') { this.ctx.strokeStyle = this.cores.linha; this.ctx.lineWidth = Math.max(1, this.espessura * this.k); this.ctx.stroke(); }
+  }
+  rect(x, y, w, h, estilo) {
+    // arredonda para o pixel: retângulos vizinhos (ex.: QR Code) encostam sem fresta
+    const X = Math.round(x * this.k), Y = Math.round(y * this.k);
+    this.ctx.beginPath();
+    this.ctx.rect(X, Y, Math.round((x + w) * this.k) - X, Math.round((y + h) * this.k) - Y);
+    this._pintar(estilo);
+    return this;
+  }
+  roundedRect(x, y, w, h, rx, ry, estilo) {
+    const k = this.k, raio = Math.min(rx, w / 2, h / 2) * k, X = x * k, Y = y * k, W = w * k, H = h * k;
+    const c = this.ctx;
+    c.beginPath();
+    c.moveTo(X + raio, Y);
+    c.arcTo(X + W, Y, X + W, Y + H, raio);
+    c.arcTo(X + W, Y + H, X, Y + H, raio);
+    c.arcTo(X, Y + H, X, Y, raio);
+    c.arcTo(X, Y, X + W, Y, raio);
+    c.closePath();
+    this._pintar(estilo);
+    return this;
+  }
+  line(x1, y1, x2, y2) {
+    const c = this.ctx;
+    c.beginPath(); c.moveTo(x1 * this.k, y1 * this.k); c.lineTo(x2 * this.k, y2 * this.k);
+    c.strokeStyle = this.cores.linha; c.lineWidth = Math.max(1, this.espessura * this.k); c.stroke();
+    return this;
+  }
+  async precarregarImagem(src) { if (!this.imagens[src]) this.imagens[src] = await carregarImagem(src); }
+  addImage(src, formato, x, y, w, h) {
+    const img = this.imagens[src];
+    if (img) this.ctx.drawImage(img, x * this.k, y * this.k, w * this.k, h * this.k);
+    return this;
+  }
+}
+
+// Desenha uma vez só para medir a altura e depois de verdade, do tamanho certo.
+async function documentoEmImagem(desenhar, larguraMm, { rodape, nomeArquivo, titulo, alturaMinima }) {
+  const escala = 1080 / larguraMm; // 1080 px de largura: nítido no WhatsApp
+  const fimConteudo = await desenhar(new DocImagem(larguraMm, 100000, escala, true));
+  const altura = Math.max(alturaMinima || 0, Math.ceil(fimConteudo + (rodape ? 22 : 2)));
+  const k = Math.min(escala, 14000 / altura); // limite de tamanho de imagem do celular
+  const doc = new DocImagem(larguraMm, altura, k, false);
+  await desenhar(doc);
+  if (rodape) rodapesPdf(doc);
+  const blob = await new Promise((resolve) => doc.canvas.toBlob(resolve, 'image/png'));
+  if (!blob) { mostrarToast('Não deu para gerar a imagem.'); return; }
+  if (altura * k > 3200) mostrarToast('A imagem ficou comprida: no WhatsApp ela pode ficar pequena. Se for o caso, filtre o período ou mande o PDF.');
+  await entregarImagem(blob, nomeArquivo, titulo);
+}
+
+// Abre o compartilhar do celular com a imagem (WhatsApp, etc.); se não der, baixa.
+async function entregarImagem(blob, nomeArquivo, titulo) {
+  try {
+    const arquivo = new File([blob], nomeArquivo, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+      await navigator.share({ files: [arquivo], title: titulo });
+      return;
+    }
+    mostrarToast('Este aparelho não manda arquivo direto: a imagem foi baixada para você enviar.');
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
 function itensDaVendaTexto(venda, unidades) {
   return (venda.itens || []).map((i) => itemComUnidade(i, unidades)).join(', ');
 }
 
 async function gerarExtratoPdf(clienteId, modo) {
-  if (typeof window.jspdf === 'undefined') { mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.'); return; }
   const cliente = carregar(CHAVES.clientes).find((c) => c.id === clienteId);
   if (!cliente) return;
   const dataInicio = document.getElementById('extratoPdfDataInicio').value; // "AAAA-MM-DD" ou ""
@@ -5520,81 +5683,101 @@ async function gerarExtratoPdf(clienteId, modo) {
   const pagamentos = carregar(CHAVES.pagamentos).filter((p) => p.clienteId === clienteId && dentro(p.data))
     .sort((a, b) => a.data.localeCompare(b.data));
   if (vendas.length === 0 && pagamentos.length === 0) { mostrarToast('Nenhuma movimentação encontrada nesse período.'); return; }
+  if (modo !== 'imagem' && typeof window.jspdf === 'undefined') { mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet (ou envie como imagem).'); return; }
 
   const totalCompras = vendas.reduce((s, v) => s + v.total, 0);
   const totalPago = pagamentos.reduce((s, p) => s + p.valor, 0);
   const saldo = saldoDevedor(clienteId);
-  const pix = saldo > 0.009 ? await pixParaDocumentos() : null;
+  const emAberto = saldo > 0.009;
+  const pix = emAberto ? await pixParaDocumentos() : null;
   const unidades = mapaUnidadesProdutos();
   const periodo = dataInicio || dataFim
     ? `${dataInicio ? formatarDataBR(dataInicio) : 'Início'} a ${dataFim ? formatarDataBR(dataFim) : 'hoje'}`
     : 'Todo o histórico';
+  const agora = new Date();
 
+  // O mesmo desenho serve para o PDF (A4) e para a imagem (folha mais estreita, letra maior).
+  const desenhar = async (doc) => {
+    const W = doc.internal.pageSize.getWidth(), CW = W - 28;
+    // Folha estreita (imagem): data curta e coluna de data um pouco mais larga.
+    const estreito = W < 200;
+    const dataTabela = (iso) => { const d = formatarDataBR(diaDe(iso)); return estreito ? d.slice(0, 6) + d.slice(8) : d; };
+    let y = await cabecalhoPdf(doc, 'Extrato de compras', [`Emitido em ${agora.toLocaleDateString('pt-BR')}`, `às ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`]);
+    y = blocoInfoPdf(doc, y, [
+      ['Cliente', cliente.nome],
+      ['Telefone', cliente.telefone ? formatarTelefone(cliente.telefone) : '-'],
+      ['Período', periodo],
+      ['Compras mostradas', soFiado ? 'Só as no fiado' : 'Todas']
+    ]);
+    y = cartoesResumoPdf(doc, y, [
+      { rotulo: 'Compras no período', valor: formatarMoeda(totalCompras) },
+      { rotulo: 'Pagamentos no período', valor: formatarMoeda(totalPago) },
+      emAberto
+        ? { rotulo: 'Saldo em aberto hoje', valor: formatarMoeda(saldo), cor: COR_PDF.vermelho, fundo: COR_PDF.vermelhoFundo, borda: [254, 202, 202] }
+        : { rotulo: 'Saldo em aberto hoje', valor: 'Tudo pago', cor: COR_PDF.verdeEscuro, fundo: COR_PDF.verdeFundo, borda: [187, 247, 208] }
+    ]);
+    if (vendas.length) {
+      y = tabelaPdf(doc, y, {
+        titulo: `Compras (${vendas.length})`,
+        colunas: [
+          { titulo: 'Data', largura: CW * (estreito ? 0.15 : 0.13) },
+          { titulo: 'Produtos', largura: CW * (estreito ? 0.50 : 0.52) },
+          { titulo: 'Pagamento', largura: CW * 0.17 },
+          { titulo: 'Valor', largura: CW * 0.18, alinhar: 'right' }],
+        linhas: vendas.map((v) => ({
+          celulas: [
+            dataTabela(v.data),
+            { texto: itensDaVendaTexto(v, unidades), detalhe: v.desconto > 0 ? `${rotuloDesconto(v.descontoPercentual)}: -${formatarMoeda(v.desconto)} (de ${formatarMoeda(v.subtotal)})` : '' },
+            v.formaPagamento,
+            formatarMoeda(v.total)
+          ]
+        })),
+        total: ['Total das compras', formatarMoeda(totalCompras)]
+      });
+    }
+    if (pagamentos.length) {
+      y = tabelaPdf(doc, y, {
+        titulo: `Pagamentos recebidos (${pagamentos.length})`,
+        colunas: [{ titulo: 'Data', largura: CW * (estreito ? 0.15 : 0.13) }, { titulo: 'Descrição', largura: CW * (estreito ? 0.67 : 0.69) }, { titulo: 'Valor', largura: CW * 0.18, alinhar: 'right' }],
+        linhas: pagamentos.map((p) => ({ celulas: [dataTabela(p.data), 'Pagamento do fiado', formatarMoeda(p.valor)] })),
+        total: ['Total pago', formatarMoeda(totalPago)]
+      });
+    }
+    // Fechamento: com PIX, a caixa de pagamento (o saldo já está no quadro lá em cima);
+    // sem PIX, uma faixa com o saldo de hoje.
+    if (emAberto && pix) {
+      y = caixaPixPdf(doc, y, pix, saldo, 14, CW, 36);
+    } else {
+      if (y + 18 > limiteRodapePdf(doc)) y = novaPaginaPdf(doc);
+      corFundo(doc, emAberto ? COR_PDF.vermelhoFundo : COR_PDF.verdeFundo);
+      doc.roundedRect(14, y, CW, 13, 2.5, 2.5, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); corTexto(doc, emAberto ? COR_PDF.vermelho : COR_PDF.verdeEscuro);
+      doc.text(emAberto ? `Saldo em aberto hoje: ${txtPdf(formatarMoeda(saldo))}` : 'Tudo pago: não há saldo em aberto.', 19, y + 8.3);
+      y += 13 + 8;
+    }
+    // A mensagem final só entra se couber (não vale abrir uma página só para ela)
+    if (y + 8 <= limiteRodapePdf(doc)) {
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(10); corTexto(doc, COR_PDF.verdeEscuro);
+      doc.text(txtPdf(dadosDocumentos().mensagem), W / 2, y + 2, { align: 'center' });
+      y += 8;
+    }
+    return y;
+  };
+
+  if (modo === 'imagem') {
+    await documentoEmImagem(desenhar, 160, { rodape: true, nomeArquivo: nomeArquivoPdf('extrato', cliente.nome, 'png'), titulo: `Extrato de ${cliente.nome}` });
+    return;
+  }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  const agora = new Date();
-  let y = await cabecalhoPdf(doc, 'Extrato de compras', [`Emitido em ${agora.toLocaleDateString('pt-BR')}`, `às ${agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`]);
-  y = blocoInfoPdf(doc, y, [
-    ['Cliente', cliente.nome],
-    ['Telefone', cliente.telefone ? formatarTelefone(cliente.telefone) : '-'],
-    ['Período', periodo],
-    ['Compras mostradas', soFiado ? 'Só as no fiado' : 'Todas']
-  ]);
-  const emAberto = saldo > 0.009;
-  y = cartoesResumoPdf(doc, y, [
-    { rotulo: 'Compras no período', valor: formatarMoeda(totalCompras) },
-    { rotulo: 'Pagamentos no período', valor: formatarMoeda(totalPago) },
-    emAberto
-      ? { rotulo: 'Saldo em aberto hoje', valor: formatarMoeda(saldo), cor: COR_PDF.vermelho, fundo: COR_PDF.vermelhoFundo, borda: [254, 202, 202] }
-      : { rotulo: 'Saldo em aberto hoje', valor: 'Tudo pago', cor: COR_PDF.verdeEscuro, fundo: COR_PDF.verdeFundo, borda: [187, 247, 208] }
-  ]);
-  if (vendas.length) {
-    y = tabelaPdf(doc, y, {
-      titulo: `Compras (${vendas.length})`,
-      colunas: [{ titulo: 'Data', largura: 24 }, { titulo: 'Produtos', largura: 102 }, { titulo: 'Pagamento', largura: 26 }, { titulo: 'Valor', largura: 30, alinhar: 'right' }],
-      linhas: vendas.map((v) => ({
-        celulas: [
-          formatarDataBR(diaDe(v.data)),
-          { texto: itensDaVendaTexto(v, unidades), detalhe: v.desconto > 0 ? `${rotuloDesconto(v.descontoPercentual)}: -${formatarMoeda(v.desconto)} (de ${formatarMoeda(v.subtotal)})` : '' },
-          v.formaPagamento,
-          formatarMoeda(v.total)
-        ]
-      })),
-      total: ['Total das compras', formatarMoeda(totalCompras)]
-    });
-  }
-  if (pagamentos.length) {
-    y = tabelaPdf(doc, y, {
-      titulo: `Pagamentos recebidos (${pagamentos.length})`,
-      colunas: [{ titulo: 'Data', largura: 24 }, { titulo: 'Descrição', largura: 128 }, { titulo: 'Valor', largura: 30, alinhar: 'right' }],
-      linhas: pagamentos.map((p) => ({ celulas: [formatarDataBR(diaDe(p.data)), 'Pagamento do fiado', formatarMoeda(p.valor)] })),
-      total: ['Total pago', formatarMoeda(totalPago)]
-    });
-  }
-  // Fechamento: com PIX, a caixa de pagamento (o saldo já está no quadro lá em cima);
-  // sem PIX, uma faixa com o saldo de hoje.
-  if (emAberto && pix) {
-    y = caixaPixPdf(doc, y, pix, saldo, 14, 182, 36);
-  } else {
-    if (y + 18 > limiteRodapePdf(doc)) y = novaPaginaPdf(doc);
-    corFundo(doc, emAberto ? COR_PDF.vermelhoFundo : COR_PDF.verdeFundo);
-    doc.roundedRect(14, y, 182, 13, 2.5, 2.5, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5); corTexto(doc, emAberto ? COR_PDF.vermelho : COR_PDF.verdeEscuro);
-    doc.text(emAberto ? `Saldo em aberto hoje: ${txtPdf(formatarMoeda(saldo))}` : 'Tudo pago: não há saldo em aberto.', 19, y + 8.3);
-    y += 13 + 8;
-  }
-  // A mensagem final só entra se couber (não vale abrir uma página só para ela)
-  if (y + 8 <= limiteRodapePdf(doc)) {
-    doc.setFont('helvetica', 'italic'); doc.setFontSize(10); corTexto(doc, COR_PDF.verdeEscuro);
-    doc.text(txtPdf(dadosDocumentos().mensagem), 105, y + 2, { align: 'center' });
-  }
+  await desenhar(doc);
   rodapesPdf(doc);
   await entregarPdf(doc, nomeArquivoPdf('extrato', cliente.nome), modo, `Extrato de ${cliente.nome}`);
 }
 
 // Comprovante de uma venda: PDF estreito, estilo cupom (fica bom de ver no celular).
 async function gerarComprovantePdf(vendaId, modo) {
-  if (typeof window.jspdf === 'undefined') { mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet.'); return; }
+  if (modo !== 'imagem' && typeof window.jspdf === 'undefined') { mostrarToast('Sem conexão para gerar o PDF agora. Tente com internet (ou envie em imagem).'); return; }
   const venda = carregar(CHAVES.vendas).find((v) => v.id === vendaId);
   if (!venda) return;
   const cliente = venda.clienteId ? carregar(CHAVES.clientes).find((c) => c.id === venda.clienteId) : null;
@@ -5602,7 +5785,6 @@ async function gerarComprovantePdf(vendaId, modo) {
   const pix = saldo > 0.009 ? await pixParaDocumentos() : null;
   const unidades = mapaUnidadesProdutos();
   const dados = dadosDocumentos();
-  const { jsPDF } = window.jspdf;
   const L = 100, M = 7, CW = L - 2 * M;
 
   // Desenha numa folha comprida para medir; depois desenha de novo na altura certa.
@@ -5672,8 +5854,16 @@ async function gerarComprovantePdf(vendaId, modo) {
     doc.text(rod, L / 2, y, { align: 'center' });
     return y + 6;
   };
-  const altura = Math.ceil(desenhar(new jsPDF({ unit: 'mm', format: [L, 1000] })));
+  if (modo === 'imagem') {
+    await documentoEmImagem(desenhar, L, { rodape: false, alturaMinima: 100, nomeArquivo: nomeArquivoPdf('comprovante', cliente ? cliente.nome : 'venda', 'png'), titulo: 'Comprovante de compra' });
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const medida = new jsPDF({ unit: 'mm', format: [L, 1000] });
+  medida.semQuebraDePagina = true;
+  const altura = Math.ceil(desenhar(medida));
   const doc = new jsPDF({ unit: 'mm', format: [L, Math.max(altura, 120)] });
+  doc.semQuebraDePagina = true; // o cupom é uma folha só
   desenhar(doc);
   await entregarPdf(doc, nomeArquivoPdf('comprovante', cliente ? cliente.nome : 'venda'), modo, 'Comprovante de compra');
 }
@@ -5684,6 +5874,9 @@ document.getElementById('btnGerarExtratoPdf').addEventListener('click', () => {
 });
 document.getElementById('btnEnviarExtratoPdf').addEventListener('click', () => {
   garantirDadosDocumentos(() => gerarExtratoPdf(document.getElementById('modalDetalheCliente').dataset.clienteId, 'enviar'));
+});
+document.getElementById('btnEnviarExtratoImagem').addEventListener('click', () => {
+  garantirDadosDocumentos(() => gerarExtratoPdf(document.getElementById('modalDetalheCliente').dataset.clienteId, 'imagem'));
 });
 // Atalhos de período do extrato
 document.querySelectorAll('#extratoAtalhos [data-periodo]').forEach((b) => b.addEventListener('click', () => {
