@@ -319,7 +319,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.15.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.15.1</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -840,7 +840,7 @@
     <label>Micronutrientes
       <select id="adubMicro">
         <option value="pronto">Pronto para hidroponia (dose de fertirrigação)</option>
-        <option value="micromax">Micromax Concentrado (receita do app)</option>
+        <option value="micromax">Micromax (pó dissolvido em água)</option>
         <option value="caseiro">Concentrado caseiro (receita do app)</option>
       </select>
     </label>
@@ -912,7 +912,7 @@
           <li>Prefira um próprio para hidroponia (todo dissolvido em água, com boro, cobre, manganês, molibdênio e zinco).</li>
           <li>Mesmo que ele tenha um pouco de ferro, continue usando o ferro separado da receita.</li>
         </ul>
-        <p style="margin:10px 0 6px"><strong>Micromax Concentrado:</strong> o rótulo é de pulverização (50 a 150 g em 100 litros). Essa dose no reservatório daria de 100 a 300 vezes o zinco e o manganês que a planta precisa. Para a solução, faça um concentrado em <strong>1 litro de água morna</strong>: <strong>50 g de Micromax + 10 g de ácido bórico + 1,5 g de sulfato de cobre</strong> (o Micromax não tem cobre e tem pouco boro; ácido bórico e sulfato de cobre se acham em agropecuária). Rende <strong>100 mL para cada 1.000 litros</strong> na força total — escolha "Micromax Concentrado" em Micronutrientes, lá em cima, e a calculadora faz a conta. Agite antes de usar e guarde fechado, na sombra. A cor escura é do ácido fúlvico e não faz mal. O ferro dele é muito pouco: continue com o ferro separado.</p>
+        <p style="margin:10px 0 6px"><strong>Micromax Concentrado:</strong> o rótulo é de pulverização (50 a 150 g em 100 litros). Essa dose no reservatório daria de 100 a 300 vezes o zinco e o manganês que a planta precisa. Na solução vão só <strong>5 g do pó para cada 1.000 litros</strong> — pouco demais para pesar toda vez. Por isso faça um <strong>líquido</strong> numa garrafa de 1 litro: <strong>50 g de Micromax + 10 g de ácido bórico + 1,5 g de sulfato de cobre</strong>, complete com água morna e agite (o Micromax não tem cobre e tem pouco boro; ácido bórico e sulfato de cobre se acham em agropecuária). Use <strong>100 mL desse líquido para cada 1.000 litros</strong> na força total, medidos com seringa ou copinho de remédio — escolha "Micromax" em Micronutrientes, lá em cima, e a calculadora faz a conta. No balde B do concentrado A e B dá para pôr o pó direto: a conta aparece em "🪣 Concentrado A e B". Agite antes de usar e guarde fechado, na sombra. A cor escura é do ácido fúlvico e não faz mal. O ferro dele é muito pouco: continue com o ferro separado.</p>
         <p style="margin:10px 0 6px"><strong>Caseiro:</strong> em <strong>1 litro de água morna</strong>, 15 g de ácido bórico, 15 g de sulfato de manganês, 5 g de sulfato de zinco, 1,5 g de sulfato de cobre e 1,5 g de molibdato de sódio. Rende <strong>100 mL para cada 1.000 litros</strong> na força total. Guarde fechado e na sombra.</p>
       </div>
     </details>
@@ -1889,7 +1889,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.15.0';
+const APP_VERSION = '3.15.1';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -6510,17 +6510,27 @@ const FOSFATOS = {
   mkp: { nome: 'MKP (fosfato monopotássico)', curto: 'MKP', g: 150 },
   map: { nome: 'MAP purificado (12-61-0)', curto: 'MAP', g: 150 }
 };
-// Micronutrientes feitos em concentrado de 1 litro: 100 mL por 1.000 L na força total.
-// O Micromax Concentrado é de pulverização (B 2%, Mn 7%, Zn 8%, Mo 0,5%, Fe 0,1%, sem cobre):
+// Micronutrientes em líquido de 1 litro (os pós dissolvidos em água): 100 mL por 1.000 L na força total.
+// O Micromax Concentrado é pó de pulverização (B 2%, Mn 7%, Zn 8%, Mo 0,5%, Fe 0,1%, sem cobre):
 // a dose do rótulo (50 a 150 g/100 L) no reservatório daria Zn 40 a 120 mg/L — intoxica.
-// 50 g de Micromax + 10 g de ácido bórico + 1,5 g de sulfato de cobre por litro, a 100 mL/1.000 L:
+// Na solução vão só 5 g por 1.000 L (pouco demais para pesar), por isso o líquido: 50 g de Micromax +
+// 10 g de ácido bórico + 1,5 g de sulfato de cobre por litro, a 100 mL/1.000 L, dá
 // B 0,28 · Mn 0,35 · Zn 0,40 · Mo 0,025 · Cu 0,04 mg/L na força total (o ferro continua separado).
 const MICRO_CONCENTRADOS = {
-  micromax: { nome: 'Micronutrientes (concentrado com Micromax)', curto: 'concentrado com Micromax', noBalde: 'do concentrado com Micromax',
-    dica: 'Faça o concentrado: em <strong>1 litro de água morna</strong>, <strong>50 g de Micromax + 10 g de ácido bórico + 1,5 g de sulfato de cobre</strong>. Rende 100 mL para cada 1.000 litros. <strong>Não use a dose do rótulo</strong>: é de pulverização e, no reservatório, intoxica as plantas.' },
-  caseiro: { nome: 'Micronutrientes (concentrado caseiro)', curto: 'concentrado de micronutrientes', noBalde: 'do concentrado caseiro de micronutrientes',
-    dica: 'A receita está em "🧂 Micronutrientes", aqui embaixo. Rende 100 mL para cada 1.000 litros.' }
+  micromax: {
+    nome: 'Micromax (líquido)', curto: 'líquido de Micromax', noBalde: 'do líquido de Micromax',
+    pos: [{ nome: 'Micromax', g: 50 }, { nome: 'ácido bórico', g: 10 }, { nome: 'sulfato de cobre', g: 1.5 }], // gramas em 1 litro do líquido
+    dica(ml, litros) {
+      return `O Micromax é pó, mas na solução vai muito pouco (${fmtQtd(ml * this.pos[0].g / 1000, 'g')} nos seus ${fmtNum(litros, 0)} litros), difícil de pesar. Por isso o app conta em mL de um <strong>líquido</strong> feito com ele: numa garrafa de 1 litro, coloque <strong>50 g do pó + 10 g de ácido bórico + 1,5 g de sulfato de cobre</strong>, complete com água morna e agite. Meça o líquido com seringa ou copinho de remédio. <strong>Não use a dose do rótulo</strong>: é de pulverização e, no reservatório, intoxica as plantas.`;
+    }
+  },
+  caseiro: {
+    nome: 'Micronutrientes (concentrado caseiro)', curto: 'concentrado de micronutrientes', noBalde: 'do concentrado caseiro de micronutrientes',
+    dica() { return 'A receita está em "🧂 Micronutrientes", aqui embaixo. Rende 100 mL para cada 1.000 litros.'; }
+  }
 };
+// Gramas de cada pó que vão em tantos mL do líquido (para quem prefere pôr o pó direto no balde B).
+function posNoLiquido(conc, ml) { return conc.pos.map((p) => `${fmtQtd(ml * p.g / 1000, 'g')} de ${p.nome}`).join(' + '); }
 const DICA_MICRO_PRONTO = 'Use a dose para <strong>hidroponia ou fertirrigação</strong>. Dose de pulverização (g por 100 litros de calda) é muito mais forte e, no reservatório, intoxica as plantas.';
 // Micronutriente pronto para hidroponia raramente passa de uns 100 g (ou mL) por 1.000 L;
 // acima disso quase sempre é a dose de pulverização copiada do rótulo.
@@ -6604,7 +6614,11 @@ function linhasDaReceita(litros, fracao, c) {
     if (item.fosfato) { const f = FOSFATOS[c.fosfato]; return { nome: f.nome, curto: f.curto, obs: item.obs, texto: fmtQtd(f.g * k, 'g') }; }
     if (item.micro) {
       const conc = MICRO_CONCENTRADOS[c.micro];
-      if (conc) return { nome: conc.nome, curto: conc.curto, obs: item.obs, texto: fmtQtd(100 * k, 'mL') };
+      if (conc) {
+        const ml = 100 * k;
+        const obs = conc.pos ? `${item.obs} · tem ${fmtQtd(ml * conc.pos[0].g / 1000, 'g')} do pó dissolvido` : item.obs;
+        return { nome: conc.nome, curto: conc.curto, obs, texto: fmtQtd(ml, 'mL') };
+      }
       if (!c.microDose) return { nome: 'Micronutrientes (pronto)', curto: 'micronutrientes', obs: 'balde B · preencha a dose para hidroponia acima', texto: '—', semDose: true };
       return { nome: 'Micronutrientes (pronto)', curto: 'micronutrientes', obs: doseMicroAlta(c) ? 'balde B · ⚠️ dose alta: confira se não é de pulverização' : item.obs, texto: fmtQtd(c.microDose * k, c.microUnidade) };
     }
@@ -6649,7 +6663,8 @@ function atualizarCalculadoraAdubacao() {
     `Receita a ${Math.round(forca * 100)}% da força total para ${fmtNum(c.volume, 0)} litros → deve dar ≈ ${textoMeta(ceEsperada, c)} (confira no medidor).` +
     (c.ceAgua >= 0.5 ? `<br>⚠️ Sua água já tem bastante sal (${textoMeta(0.5, c)} ou mais). Vale fazer uma análise: pode sobrar pouco espaço para os adubos.` : '');
   document.getElementById('adubMicroDoseLinha').classList.toggle('hidden', c.micro !== 'pronto');
-  document.getElementById('adubMicroDica').innerHTML = MICRO_CONCENTRADOS[c.micro] ? MICRO_CONCENTRADOS[c.micro].dica : DICA_MICRO_PRONTO;
+  const conc = MICRO_CONCENTRADOS[c.micro];
+  document.getElementById('adubMicroDica').innerHTML = conc ? conc.dica(100 * c.volume / 1000 * forca, c.volume) : DICA_MICRO_PRONTO;
   const avisoMicro = document.getElementById('adubMicroAviso');
   avisoMicro.classList.toggle('hidden', !doseMicroAlta(c));
   avisoMicro.innerHTML = doseMicroAlta(c)
@@ -6668,8 +6683,7 @@ function atualizarCalculadoraAdubacao() {
   const rendeLitros = c.balde * 100;
   const reservatorios = rendeLitros / (c.volume * forca);
   const kb = rendeLitros / 1000;
-  const conc = MICRO_CONCENTRADOS[c.micro];
-  const microB = conc ? `${fmtQtd(100 * kb, 'mL')} ${conc.noBalde}`
+  const microB = conc ? `${fmtQtd(100 * kb, 'mL')} ${conc.noBalde}` + (conc.pos ? ` (ou o pó direto no balde: ${posNoLiquido(conc, 100 * kb)})` : '')
     : (c.microDose ? `${fmtQtd(c.microDose * kb, c.microUnidade)} do micronutriente pronto` : `o micronutriente pronto na dose para hidroponia de ${fmtNum(rendeLitros, 0)} litros`);
   document.getElementById('adubConcentrado').innerHTML = `
     <p style="margin:8px 0 8px">Em dois baldes de ${fmtNum(c.balde, 0)} litros (de preferência escuros, com tampa, guardados na sombra):</p>
