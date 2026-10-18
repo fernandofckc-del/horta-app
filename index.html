@@ -597,7 +597,7 @@
   <div class="lista" id="rankingCulturas" style="margin-bottom:20px"></div>
 
   <h2 class="titulo">🌱 Quanto plantar por semana</h2>
-  <p class="sub-titulo">Pelas vendas das últimas 8 semanas e pelas perdas que você registrou. Conta 1 muda para cada unidade vendida (pé ou maço).</p>
+  <p class="sub-titulo">Pelas vendas das últimas 8 semanas e pelas perdas que você registrou. Conta 1 muda para cada pé ou maço vendido.</p>
   <div class="lista" id="listaSugestaoPlantio" style="margin-bottom:20px"></div>
 
   <h2 class="titulo">Previsão de colheita x vendas</h2>
@@ -3530,9 +3530,13 @@ function renderSugestaoPlantio() {
   const plantios = carregar(CHAVES.plantios);
   const porCultura = {};
   let ficaramDeFora = false;
-  carregar(CHAVES.vendas).forEach((v) => {
+  const vendas = carregar(CHAVES.vendas);
+  // App novo (menos de 8 semanas de vendas): divide pelas semanas que existem de fato
+  const diasDesdePrimeira = vendas.reduce((m, v) => { const d = diasDesde(diaDe(v.data)); return Number.isFinite(d) && d > m ? d : m; }, 0);
+  const semanas = Math.min(8, Math.max(1, (diasDesdePrimeira + 1) / 7));
+  vendas.forEach((v) => {
     const dias = diasDesde(diaDe(v.data));
-    if (dias < 0 || dias >= 56) return;
+    if (!(dias >= 0 && dias < 56)) return;
     (v.itens || []).forEach((item) => {
       const prod = produtoPorId[item.produtoId];
       const nome = String((prod && (prod.cultura || prod.nome)) || item.nome || '').trim();
@@ -3540,11 +3544,27 @@ function renderSugestaoPlantio() {
       const fator = MUDAS_POR_UNIDADE[(prod && prod.unidade) || ''];
       if (!fator) { ficaramDeFora = true; return; }
       const chave = normalizarCultura(nome);
-      (porCultura[chave] = porCultura[chave] || { nome, vendido: 0 }).vendido += (Number(item.quantidade) || 0) * fator;
+      const grupo = (porCultura[chave] = porCultura[chave] || { nome, vendido: 0, temCultura: false });
+      grupo.vendido += (Number(item.quantidade) || 0) * fator;
+      if (prod && prod.cultura) grupo.temCultura = true;
     });
   });
-  const linhas = Object.values(porCultura).filter((c) => c.vendido > 0).map((c) => {
-    const daCultura = plantios.filter((p) => mesmaCultura(p.cultura, c.nome));
+  const grupos = Object.values(porCultura).filter((c) => c.vendido > 0);
+  // Cada plantio entra numa linha só: a de nome igual; senão, a única que começa igual ("Alface" → "Alface crespa")
+  const plantiosDaLinha = new Map(grupos.map((g) => [g, []]));
+  plantios.forEach((p) => {
+    const nome = normalizarCultura(p.cultura);
+    if (!nome) return;
+    let alvo = grupos.find((g) => normalizarCultura(g.nome) === nome);
+    if (!alvo) {
+      const parecidas = grupos.filter((g) => mesmaCultura(g.nome, p.cultura));
+      if (parecidas.length === 1) alvo = parecidas[0];
+    }
+    if (alvo) plantiosDaLinha.get(alvo).push(p);
+  });
+  // Produto sem cultura e que nunca foi plantado (ovos, kits...) não entra
+  const linhas = grupos.filter((c) => c.temCultura || plantiosDaLinha.get(c).length).map((c) => {
+    const daCultura = plantiosDaLinha.get(c);
     // Perda dos últimos 6 meses: perdido ÷ (colhido + perdido)
     let colhido = 0, perdido = 0;
     daCultura.forEach((p) => {
@@ -3555,7 +3575,7 @@ function renderSugestaoPlantio() {
     const perda = temHistorico ? perdido / (colhido + perdido) : 0;
     // Folga mínima de 5% e no máximo 50%: perder mais que isso se resolve na causa, não plantando o dobro
     const folga = temHistorico ? Math.min(0.5, Math.max(0.05, perda)) : 0.1;
-    const porSemana = c.vendido / 8;
+    const porSemana = c.vendido / semanas;
     const sugestao = Math.ceil(porSemana / (1 - folga));
     const plantouPorSemana = daCultura
       .filter((p) => p.dataPlantio && diasDesde(p.dataPlantio) >= 0 && diasDesde(p.dataPlantio) < 28)
@@ -3937,12 +3957,19 @@ document.getElementById('btnDesfazerPerda').addEventListener('click', () => {
     if (perdas[i].total) { perdas.splice(i, 1); break; }
   }
   p.perdas = perdas;
+  const guardadas = p.tarefasGuardadas || [];
+  if (guardadas.length) {
+    const tarefas = carregar(CHAVES.tarefas);
+    guardadas.forEach((t) => { if (!tarefas.some((x) => x.id === t.id)) tarefas.push(t); });
+    salvar(CHAVES.tarefas, tarefas);
+  }
   delete p.perdido;
   delete p.dataPerda;
+  delete p.tarefasGuardadas;
   salvar(CHAVES.plantios, plantios);
   document.getElementById('modalPlantio').classList.add('hidden');
   atualizarTelaPlantio();
-  mostrarToast('Perda desfeita: o plantio voltou para a lista.');
+  mostrarToast(guardadas.length ? 'Perda desfeita: o plantio e a tarefa de colheita voltaram.' : 'Perda desfeita: o plantio voltou para a lista.');
 });
 
 // -------------------- PERDI A COLHEITA (tudo ou uma parte) --------------------
@@ -3995,21 +4022,23 @@ document.getElementById('btnConfirmarPerda').addEventListener('click', () => {
     if (!(quantidade > 0)) { mostrarToast('Diga quantas perdeu.'); return; }
     if (restante > 0 && quantidade >= restante) { quantidade = restante; tudo = true; } // perdeu o que sobrava
   }
-  p.perdas = [...(p.perdas || []), { id: gerarId(), data, quantidade, motivo, obs: document.getElementById('perdaObs').value.trim(), ...(tudo ? { total: true } : {}) }];
-  if (tudo) { p.perdido = true; p.dataPerda = data; }
-  salvar(CHAVES.plantios, plantios);
-
-  // Perdeu tudo: a tarefa "Colher: ..." não faz mais sentido
-  let tarefasApagadas = 0;
+  // Perdeu tudo: a tarefa "Colher: ..." sai da lista (fica guardada no plantio, caso a perda seja desfeita)
+  let tarefasApagadas = [];
   if (tudo) {
     const tarefas = carregar(CHAVES.tarefas);
-    const ficam = tarefas.filter((t) => !(t.plantioId === id && !t.concluida && /^colher/i.test(t.titulo || '')));
-    tarefasApagadas = tarefas.length - ficam.length;
-    if (tarefasApagadas) salvar(CHAVES.tarefas, ficam);
+    tarefasApagadas = tarefas.filter((t) => t.plantioId === id && !t.concluida && /^colher/i.test(t.titulo || ''));
+    if (tarefasApagadas.length) salvar(CHAVES.tarefas, tarefas.filter((t) => !tarefasApagadas.includes(t)));
   }
+  p.perdas = [...(p.perdas || []), { id: gerarId(), data, quantidade, motivo, obs: document.getElementById('perdaObs').value.trim(), ...(tudo ? { total: true } : {}) }];
+  if (tudo) {
+    p.perdido = true;
+    p.dataPerda = data;
+    if (tarefasApagadas.length) p.tarefasGuardadas = tarefasApagadas;
+  }
+  salvar(CHAVES.plantios, plantios);
   document.getElementById('modalPerda').classList.add('hidden');
   atualizarTelaPlantio();
-  mostrarToast(tudo ? `Perda registrada.${tarefasApagadas ? ' A tarefa de colheita foi apagada.' : ''}` : `Perda de ${formatarQtd(quantidade)} registrada.`);
+  mostrarToast(tudo ? `Perda registrada.${tarefasApagadas.length ? ' A tarefa de colheita saiu da lista.' : ''}` : `Perda de ${formatarQtd(quantidade)} registrada.`);
 });
 
 // -------------------- MARCAR COMO COLHIDO (opcionalmente já soma no estoque) --------------------
@@ -4128,15 +4157,17 @@ function renderTarefas() {
   });
 }
 
-function preencherSelectPlantiosNaTarefa() {
-  const plantios = carregar(CHAVES.plantios).filter(plantioAtivo);
+function preencherSelectPlantiosNaTarefa(plantioIdAtual = '') {
+  // Plantios ativos + o que já está ligado à tarefa (mesmo colhido ou perdido), para não perder o vínculo ao salvar
+  const plantios = carregar(CHAVES.plantios).filter((p) => plantioAtivo(p) || p.id === plantioIdAtual);
   const select = document.getElementById('tarefaPlantioVinculado');
   select.innerHTML = '<option value="">Nenhum</option>' +
     plantios.map((p) => `<option value="${p.id}">${escapeHTML(p.cultura)} (colheita ${formatarDataBR(calcularDataPrevista(p))})</option>`).join('');
 }
 
 function abrirModalTarefa(id) {
-  preencherSelectPlantiosNaTarefa();
+  const tarefaAtual = id ? carregar(CHAVES.tarefas).find((x) => x.id === id) : null;
+  preencherSelectPlantiosNaTarefa(tarefaAtual ? tarefaAtual.plantioId : '');
   document.getElementById('tarefaId').value = id || '';
   const btnExcluir = document.getElementById('btnExcluirTarefa');
 
@@ -4624,6 +4655,8 @@ function mostrarTooltipGrafico(alvo, px, py) {
     el.textContent = linha;
     tooltipGrafico.appendChild(el);
   });
+  tooltipGrafico.style.left = '0px';
+  tooltipGrafico.style.top = '0px';
   tooltipGrafico.classList.remove('hidden');
   const r = tooltipGrafico.getBoundingClientRect();
   tooltipGrafico.style.left = Math.min(window.innerWidth - r.width - 8, Math.max(8, px - r.width / 2)) + 'px';
@@ -4872,7 +4905,8 @@ function renderRelatorioPagamentos(atual) {
 // Pagamentos abatem as compras fiado mais antigas primeiro; o que sobra é o que está em aberto.
 function fiadoEmAbertoPorCompra(dados) {
   const porCliente = {};
-  dados.vendas.filter((v) => v.formaPagamento === 'Fiado' && v.clienteId).forEach((v) => {
+  const existe = new Set(dados.clientes.map((c) => c.id));
+  dados.vendas.filter((v) => v.formaPagamento === 'Fiado' && existe.has(v.clienteId)).forEach((v) => {
     (porCliente[v.clienteId] = porCliente[v.clienteId] || { vendas: [], pago: 0 }).vendas.push(v);
   });
   dados.pagamentos.forEach((p) => { if (porCliente[p.clienteId]) porCliente[p.clienteId].pago += Number(p.valor) || 0; });
@@ -4884,7 +4918,8 @@ function fiadoEmAbertoPorCompra(dados) {
       const total = Number(v.total) || 0;
       const abate = Math.min(pago, total);
       pago -= abate;
-      if (total - abate > 0.009) abertas.push({ dias: Math.max(0, diasDesde(diaDe(v.data))), valor: total - abate });
+      const dias = diasDesde(diaDe(v.data));
+      if (total - abate > 0.009) abertas.push({ dias: Number.isFinite(dias) ? Math.max(0, dias) : 0, valor: total - abate });
     });
     if (abertas.length) resultado.push({ clienteId, abertas, valor: abertas.reduce((s, a) => s + a.valor, 0), maisAntiga: abertas[0].dias });
   });
@@ -4902,7 +4937,7 @@ function renderRelatorioFiado(dados) {
     { rotulo: '31 a 60 dias', ate: 60, cor: 'var(--g-ord-3)', valor: 0 },
     { rotulo: 'Mais de 60 dias', ate: Infinity, cor: 'var(--g-ord-4)', valor: 0 }
   ];
-  clientes.forEach((c) => c.abertas.forEach((a) => { faixas.find((f) => a.dias <= f.ate).valor += a.valor; }));
+  clientes.forEach((c) => c.abertas.forEach((a) => { (faixas.find((f) => a.dias <= f.ate) || faixas[faixas.length - 1]).valor += a.valor; }));
   const total = faixas.reduce((s, f) => s + f.valor, 0);
   if (total < 0.01) {
     el.innerHTML = '<p class="vazio">Ninguém devendo no momento. 🎉</p>';
@@ -4917,7 +4952,7 @@ function renderRelatorioFiado(dados) {
     : `${formatarMoeda(total)} na rua, tudo de menos de 30 dias. 👍`;
   const nomes = {};
   dados.clientes.forEach((c) => { nomes[c.id] = c.nome; });
-  const maisAntigos = clientes.filter((c) => nomes[c.clienteId]).sort((a, b) => b.maisAntiga - a.maisAntiga).slice(0, 5);
+  const maisAntigos = [...clientes].sort((a, b) => b.maisAntiga - a.maisAntiga).slice(0, 5);
   listaClientes.innerHTML = maisAntigos.length ? `<small style="color:var(--texto-suave)">Quem deve há mais tempo (toque para abrir):</small>` + maisAntigos.map((c) => `
     <div class="item devendo" data-cliente-id="${escapeHTML(c.clienteId)}">
       <div class="info"><strong>${escapeHTML(nomes[c.clienteId])}</strong><small>Compra mais antiga em aberto: há ${c.maisAntiga} dia${c.maisAntiga === 1 ? '' : 's'}</small></div>
@@ -7610,6 +7645,7 @@ function atualizarCalculadoraAdubacao() {
 ['adubVolume', 'adubCeAgua'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
 ['adubSituacao', 'adubFerro', 'adubFosfato', 'adubMicro', 'adubMicroUnidade'].forEach((id) => document.getElementById(id).addEventListener('change', atualizarCalculadoraAdubacao));
 ['adubMicroDose', 'adubBalde'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
+document.getElementById('adubSituacao').addEventListener('change', () => renderGraficosSolucao()); // a faixa da meta muda com a situação
 document.getElementById('adubUnidade').addEventListener('change', (e) => {
   const c = carregarConfigAdubacao();
   c.unidade = e.target.value;
