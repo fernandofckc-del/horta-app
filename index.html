@@ -2801,10 +2801,25 @@ document.getElementById('btnSalvarProduto').addEventListener('click', async () =
   const idExistente = document.getElementById('produtoId').value;
   const anterior = idExistente ? carregar(CHAVES.produtos).find((p) => p.id === idExistente) : null;
 
+  // Lê o formulário ANTES de esperar as fotos subirem (pode levar um tempo e o formulário não pode mudar)
+  const preco = parseFloat(document.getElementById('produtoPreco').value) || 0;
+  const precoPromocional = parseFloat(document.getElementById('produtoPrecoPromocional').value);
+  const estoqueDigitado = parseFloat(document.getElementById('produtoEstoque').value) || 0;
+  const campos = {
+    preco,
+    precoPromocional: (precoPromocional > 0 && precoPromocional < preco) ? precoPromocional : null,
+    estoqueMinimo: parseFloat(document.getElementById('produtoEstoqueMinimo').value) || 0,
+    cultura: document.getElementById('produtoCultura').value.trim(),
+    unidade: document.getElementById('produtoUnidade').value,
+    descricao: document.getElementById('produtoDescricao').value.trim()
+  };
+
   const btnSalvar = document.getElementById('btnSalvarProduto');
+  const btnCancelar = document.getElementById('btnCancelarProduto');
   const temNovidade = fotosForm.some((f) => f.nova) || (videoForm && videoForm.novo);
   let midias;
   btnSalvar.disabled = true;
+  btnCancelar.disabled = true;
   if (temNovidade && logadoNaNuvem()) btnSalvar.textContent = 'Enviando fotos...';
   try {
     midias = await gravarMidiasDoProduto(anterior);
@@ -2813,21 +2828,20 @@ document.getElementById('btnSalvarProduto').addEventListener('click', async () =
     return;
   } finally {
     btnSalvar.disabled = false;
+    btnCancelar.disabled = false;
     btnSalvar.textContent = 'Salvar';
   }
   const produtos = carregar(CHAVES.produtos);
+  // Estoque não mexido no formulário: vale o de agora (pode ter havido venda enquanto as fotos subiam)
+  const atualAgora = idExistente ? produtos.find((p) => p.id === idExistente) : null;
+  const estoqueAtual = anterior && atualAgora && Math.abs(estoqueDigitado - (Number(anterior.estoqueAtual) || 0)) < 1e-9
+    ? atualAgora.estoqueAtual : estoqueDigitado;
 
-  const precoPromocional = parseFloat(document.getElementById('produtoPrecoPromocional').value);
   const produto = {
     id: idExistente || gerarId(),
     nome,
-    preco: parseFloat(document.getElementById('produtoPreco').value) || 0,
-    precoPromocional: (precoPromocional > 0 && precoPromocional < (parseFloat(document.getElementById('produtoPreco').value) || 0)) ? precoPromocional : null,
-    estoqueAtual: parseFloat(document.getElementById('produtoEstoque').value) || 0,
-    estoqueMinimo: parseFloat(document.getElementById('produtoEstoqueMinimo').value) || 0,
-    cultura: document.getElementById('produtoCultura').value.trim(),
-    unidade: document.getElementById('produtoUnidade').value,
-    descricao: document.getElementById('produtoDescricao').value.trim(),
+    ...campos,
+    estoqueAtual,
     foto: midias.foto,
     ...(midias.galeria.some(Boolean) ? { galeria: midias.galeria } : {}),
     ...(midias.video ? { video: midias.video } : {})
@@ -4371,6 +4385,9 @@ function renderDesempenhoCulturas() {
   // Gera a lista ordenada de "baldes" de tempo (dias/semanas/meses) do período
   const buckets = [];
   const cursor = new Date(dataInicio);
+  // Mês começa no dia 1 (de 31/01, somar um mês pulava fevereiro); semana, na segunda
+  if (agrupamento === 'mes') cursor.setDate(1);
+  if (agrupamento === 'semana') cursor.setTime(new Date(chaveBucket(dataInicio, 'semana') + 'T00:00:00').getTime());
   while (cursor <= dataFim) {
     buckets.push(chaveBucket(cursor, agrupamento));
     if (agrupamento === 'dia') cursor.setDate(cursor.getDate() + 1);
@@ -6893,12 +6910,15 @@ document.getElementById('fileImportarBackup').addEventListener('change', (e) => 
   reader.onload = () => {
     try {
       const dump = JSON.parse(reader.result);
+      if (!dump || typeof dump !== 'object' || !Object.values(CHAVES).some((chave) => Array.isArray(dump[chave]))) throw new Error('não é backup');
+      const quando = dump._exportadoEm ? new Date(dump._exportadoEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'data desconhecida';
+      if (!confirm(`Trocar TODOS os dados deste aparelho (e da nuvem) pelos do backup?\n\nBackup de ${quando}: ${resumoDump(dump)}\nAgora no aparelho: ${resumoDump(empacotarDump())}\n\nAntes eu salvo um backup do que está agora no aparelho.`)) { e.target.value = ''; return; }
+      exportarBackup(true, 'antes_de_importar');
       Object.values(CHAVES).forEach((chave) => {
         if (Array.isArray(dump[chave])) salvar(chave, dump[chave]);
       });
       if (dump[CHAVE_RESPONSAVEL]) salvarResponsavel(dump[CHAVE_RESPONSAVEL]);
       if (dump[CHAVE_CONFIG_PESSOAL]) salvarConfigPessoal(dump[CHAVE_CONFIG_PESSOAL]);
-      localStorage.setItem('hg_ultimo_backup', new Date().toISOString());
       atualizarBannerBackup();
       mostrarToast('Backup importado com sucesso!');
       document.getElementById('modalBackup').classList.add('hidden');
@@ -7051,7 +7071,28 @@ function explicarErroNuvem(err) {
   return 'Não foi possível salvar na nuvem: ' + ((err && (err.code || err.message)) || 'erro desconhecido');
 }
 
-async function enviarParaNuvem() {
+function versaoDaNuvem(dados) {
+  return dados.versao || ('ts-' + (dados.atualizadoEm && dados.atualizadoEm.toMillis ? dados.atualizadoEm.toMillis() : 0));
+}
+// Quantos registros tem um pacote de dados (para as perguntas ficarem claras)
+function resumoDump(d) {
+  const n = (k) => (Array.isArray(d && d[k]) ? d[k].length : 0);
+  return `${n(CHAVES.vendas)} vendas, ${n(CHAVES.clientes)} clientes, ${n(CHAVES.produtos)} produtos`;
+}
+function salvarDumpEmArquivo(dump, sufixo) {
+  const blob = new Blob([JSON.stringify({ ...dump, _exportadoEm: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `backup_horta_${hojeISO()}_${sufixo}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// Envia numa transação: só grava se a nuvem ainda está na versão que este aparelho conhece
+// (ou na que o dono acabou de mandar substituir). Se outro aparelho mexeu, ou este celular ainda
+// não conseguiu conferir a nuvem (sinal fraco ao abrir), não sobrescreve: confere e pergunta antes.
+async function enviarParaNuvem(versaoQuePodeSubstituir) {
   if (!nuvemAuth || !nuvemAuth.currentUser) return false;
   if (sincronizacaoEmAndamento) { agendarEnvioNuvem(); return false; } // tenta de novo daqui a pouco
   const uid = nuvemAuth.currentUser.uid;
@@ -7059,11 +7100,22 @@ async function enviarParaNuvem() {
   const marca = localStorage.getItem(SYNC_PENDENTE);
   const versao = gerarVersaoSync();
   try {
-    await nuvemDb.collection('users').doc(uid).set({
-      dump: empacotarDump(),
-      versao,
-      atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    const ref = nuvemDb.collection('users').doc(uid);
+    const dump = empacotarDump();
+    const resultado = await nuvemDb.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const dados = snap.exists ? snap.data() : null;
+      if (dados && dados.dump) {
+        const naNuvem = versaoDaNuvem(dados);
+        if (naNuvem !== localStorage.getItem(chaveVersao) && naNuvem !== versaoQuePodeSubstituir) return 'mudou';
+      }
+      tx.set(ref, { dump, versao, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+      return 'ok';
     });
+    if (resultado === 'mudou') {
+      setTimeout(() => sincronizarComNuvem(false), 0);
+      return false;
+    }
     localStorage.setItem(chaveVersao, versao);
     if (localStorage.getItem(SYNC_PENDENTE) === marca) localStorage.removeItem(SYNC_PENDENTE);
     avisoErroNuvemMostrado = false;
@@ -7108,7 +7160,7 @@ async function sincronizarComNuvem(manual) {
     if (!dados || !dados.dump) {
       acao = 'enviar'; // nuvem vazia: manda o que tem aqui
     } else {
-      versaoNuvem = dados.versao || ('ts-' + (dados.atualizadoEm && dados.atualizadoEm.toMillis ? dados.atualizadoEm.toMillis() : 0));
+      versaoNuvem = versaoDaNuvem(dados);
       const versaoLocal = localStorage.getItem(chaveVersao);
       const pendente = !!localStorage.getItem(SYNC_PENDENTE);
       if (versaoLocal === versaoNuvem) {
@@ -7125,8 +7177,9 @@ async function sincronizarComNuvem(manual) {
     }
     if (acao === 'perguntar') {
       const quando = dados.atualizadoEm && dados.atualizadoEm.toDate ? dados.atualizadoEm.toDate().toLocaleString('pt-BR') : 'data desconhecida';
-      const usarNuvem = confirm(`Os dados deste aparelho estão diferentes dos que estão na nuvem (nuvem atualizada em ${quando}).\n\nOK = usar os dados da NUVEM (antes eu baixo um backup do que está neste aparelho, por segurança)\nCancelar = manter os dados DESTE APARELHO e mandar pra nuvem`);
-      if (usarNuvem) { exportarBackup(true, 'antes_da_nuvem'); acao = 'baixar'; } else { acao = 'enviar'; }
+      // Os dois lados são salvos num arquivo antes. Fechar a pergunta (botão voltar) = ficar com a nuvem.
+      const manterAparelho = confirm(`Os dados deste aparelho estão diferentes dos da nuvem.\n\nNUVEM (atualizada em ${quando}): ${resumoDump(dados.dump)}\nESTE APARELHO: ${resumoDump(empacotarDump())}\n\nOK = ficar com os dados DESTE APARELHO (o que está na nuvem é salvo antes num arquivo de backup)\nCancelar = ficar com os dados da NUVEM (o deste aparelho é salvo antes num arquivo de backup)`);
+      if (manterAparelho) { salvarDumpEmArquivo(dados.dump, 'nuvem_antes_de_substituir'); acao = 'enviar'; } else { exportarBackup(true, 'antes_da_nuvem'); acao = 'baixar'; }
     }
     if (acao === 'baixar') {
       aplicarDump(dados.dump);
@@ -7147,7 +7200,7 @@ async function sincronizarComNuvem(manual) {
     sincronizacaoEmAndamento = false;
   }
   if (acao === 'enviar') {
-    const ok = await enviarParaNuvem();
+    const ok = await enviarParaNuvem(versaoNuvem);
     if (manual && ok) mostrarToast('✅ Dados enviados pra nuvem.');
   }
 }
@@ -7176,6 +7229,10 @@ function iniciarFirebase() {
 iniciarFirebase();
 // Voltou a internet: se tiver alteração pendente (ou faz tempo que não confere), sincroniza.
 // (Sem isso a cada oscilação de sinal ele baixaria tudo de novo e gastaria dados móveis.)
+// Voltou para o app (estava em segundo plano): confere se outro aparelho mexeu na nuvem
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && Date.now() - ultimaConferenciaNuvemMs > 2 * 60 * 1000) sincronizarComNuvem(false);
+});
 window.addEventListener('online', () => {
   if (localStorage.getItem(SYNC_PENDENTE) || Date.now() - ultimaConferenciaNuvemMs > 10 * 60 * 1000) sincronizarComNuvem(false);
 });
@@ -9143,6 +9200,25 @@ Use nomes de produtos/clientes o mais próximo possível dos já cadastrados.`;
   }
 }
 
+// Nome falado → cliente. Nome igual primeiro; senão, quem tem todas as palavras faladas no nome
+// ("Ana" acha "Ana Paula", mas não "Mariana"). Se servir para mais de um, não escolhe sozinho.
+function acharClientePorNome(nomeFalado) {
+  const alvo = normalizarCultura(nomeFalado);
+  if (!alvo) return { cliente: null, duvida: [] };
+  const clientes = carregar(CHAVES.clientes);
+  const iguais = clientes.filter((c) => normalizarCultura(c.nome) === alvo);
+  if (iguais.length === 1) return { cliente: iguais[0], duvida: [] };
+  const palavras = alvo.split(' ');
+  const parecidos = (iguais.length ? iguais : clientes).filter((c) => {
+    const nome = normalizarCultura(c.nome).split(' ');
+    return palavras.every((p) => nome.includes(p));
+  });
+  if (parecidos.length === 1) return { cliente: parecidos[0], duvida: [] };
+  return { cliente: null, duvida: parecidos.map((c) => c.nome) };
+}
+const FORMAS_PAGAMENTO_FALADAS = { dinheiro: 'Dinheiro', pix: 'PIX', cartao: 'Cartão', fiado: 'Fiado' };
+function formaPagamentoFalada(texto) { return FORMAS_PAGAMENTO_FALADAS[normalizarCultura(texto)] || 'Dinheiro'; }
+
 function aplicarAcoesVoz(acoes) {
   const resultadoEl = document.getElementById('vozResultado');
   const linhas = [];
@@ -9155,13 +9231,20 @@ function aplicarAcoesVoz(acoes) {
         if (!produto) { linhas.push(`❌ Produto "${acao.produtoNome}" não encontrado.`); return; }
         const qtd = Number(acao.quantidade) || 1;
         let clienteId = '';
+        const formaPagamento = formaPagamentoFalada(acao.formaPagamento);
         if (acao.clienteNome) {
-          const clientes = carregar(CHAVES.clientes);
-          let cliente = clientes.find((c) => c.nome.toLowerCase().includes(acao.clienteNome.toLowerCase()) || acao.clienteNome.toLowerCase().includes(c.nome.toLowerCase()));
-          if (!cliente) { cliente = { id: gerarId(), nome: acao.clienteNome, telefone: '' }; clientes.push(cliente); salvar(CHAVES.clientes, clientes); }
+          const achado = acharClientePorNome(acao.clienteNome);
+          if (achado.duvida.length > 1) { linhas.push(`❓ "${acao.clienteNome}" pode ser ${achado.duvida.join(' ou ')}. Fale o nome completo.`); return; }
+          let cliente = achado.cliente;
+          if (!cliente) {
+            const clientes = carregar(CHAVES.clientes);
+            cliente = { id: gerarId(), nome: String(acao.clienteNome).trim(), telefone: '' };
+            clientes.push(cliente);
+            salvar(CHAVES.clientes, clientes);
+          }
           clienteId = cliente.id;
         }
-        const formaPagamento = acao.formaPagamento || 'Dinheiro';
+        if (formaPagamento === 'Fiado' && !clienteId) { linhas.push('❌ Venda fiado precisa do nome do cliente. Fale para quem foi.'); return; }
         const preco = precoVigente(produto);
         const venda = {
           id: gerarId(), data: new Date().toISOString(), clienteId,
@@ -9224,8 +9307,9 @@ function aplicarAcoesVoz(acoes) {
         if (!acao.clienteNome) { linhas.push('❌ Nome do cliente não informado.'); return; }
         const valor = Number(acao.valor) || 0;
         if (valor <= 0) { linhas.push('❌ Valor de pagamento inválido.'); return; }
-        const clientes = carregar(CHAVES.clientes);
-        const cliente = clientes.find((c) => c.nome.toLowerCase().includes(acao.clienteNome.toLowerCase()) || acao.clienteNome.toLowerCase().includes(c.nome.toLowerCase()));
+        const achado = acharClientePorNome(acao.clienteNome);
+        if (achado.duvida.length > 1) { linhas.push(`❓ "${acao.clienteNome}" pode ser ${achado.duvida.join(' ou ')}. Fale o nome completo.`); return; }
+        const cliente = achado.cliente;
         if (!cliente) { linhas.push(`❌ Cliente "${acao.clienteNome}" não encontrado.`); return; }
         const saldoAtual = saldoDevedor(cliente.id);
         if (valor > saldoAtual + 0.009) { linhas.push(`⚠️ Valor maior que o saldo devedor de ${cliente.nome} (${formatarMoeda(saldoAtual)}). Registrado mesmo assim.`); }
