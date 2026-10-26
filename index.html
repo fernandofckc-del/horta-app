@@ -378,12 +378,28 @@
   .card .delta.ruim { color: var(--g-desce); }
   .card .delta.neutro { color: var(--texto-suave); font-weight: 400; }
   .grid-cards .card .valor.pequeno { font-size: 1.05rem; }
+
+  /* ---- AVISOS DO DIA / CLIMA / SEPARAR PEDIDOS ---- */
+  .aviso-dia { display: flex; gap: 10px; align-items: flex-start; background: var(--card); border-radius: var(--radius); padding: 11px 14px; box-shadow: 0 1px 5px rgba(0,0,0,0.04); cursor: pointer; font-size: 0.86rem; line-height: 1.4; border-left: 4px solid var(--laranja); }
+  .aviso-dia.calor { border-left-color: var(--vermelho); }
+  .aviso-dia .icone { font-size: 1.3rem; line-height: 1; }
+  .dias-clima { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 10px; }
+  .dia-clima { background: var(--bg); border-radius: 10px; padding: 8px 2px; text-align: center; font-size: 0.72rem; color: var(--texto-suave); line-height: 1.35; }
+  .dia-clima strong { display: block; font-size: 1.05rem; color: var(--texto); }
+  .dia-clima.quente strong { color: var(--vermelho); }
+  .texto-clima { font-size: 0.84rem; line-height: 1.45; margin: 0 0 8px; }
+  .separar-bloco { background: var(--bg); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: 0.85rem; line-height: 1.45; }
+  .separar-bloco h4 { margin: 0 0 6px; font-size: 0.88rem; }
+  .separar-linha { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--borda); }
+  .separar-linha:last-child { border-bottom: none; }
+  .separar-linha small { color: var(--texto-suave); }
+  .separar-linha > strong, .separar-linha > small { white-space: nowrap; }
 </style>
 </head>
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.16.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.17.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -443,6 +459,7 @@
   <!-- ---- PAINEL COM OS NÚMEROS (abre ao tocar no ícone Início) ---- -->
   <div id="painelInicioDashboard" style="display:none">
     <button type="button" class="fantasma" id="btnVoltarMenuInicio" style="width:auto;margin-bottom:14px">← Voltar ao menu</button>
+    <div class="lista hidden" id="dashAvisos" style="margin-bottom:14px"></div>
 
     <div class="grid-cards">
       <div class="card alerta"><span class="label">Fiado em aberto</span><span class="valor" id="dashFiado">R$ 0,00</span></div>
@@ -494,6 +511,10 @@
 
   <h2 class="titulo" style="margin-top:0">🏆 Ranking de clientes</h2>
   <div class="lista" id="listaRankingClientes" style="margin-bottom:18px"></div>
+
+  <h2 class="titulo">😴 Clientes que sumiram</h2>
+  <p class="sub-titulo">Quem comprava sempre e parou. Um oi no WhatsApp costuma trazer de volta.</p>
+  <div class="lista" id="listaClientesSumidos" style="margin-bottom:18px"></div>
 
   <div class="toolbar">
     <input type="search" id="buscaCliente" placeholder="Pesquisar cliente...">
@@ -877,6 +898,11 @@
     Receita base: IAC (Furlani) para folhosas, a mais usada no Brasil — tem bastante cálcio (ajuda contra a queima das bordas da alface) e pouco amônio (melhor no calor).</p>
 
   <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 8px">🌡️ Calor dos próximos dias</h3>
+    <div id="climaConteudo"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
     <h3 style="margin:0 0 10px">🧮 Quanto colocar</h3>
     <label>Seu medidor mostra
       <select id="adubUnidade">
@@ -988,6 +1014,13 @@
         <p style="margin:10px 0 6px"><strong>Caseiro:</strong> em <strong>1 litro de água morna</strong>, 15 g de ácido bórico, 15 g de sulfato de manganês, 5 g de sulfato de zinco, 1,5 g de sulfato de cobre e 1,5 g de molibdato de sódio. Rende <strong>100 mL para cada 1.000 litros</strong> na força total. Guarde fechado e na sombra.</p>
       </div>
     </details>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 8px">🔄 Troca da solução</h3>
+    <div id="trocaSolucaoTexto"></div>
+    <button class="fantasma" id="btnTroqueiSolucao" style="width:100%;margin-top:10px">✅ Troquei a solução hoje</button>
+    <button type="button" class="link-discreto hidden" id="btnDesfazerTroca" style="padding-top:8px">Marquei sem querer? Apagar a última troca</button>
   </div>
 
   <div class="card" style="margin-bottom:14px">
@@ -1380,6 +1413,8 @@
       <button type="button" class="fantasma active" data-filtro-pedidos="novos" style="flex:1">Novos</button>
       <button type="button" class="fantasma" data-filtro-pedidos="todos" style="flex:1">Todos</button>
     </div>
+    <button type="button" class="fantasma hidden" id="btnSepararPedidos" style="width:100%;margin-bottom:12px"></button>
+    <div id="painelSeparar" class="hidden"></div>
     <div id="listaPedidosCatalogo"></div>
     <button class="fantasma" id="btnFecharPedidosCatalogo" style="width:100%;margin-top:6px">Fechar</button>
   </div>
@@ -2070,8 +2105,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.16.0';
-const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao' };
+const APP_VERSION = '3.17.0';
+const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao', trocasSolucao: 'hg_trocas_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
 const CHAVE_CONFIG_PESSOAL = 'hg_config_pessoal';
@@ -2160,7 +2195,7 @@ function irParaAba(nome) {
   document.body.classList.toggle('tela-inicio-ativa', nome === 'inicio');
   if (nome === 'inicio') mostrarMenuInicio();
   if (nome === 'estoque') renderProdutos();
-  if (nome === 'clientes') { renderClientes(); renderRankingClientes(); }
+  if (nome === 'clientes') { renderClientes(); renderRankingClientes(); renderClientesSumidos(); }
   if (nome === 'vendas') { preencherSelects(); prepararDataVenda(); renderVendasRecentes(); atualizarBadgesPedidos(); }
   if (nome === 'insumos') { renderInsumos(); renderGraficoLucroMensal(); }
   if (nome === 'plantio') { renderPlantios(); renderDesempenhoCulturas(); renderPrevisaoColheita(); renderSugestaoPlantio(); }
@@ -2268,6 +2303,8 @@ function renderDashboard() {
       cobrarClienteWhatsapp(btn.dataset.cobrarId);
     }));
   }
+
+  renderAvisosDashboard();
 
   const listaTarefasDash = document.getElementById('listaTarefasDashboard');
   const pendentes = tarefas.filter((t) => !t.concluida).sort((a, b) => (a.dataPrevista || '').localeCompare(b.dataPrevista || '')).slice(0, 5);
@@ -7574,6 +7611,9 @@ function linhasDaReceita(litros, fracao, c) {
 }
 
 function renderAdubacao() {
+  renderClima();
+  atualizarPrevisao().then((novo) => { if (novo) renderClima(); });
+  renderTrocaSolucao();
   const c = carregarConfigAdubacao();
   const selSit = document.getElementById('adubSituacao');
   if (!selSit.options.length) {
@@ -8168,6 +8208,7 @@ function iniciarEscutaPedidos(uid) {
 }
 
 function renderPedidosCatalogo() {
+  renderSeparacaoPedidos();
   const lista = document.getElementById('listaPedidosCatalogo');
   const base = filtroPedidos === 'novos' ? pedidosNovos() : pedidosCatalogoCache;
   const pedidos = [...base].sort((a, b) => dataPedidoMs(b) - dataPedidoMs(a)).slice(0, 60);
@@ -8178,17 +8219,17 @@ function renderPedidosCatalogo() {
   lista.innerHTML = pedidos.map((p) => {
     const reg = registroProcessado(p.id);
     const quando = new Date(dataPedidoMs(p)).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    const itens = (p.itens || []).map((i) => `• ${i.quantidade}x ${escapeHTML(i.nome || '')}`).join('<br>');
+    const itens = (p.itens || []).map((i) => `• ${escapeHTML(String(i.quantidade))}x ${escapeHTML(i.nome || '')}`).join('<br>');
     const endereco = p.endereco
       ? escapeHTML(p.endereco).replace(/(https:\/\/www\.google\.com\/maps\?q=[-0-9.,]+)/g, '<a href="$1" target="_blank" rel="noopener">abrir no mapa</a>')
       : '';
     const acoes = reg
       ? `<span class="selo-status">${reg.acao === 'venda' ? '✔ Venda registrada' : '🗂 Arquivado'}</span>
-         ${reg.acao === 'arquivado' ? `<div class="acoes-pedido"><button class="fantasma" data-reabrir="${p.id}">↩ Voltar para novos</button></div>` : ''}`
+         ${reg.acao === 'arquivado' ? `<div class="acoes-pedido"><button class="fantasma" data-reabrir="${escapeHTML(p.id)}">↩ Voltar para novos</button></div>` : ''}`
       : `<div class="acoes-pedido">
-           <button class="primario" data-registrar="${p.id}" style="flex-basis:100%">✅ Registrar venda</button>
-           ${p.clienteTelefone ? `<button class="fantasma" data-whats="${p.id}">💬 WhatsApp</button>` : ''}
-           <button class="fantasma" data-arquivar="${p.id}">🗂 Arquivar</button>
+           <button class="primario" data-registrar="${escapeHTML(p.id)}" style="flex-basis:100%">✅ Registrar venda</button>
+           ${p.clienteTelefone ? `<button class="fantasma" data-whats="${escapeHTML(p.id)}">💬 WhatsApp</button>` : ''}
+           <button class="fantasma" data-arquivar="${escapeHTML(p.id)}">🗂 Arquivar</button>
          </div>`;
     return `<div class="pedido-card ${reg ? '' : 'novo'}">
       <div class="topo"><strong>${formatarMoeda(p.total)}</strong><small style="margin:0">${quando}</small></div>
@@ -8262,13 +8303,13 @@ function abrirRegistrarPedido(pedidoId) {
   const produtos = carregar(CHAVES.produtos);
   document.getElementById('registrarPedidoResumo').innerHTML = `
     <div class="item" style="background:var(--bg)"><div class="info"><strong>${formatarMoeda(p.total)}</strong>
-    <small>${(p.itens || []).map((i) => `${i.quantidade}x ${escapeHTML(i.nome || '')}`).join(', ')}</small></div></div>`;
+    <small>${(p.itens || []).map((i) => `${escapeHTML(String(i.quantidade))}x ${escapeHTML(i.nome || '')}`).join(', ')}</small></div></div>`;
 
   const avisos = [];
   (p.itens || []).forEach((i) => {
     const prod = produtos.find((x) => x.id === i.produtoId);
     if (!prod) avisos.push(`"${escapeHTML(i.nome || '')}" não existe mais no estoque — a venda é registrada, mas sem dar baixa.`);
-    else if ((prod.estoqueAtual || 0) < i.quantidade) avisos.push(`"${escapeHTML(prod.nome)}": estoque ${prod.estoqueAtual}, pedido ${i.quantidade} — vai ficar negativo.`);
+    else if ((prod.estoqueAtual || 0) < i.quantidade) avisos.push(`"${escapeHTML(prod.nome)}": estoque ${formatarQtd(prod.estoqueAtual)}, pedido ${escapeHTML(String(i.quantidade))} — vai ficar negativo.`);
   });
   document.getElementById('registrarPedidoAvisos').innerHTML = avisos.length
     ? `<p style="background:#fef3c7;color:#92400e;padding:8px 10px;border-radius:10px;font-size:0.8rem;margin:0 0 10px">⚠️ ${avisos.join('<br>⚠️ ')}</p>`
@@ -8606,6 +8647,357 @@ document.getElementById('btnRemoverBannerCatalogo').addEventListener('click', ()
   }).catch((err) => {
     mostrarToast('Erro ao remover banner: ' + (err.code || err.message));
   });
+});
+
+// ============================================================
+// PREVISÃO DO TEMPO → meta de ppm de cada dia (Open-Meteo: grátis, sem cadastro)
+// A localização fica só neste celular (hg_clima); para a Open-Meteo vai só a coordenada.
+// ============================================================
+const CHAVE_CLIMA = 'hg_clima';
+const CLIMA_VALIDADE_MS = 3 * 3600 * 1000;
+let climaBuscando = false;
+let climaUltimaTentativa = 0;
+function carregarClima() { try { return JSON.parse(localStorage.getItem(CHAVE_CLIMA) || 'null'); } catch (e) { return null; } }
+function salvarClima(c) { try { localStorage.setItem(CHAVE_CLIMA, JSON.stringify(c)); } catch (e) { /* sem espaço: só não guarda */ } }
+// Mesmos limites das situações da calculadora (calor forte = dia acima de 33 °C)
+function situacaoPelaTemperatura(max) { return max >= 33 ? 'calorForte' : max >= 28 ? 'calor' : 'ameno'; }
+async function buscarJson(url) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+// Devolve a previsão nova, ou null quando não buscou (sem local, ainda válida, sem internet)
+async function atualizarPrevisao(forcar = false) {
+  const c = carregarClima();
+  if (!c || c.lat == null || climaBuscando) return null;
+  if (!forcar && c.dados && Date.now() - c.em < CLIMA_VALIDADE_MS) return null;
+  if (!forcar && Date.now() - climaUltimaTentativa < 10 * 60 * 1000) return null; // falhou há pouco: espera
+  climaBuscando = true;
+  climaUltimaTentativa = Date.now();
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${Number(c.lat).toFixed(3)}&longitude=${Number(c.lon).toFixed(3)}` +
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto&forecast_days=4';
+    const j = await buscarJson(url);
+    const d = (j && j.daily) || {};
+    if (!Array.isArray(d.time) || !d.time.length) throw new Error('sem dados');
+    const novo = {
+      ...carregarClima(), em: Date.now(),
+      dados: d.time.map((dia, i) => ({ dia, max: (d.temperature_2m_max || [])[i], min: (d.temperature_2m_min || [])[i], chuva: (d.precipitation_probability_max || [])[i] }))
+    };
+    salvarClima(novo);
+    return novo;
+  } catch (e) {
+    return null;
+  } finally {
+    climaBuscando = false;
+  }
+}
+function diasDaPrevisao(c) {
+  return ((c && c.dados) || []).filter((x) => x.dia >= hojeISO() && Number.isFinite(x.max)).slice(0, 4);
+}
+function nomeDiaClima(diaISO) {
+  const dd = diasDesde(diaISO);
+  if (dd === 0) return 'Hoje';
+  if (dd === -1) return 'Amanhã';
+  return NOME_DIA_CURTO[new Date(diaISO + 'T12:00:00').getDay()];
+}
+function metaDaSituacao(chave, cfg) { const s = SITUACOES_SOLUCAO[chave]; return textoFaixa(s.ceMin, s.ceMax, cfg); }
+function conselhoDoDia(d, cfg) {
+  const max = Math.round(d.max);
+  const quando = nomeDiaClima(d.dia);
+  const sit = situacaoPelaTemperatura(d.max);
+  if (sit === 'calorForte') {
+    return `🔥 <strong>${quando}: calor forte (${max} °C).</strong> Use a meta mais baixa: ${metaDaSituacao('calorForte', cfg)}. Complete o nível só com água, deixe o reservatório na sombra (gelo nas horas mais quentes) e colha bem cedo.` +
+      (d.max >= 36 ? ' Acima de 36 °C, sombrite sobre as bancadas ajuda muito.' : '');
+  }
+  if (sit === 'calor') return `☀️ <strong>${quando}: calor (${max} °C).</strong> Meta do dia a dia: ${metaDaSituacao('calor', cfg)}.`;
+  return `🌤️ <strong>${quando}: mais ameno (${max} °C).</strong> Dá para usar ${metaDaSituacao('ameno', cfg)}.`;
+}
+
+function renderClima() {
+  const caixa = document.getElementById('climaConteudo');
+  const c = carregarClima();
+  if (!c || c.lat == null) {
+    caixa.innerHTML = `<p class="sub-titulo" style="margin:0 0 8px">Mostra a temperatura dos próximos dias na sua cidade e qual meta de ppm usar em cada dia. A localização fica só no seu celular.</p>
+      <button class="fantasma" id="btnClimaGps" style="width:100%;margin-bottom:8px">📍 Usar minha localização</button>
+      <div class="toolbar" style="margin-bottom:0">
+        <input type="search" id="climaCidade" placeholder="Ou digite a cidade" enterkeyhint="search">
+        <button class="fantasma" id="btnClimaBuscarCidade" style="width:auto">Buscar</button>
+      </div>
+      <div class="lista" id="climaCidades" style="margin-top:8px"></div>`;
+    document.getElementById('btnClimaGps').addEventListener('click', usarLocalizacaoClima);
+    document.getElementById('btnClimaBuscarCidade').addEventListener('click', buscarCidadeClima);
+    document.getElementById('climaCidade').addEventListener('keydown', (e) => { if (e.key === 'Enter') buscarCidadeClima(); });
+    return;
+  }
+  const cfg = carregarConfigAdubacao();
+  const dias = diasDaPrevisao(c);
+  const horaPrevisao = c.em ? new Date(c.em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  const rodape = `<p class="sub-titulo" style="margin:8px 0 0">📍 ${escapeHTML(c.nome || 'Sua localização')}${horaPrevisao ? ` · previsão de ${horaPrevisao}` : ''} ·
+    <button type="button" class="link-discreto" style="width:auto;padding:0" id="btnClimaAtualizar">atualizar</button> ·
+    <button type="button" class="link-discreto" style="width:auto;padding:0" id="btnClimaTrocar">trocar cidade</button></p>`;
+  if (!dias.length) {
+    caixa.innerHTML = `<p class="texto-clima">${climaBuscando ? 'Buscando a previsão…' : 'Sem previsão por enquanto. Precisa de internet: toque em "atualizar".'}</p>` + rodape;
+  } else {
+    const hoje = dias[0];
+    const amanha = dias[1];
+    const sitHoje = situacaoPelaTemperatura(hoje.max);
+    const conselhos = [conselhoDoDia(hoje, cfg)];
+    if (amanha && situacaoPelaTemperatura(amanha.max) !== sitHoje) conselhos.push(conselhoDoDia(amanha, cfg));
+    const chuva = dias.slice(0, 2).find((d) => d.chuva >= 70);
+    if (chuva) conselhos.push(`🌧️ <strong>${nomeDiaClima(chuva.dia)}: chuva provável (${chuva.chuva}%).</strong> Se o reservatório pega água da chuva, o ppm cai: meça depois.`);
+    const podeTrocar = cfg.situacao !== sitHoje && cfg.situacao !== 'mudas';
+    caixa.innerHTML = `<div class="dias-clima">${dias.map((d) => `<div class="dia-clima${d.max >= 33 ? ' quente' : ''}">${nomeDiaClima(d.dia)}<strong>${Math.round(d.max)}°</strong>mín ${Math.round(d.min)}°${Number.isFinite(d.chuva) ? `<br>💧 ${d.chuva}%` : ''}</div>`).join('')}</div>
+      ${conselhos.map((t) => `<p class="texto-clima">${t}</p>`).join('')}
+      ${podeTrocar ? `<button class="primario" id="btnUsarSituacaoClima" style="margin-top:2px">Usar "${escapeHTML(SITUACOES_SOLUCAO[sitHoje].nome.split(' (')[0])}" na calculadora</button>` : ''}
+      ${rodape}`;
+    if (podeTrocar) {
+      document.getElementById('btnUsarSituacaoClima').addEventListener('click', () => {
+        const sel = document.getElementById('adubSituacao');
+        sel.value = sitHoje;
+        sel.dispatchEvent(new Event('change'));
+        renderClima();
+        renderTrocaSolucao();
+        mostrarToast('Situação trocada: a calculadora já mostra a nova meta.');
+      });
+    }
+  }
+  document.getElementById('btnClimaAtualizar').addEventListener('click', async () => {
+    mostrarToast('Buscando a previsão…');
+    const novo = await atualizarPrevisao(true);
+    renderClima();
+    if (!novo) mostrarToast('Sem internet agora. Ficou a última previsão.');
+  });
+  document.getElementById('btnClimaTrocar').addEventListener('click', () => {
+    try { localStorage.removeItem(CHAVE_CLIMA); } catch (e) { /* nada */ }
+    renderClima();
+  });
+}
+async function escolherLocalClima(lat, lon, nome) {
+  salvarClima({ lat, lon, nome });
+  climaUltimaTentativa = 0;
+  renderClima();
+  const novo = await atualizarPrevisao(true);
+  renderClima();
+  if (!novo) mostrarToast('Local guardado. A previsão aparece quando tiver internet.');
+}
+function usarLocalizacaoClima() {
+  if (!navigator.geolocation) { mostrarToast('Este celular não deu a localização. Digite a cidade.'); return; }
+  mostrarToast('Pegando a localização…');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => escolherLocalClima(pos.coords.latitude, pos.coords.longitude, 'Sua localização'),
+    () => mostrarToast('Não deu para pegar a localização. Digite a cidade.'),
+    { timeout: 15000, maximumAge: 3600000 }
+  );
+}
+async function buscarCidadeClima() {
+  const nome = document.getElementById('climaCidade').value.trim();
+  const lista = document.getElementById('climaCidades');
+  if (nome.length < 2) { mostrarToast('Digite o nome da cidade.'); return; }
+  lista.innerHTML = '<p class="sub-titulo" style="margin:0">Procurando…</p>';
+  try {
+    const j = await buscarJson(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nome)}&count=6&language=pt&format=json&countryCode=BR`);
+    const achadas = (j && j.results) || [];
+    if (!achadas.length) { lista.innerHTML = '<p class="sub-titulo" style="margin:0">Não achei essa cidade. Confira o nome (sem o estado).</p>'; return; }
+    lista.innerHTML = achadas.map((r, i) => `<div class="item" data-cidade="${i}"><div class="info"><strong>${escapeHTML(r.name)}</strong><small>${escapeHTML([r.admin2, r.admin1].filter(Boolean).join(' · '))}</small></div><span>›</span></div>`).join('');
+    lista.querySelectorAll('[data-cidade]').forEach((el) => el.addEventListener('click', () => {
+      const r = achadas[Number(el.dataset.cidade)];
+      escolherLocalClima(r.latitude, r.longitude, [r.name, r.admin1].filter(Boolean).join(' - '));
+    }));
+  } catch (e) {
+    lista.innerHTML = '<p class="sub-titulo" style="margin:0">Sem internet agora. Tente de novo daqui a pouco.</p>';
+  }
+}
+
+// -------------------- TROCA DA SOLUÇÃO --------------------
+// Com o tempo a planta tira uns nutrientes mais que outros e o sal da água se acumula: o ppm
+// continua "bom" com a receita desandada. No calor, trocar tudo a cada 2 a 3 semanas evita isso.
+function ultimaTrocaSolucao() {
+  const datas = carregar(CHAVES.trocasSolucao).map((x) => x.data).filter(Boolean).sort();
+  return datas.length ? { data: datas[datas.length - 1], dias: diasDesde(datas[datas.length - 1]) } : null;
+}
+function limiteTrocaSolucao(situacao) { return situacao === 'ameno' ? 28 : 21; }
+function renderTrocaSolucao() {
+  const el = document.getElementById('trocaSolucaoTexto');
+  const ultima = ultimaTrocaSolucao();
+  const limite = limiteTrocaSolucao(carregarConfigAdubacao().situacao);
+  document.getElementById('btnDesfazerTroca').classList.toggle('hidden', !ultima);
+  if (!ultima) {
+    el.innerHTML = `<p class="texto-clima" style="margin:0">Nenhuma troca registrada. No calor, troque <strong>toda</strong> a solução a cada <strong>2 a 3 semanas</strong> (3 a 4 nos dias amenos): a planta tira uns nutrientes mais do que outros e o ppm continua "bom" com a receita desandada.</p>`;
+    return;
+  }
+  const proxima = new Date(ultima.data + 'T12:00:00');
+  proxima.setDate(proxima.getDate() + limite);
+  const quando = `Última troca: ${formatarDataBR(ultima.data)} (${ultima.dias === 0 ? 'hoje' : `há ${ultima.dias} dia${ultima.dias === 1 ? '' : 's'}`}).`;
+  if (ultima.dias >= limite) el.innerHTML = `<p class="diag ruim" style="margin:0">🔴 ${quando} Passou da hora: troque toda a água e o adubo. Aproveite para lavar o reservatório.</p>`;
+  else if (ultima.dias >= limite - 7) el.innerHTML = `<p class="diag atencao" style="margin:0">🟡 ${quando} Já pode trocar nesta semana (até ${formatarDataBR(dataLocalISO(proxima))}).</p>`;
+  else el.innerHTML = `<p class="diag ok" style="margin:0">✅ ${quando} Próxima troca por volta de ${formatarDataBR(dataLocalISO(proxima))}.</p>`;
+}
+document.getElementById('btnTroqueiSolucao').addEventListener('click', () => {
+  const trocas = carregar(CHAVES.trocasSolucao);
+  if (trocas.some((t) => t.data === hojeISO())) { mostrarToast('A troca de hoje já está marcada.'); return; }
+  trocas.push({ id: gerarId(), data: hojeISO() });
+  salvar(CHAVES.trocasSolucao, trocas);
+  renderTrocaSolucao();
+  mostrarToast('Troca da solução marcada. Meça o ppm e o pH depois de misturar.');
+});
+document.getElementById('btnDesfazerTroca').addEventListener('click', () => {
+  const trocas = carregar(CHAVES.trocasSolucao).sort((a, b) => String(a.data).localeCompare(String(b.data)));
+  if (!trocas.length || !confirm(`Apagar a troca de ${formatarDataBR(trocas[trocas.length - 1].data)}?`)) return;
+  trocas.pop();
+  salvar(CHAVES.trocasSolucao, trocas);
+  renderTrocaSolucao();
+});
+
+// -------------------- AVISOS DO DIA NO PAINEL (calor e troca da solução) --------------------
+function renderAvisosDashboard() {
+  const el = document.getElementById('dashAvisos');
+  const avisos = [];
+  const cfg = carregarConfigAdubacao();
+  const clima = carregarClima();
+  const quentes = diasDaPrevisao(clima).slice(0, 2).filter((d) => d.max >= 33);
+  if (quentes.length) {
+    const d = quentes.reduce((a, b) => (b.max > a.max ? b : a));
+    avisos.push({ classe: 'calor', icone: '🔥', texto: `<strong>${nomeDiaClima(d.dia)}: ${Math.round(d.max)} °C.</strong> Calor forte: meta de ${metaDaSituacao('calorForte', cfg)}, reservatório na sombra e colheita cedo.` });
+  }
+  const troca = ultimaTrocaSolucao();
+  if (troca && troca.dias >= limiteTrocaSolucao(cfg.situacao)) {
+    avisos.push({ classe: '', icone: '🔄', texto: `<strong>Solução sem trocar há ${troca.dias} dias.</strong> Hora de trocar toda a água e o adubo.` });
+  }
+  el.innerHTML = avisos.map((a) => `<div class="aviso-dia ${a.classe}" role="button"><span class="icone">${a.icone}</span><span>${a.texto}</span></div>`).join('');
+  el.classList.toggle('hidden', !avisos.length);
+  el.querySelectorAll('.aviso-dia').forEach((b) => b.addEventListener('click', () => irParaAba('adubacao')));
+  // Previsão velha: busca de novo sem travar o painel
+  atualizarPrevisao().then((novo) => {
+    if (novo && document.getElementById('painelInicioDashboard').style.display !== 'none') renderAvisosDashboard();
+  });
+}
+
+// -------------------- CLIENTES QUE SUMIRAM --------------------
+// Comprou em pelo menos 3 dias diferentes e está sem comprar há o dobro do costume (mínimo 14 dias).
+// Quem sumiu há mais de 6 meses não entra (provavelmente mudou, não adianta insistir).
+function clientesSumidos() {
+  const porCliente = {};
+  carregar(CHAVES.vendas).forEach((v) => {
+    const dia = diaDe(v.data);
+    if (!v.clienteId || !dia) return;
+    const c = (porCliente[v.clienteId] = porCliente[v.clienteId] || { dias: new Set(), total: 0, compras: 0, itens: {} });
+    c.dias.add(dia);
+    c.total += Number(v.total) || 0;
+    c.compras++;
+    (v.itens || []).forEach((i) => { if (i.nome) c.itens[i.nome] = (c.itens[i.nome] || 0) + (Number(i.quantidade) || 0); });
+  });
+  return carregar(CHAVES.clientes).map((cliente) => {
+    const c = porCliente[cliente.id];
+    if (!c || c.dias.size < 3) return null;
+    const dias = [...c.dias].sort();
+    const ultima = dias[dias.length - 1];
+    const intervalo = Math.max(1, (diasDesde(dias[0]) - diasDesde(ultima)) / (dias.length - 1));
+    const semComprar = diasDesde(ultima);
+    if (!(semComprar >= Math.max(14, intervalo * 2)) || semComprar > 180) return null;
+    const favorito = Object.entries(c.itens).sort((a, b) => b[1] - a[1])[0];
+    const porCompra = c.total / c.compras;
+    return { cliente, intervalo, semComprar, porCompra, porMes: porCompra * 30 / intervalo, favorito: favorito ? favorito[0] : '', deve: saldoDevedor(cliente.id) };
+  }).filter(Boolean).sort((a, b) => b.porMes - a.porMes);
+}
+function renderClientesSumidos() {
+  const el = document.getElementById('listaClientesSumidos');
+  const lista = clientesSumidos().slice(0, 8);
+  if (!lista.length) {
+    el.innerHTML = '<p class="vazio" style="padding:10px 0">Ninguém sumiu. 👍 Aparece aqui quem comprava sempre e parou.</p>';
+    return;
+  }
+  el.innerHTML = lista.map((x) => `
+    <div class="item" data-id="${x.cliente.id}">
+      <div class="info">
+        <strong>${escapeHTML(x.cliente.nome)}</strong>
+        <small>Comprava a cada ~${Math.round(x.intervalo)} dia${Math.round(x.intervalo) === 1 ? '' : 's'} · sem comprar há ${x.semComprar} dias · ~${formatarMoeda(x.porCompra)} por compra</small>
+        ${x.deve > 0.009 ? `<small class="linha-extra" style="color:var(--vermelho)">Ainda deve ${formatarMoeda(x.deve)} no fiado</small>` : ''}
+      </div>
+      ${x.cliente.telefone ? `<button class="whatsapp btn-mini" data-chamar="${x.cliente.id}">💬 Chamar</button>` : ''}
+    </div>`).join('');
+  el.querySelectorAll('.item').forEach((item) => item.addEventListener('click', () => abrirDetalheCliente(item.dataset.id)));
+  el.querySelectorAll('[data-chamar]').forEach((b) => b.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const x = lista.find((y) => y.cliente.id === b.dataset.chamar);
+    const nome = String(x.cliente.nome || '').trim().split(/\s+/)[0];
+    const link = nuvemAuth && nuvemAuth.currentUser ? linkDoCatalogo() : '';
+    const msg = `Oi ${nome}! Tudo bem? 🌱 Faz um tempinho que você não pega verdura aqui com a gente.` +
+      (x.favorito ? ` Essa semana tem ${x.favorito.toLowerCase()} colhendo na hora.` : '') +
+      (link ? ` Se quiser, é só pedir por aqui: ${link}` : ' Quer que eu separe pra você?');
+    const tel = soDigitos(x.cliente.telefone);
+    window.open(`https://wa.me/${tel.length <= 11 ? '55' + tel : tel}?text=${encodeURIComponent(msg)}`, '_blank');
+  }));
+}
+
+// -------------------- O QUE SEPARAR DOS PEDIDOS NOVOS --------------------
+// Soma os itens dos pedidos do catálogo que ainda não viraram venda e compara com o estoque.
+let painelSepararAberto = false;
+function resumoSeparacao() {
+  const pedidos = [...pedidosNovos()].sort((a, b) => dataPedidoMs(a) - dataPedidoMs(b));
+  const produtoPorId = {};
+  carregar(CHAVES.produtos).forEach((p) => { produtoPorId[p.id] = p; });
+  const totais = {};
+  pedidos.forEach((p) => (p.itens || []).forEach((i) => {
+    const prod = produtoPorId[i.produtoId];
+    const chave = prod ? prod.id : 'n:' + normalizarCultura(i.nome);
+    const t = (totais[chave] = totais[chave] || { nome: (prod && prod.nome) || i.nome || 'Produto', unidade: (prod && prod.unidade) || '', qtd: 0, estoque: prod ? Number(prod.estoqueAtual) || 0 : null });
+    t.qtd = arred(t.qtd + (Number(i.quantidade) || 0));
+  }));
+  Object.values(totais).forEach((t) => { t.falta = t.estoque === null ? 0 : arred(t.qtd - t.estoque); });
+  return { pedidos, totais: Object.values(totais).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) };
+}
+function qtdComUnidade(qtd, unidade) { return `${formatarQtd(qtd)}${unidade ? ' ' + textoUnidade(unidade, qtd) : ''}`; }
+function itensDoPedidoTexto(p) { return (p.itens || []).map((i) => `${formatarQtd(i.quantidade)} ${i.nome || ''}`.trim()).join(', '); }
+function renderSeparacaoPedidos() {
+  const btn = document.getElementById('btnSepararPedidos');
+  const painel = document.getElementById('painelSeparar');
+  const { pedidos, totais } = resumoSeparacao();
+  btn.classList.toggle('hidden', !pedidos.length);
+  btn.textContent = painelSepararAberto ? '▴ Esconder o que separar' : `🧺 O que separar dos ${pedidos.length > 1 ? `${pedidos.length} pedidos novos` : 'pedidos novos'}`;
+  const mostrar = painelSepararAberto && pedidos.length > 0;
+  painel.classList.toggle('hidden', !mostrar);
+  if (!mostrar) { painel.innerHTML = ''; return; }
+  const responsavel = carregarResponsavel();
+  painel.innerHTML = `
+    <div class="separar-bloco"><h4>Total para separar</h4>${totais.map((t) => `
+      <div class="separar-linha">
+        <span>${escapeHTML(t.nome)}${t.estoque === null ? '' : `<br><small>${t.falta > 0 ? `⚠️ estoque ${formatarQtd(t.estoque)} → colher mais ${formatarQtd(t.falta)}` : `✅ tem ${formatarQtd(t.estoque)} no estoque`}</small>`}</span>
+        <strong>${escapeHTML(qtdComUnidade(t.qtd, t.unidade))}</strong>
+      </div>`).join('')}
+    </div>
+    <div class="separar-bloco"><h4>Por cliente (do pedido mais antigo)</h4>${pedidos.map((p) => `
+      <div class="separar-linha">
+        <span>${escapeHTML(p.clienteNome || formatarTelefone(p.clienteTelefone))}<br><small>${escapeHTML(itensDoPedidoTexto(p))}</small></span>
+        <small>${formatarMoeda(p.total)}</small>
+      </div>`).join('')}
+    </div>
+    <button class="whatsapp" id="btnEnviarSeparacao" style="margin-bottom:14px">📲 ${responsavel.nome && responsavel.telefone ? `Mandar a lista para ${escapeHTML(responsavel.nome)}` : 'Mandar a lista no WhatsApp'}</button>`;
+  document.getElementById('btnEnviarSeparacao').addEventListener('click', enviarSeparacaoWhatsapp);
+}
+function enviarSeparacaoWhatsapp() {
+  const { pedidos, totais } = resumoSeparacao();
+  const linhas = [
+    `🧺 *Separar: ${pedidos.length} pedido${pedidos.length > 1 ? 's' : ''}* (${formatarDataBR(hojeISO())})`,
+    '',
+    ...totais.map((t) => `• ${t.nome}: ${qtdComUnidade(t.qtd, t.unidade)}${t.falta > 0 ? ` (colher mais ${formatarQtd(t.falta)})` : ''}`),
+    '',
+    '*Por cliente:*',
+    ...pedidos.map((p) => `- ${p.clienteNome || formatarTelefone(p.clienteTelefone)}: ${itensDoPedidoTexto(p)}${p.endereco ? ` 📍 ${String(p.endereco).split('\n')[0]}` : ''}`)
+  ];
+  const tel = soDigitos(carregarResponsavel().telefone);
+  const destino = tel ? (tel.length <= 11 ? '55' + tel : tel) : '';
+  window.open(`https://wa.me/${destino}?text=${encodeURIComponent(linhas.join('\n'))}`, '_blank');
+}
+document.getElementById('btnSepararPedidos').addEventListener('click', () => {
+  painelSepararAberto = !painelSepararAberto;
+  renderSeparacaoPedidos();
 });
 
 // ============================================================
