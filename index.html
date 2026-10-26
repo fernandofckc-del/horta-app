@@ -394,6 +394,13 @@
   .separar-linha:last-child { border-bottom: none; }
   .separar-linha small { color: var(--texto-suave); }
   .separar-linha > strong, .separar-linha > small { white-space: nowrap; }
+  .fixo-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--borda); font-size: 0.86rem; }
+  .fixo-item input { width: 84px; padding: 8px; text-align: center; }
+  .acoes-fixo { display: flex; gap: 6px; flex-shrink: 0; }
+  .acoes-fixo button { width: auto; padding: 7px 10px; font-size: 0.8rem; }
+  .tiles-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tiles-3 .card { padding: 10px; box-shadow: none; background: var(--bg); }
+  .tiles-3 .card .valor { font-size: 1rem; }
 </style>
 </head>
 <body class="tela-inicio-ativa">
@@ -460,6 +467,10 @@
   <div id="painelInicioDashboard" style="display:none">
     <button type="button" class="fantasma" id="btnVoltarMenuInicio" style="width:auto;margin-bottom:14px">← Voltar ao menu</button>
     <div class="lista hidden" id="dashAvisos" style="margin-bottom:14px"></div>
+    <div id="dashFixosBox" class="hidden" style="margin-bottom:14px">
+      <h2 class="titulo" style="margin-top:0">📅 Pedidos fixos de hoje</h2>
+      <div class="lista" id="dashFixos"></div>
+    </div>
 
     <div class="grid-cards">
       <div class="card alerta"><span class="label">Fiado em aberto</span><span class="valor" id="dashFiado">R$ 0,00</span></div>
@@ -1158,6 +1169,13 @@
   </section>
 
   <section class="grafico-card">
+    <h3>Quanto custa cada pé (ou maço)</h3>
+    <p class="grafico-sub">Gastos do período (o que foi lançado em Insumos) divididos pelos pés e maços vendidos.</p>
+    <div class="tiles-3" id="relCustoTiles"></div>
+    <p class="grafico-destaque" id="relCustoDestaque"></p>
+  </section>
+
+  <section class="grafico-card">
     <h3>Formas de pagamento</h3>
     <p class="grafico-sub">Quanto entrou em cada forma no período.</p>
     <div id="relPagamentos"></div>
@@ -1802,6 +1820,27 @@
     <button class="whatsapp" id="btnCobrarWhatsapp" style="margin-top:10px">📲 Cobrar pelo WhatsApp</button>
     <button class="fantasma" id="btnEnviarExtrato" style="margin-top:8px;width:100%">📄 Enviar extrato completo no WhatsApp</button>
 
+    <details class="config-catalogo" id="detalheFixoBox" style="margin-top:14px">
+      <summary id="detalheFixoResumo">📅 Cliente fixo (leva toda semana)</summary>
+      <div class="texto-adubo">
+        <p class="sub-titulo" style="margin:0 0 8px">Quem leva sempre a mesma coisa: no dia, o painel lembra e a venda sai com um toque.</p>
+        <div class="dias-semana" id="fixoDias"></div>
+        <div id="fixoItens" style="margin-bottom:10px"></div>
+        <label>Como paga
+          <select id="fixoForma">
+            <option>Dinheiro</option>
+            <option>PIX</option>
+            <option>Cartão</option>
+            <option value="Fiado">Fiado</option>
+          </select>
+        </label>
+        <div class="acoes" style="margin-top:4px">
+          <button class="perigo hidden" id="btnRemoverFixo">Não é mais fixo</button>
+          <button class="primario" id="btnSalvarFixo">Salvar pedido fixo</button>
+        </div>
+      </div>
+    </details>
+
     <h2 class="titulo">Extrato para o cliente</h2>
     <div class="atalhos-dias" id="extratoAtalhos">
       <button type="button" class="fantasma" data-periodo="mes">Este mês</button>
@@ -2306,6 +2345,7 @@ function renderDashboard() {
   }
 
   renderAvisosDashboard();
+  renderFixosDeHoje();
 
   const listaTarefasDash = document.getElementById('listaTarefasDashboard');
   const pendentes = tarefas.filter((t) => !t.concluida).sort((a, b) => (a.dataPrevista || '').localeCompare(b.dataPrevista || '')).slice(0, 5);
@@ -2965,7 +3005,7 @@ function renderClientes() {
     const saldo = saldoDevedor(c.id);
     return `
       <div class="item ${saldo > 0.009 ? 'devendo' : ''}" data-id="${c.id}">
-        <div class="info"><strong>${escapeHTML(c.nome)}</strong><small>${c.telefone || 'sem telefone'}</small></div>
+        <div class="info"><strong>${escapeHTML(c.nome)}</strong><small>${c.telefone || 'sem telefone'}${c.fixo ? ` · 📅 fixo ${escapeHTML(textoDiasSemana(c.fixo.dias))}` : ''}</small></div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="valor-direita">${saldo > 0.009 ? formatarMoeda(saldo) : ''}</span>
           ${saldo > 0.009 && c.telefone ? `<button type="button" class="fantasma" style="width:auto;padding:6px 10px;font-size:0.78rem" data-cobrar-id="${c.id}">📲</button>` : ''}
@@ -3013,7 +3053,9 @@ document.getElementById('btnSalvarCliente').addEventListener('click', () => {
   const idExistente = document.getElementById('clienteId').value;
   const clientes = carregar(CHAVES.clientes);
 
+  const existente = idExistente ? clientes.find((c) => c.id === idExistente) : null;
   const cliente = {
+    ...(existente || {}), // mantém o pedido fixo e o que mais estiver guardado
     id: idExistente || gerarId(),
     nome,
     telefone: document.getElementById('clienteTelefone').value.trim().replace(/\D/g, '')
@@ -3069,6 +3111,7 @@ function abrirDetalheCliente(id) {
   document.getElementById('btnEnviarExtrato').classList.toggle('hidden', !cliente.telefone);
 
   renderHistoricoCliente(id);
+  prepararFixoDoCliente(cliente);
   document.getElementById('modalCliente').classList.add('hidden');
   document.getElementById('modalDetalheCliente').classList.remove('hidden');
 }
@@ -4855,6 +4898,7 @@ function renderRelatorios() {
   renderRelatorioMeses(per, atual, dados);
   renderRelatorioSemana(per, atual);
   renderRelatorioProdutos(atual, dados);
+  renderRelatorioCusto(atual, dados);
   renderRelatorioPagamentos(atual);
   renderRelatorioFiado(dados);
   renderRelatorioColheita(per, dados);
@@ -4974,6 +5018,47 @@ function renderRelatorioProdutos(atual, dados) {
     itens.push({ rotulo: `Outros (${resto.length})`, valor, texto: formatarMoeda(valor), cor: 'var(--g-contexto)' });
   }
   el.innerHTML = htmlBarrasH(itens);
+}
+
+// Gastos do período ÷ pés e maços vendidos: quanto custa cada um e quanto sobra
+function renderRelatorioCusto(atual, dados) {
+  const tiles = document.getElementById('relCustoTiles');
+  const destaque = document.getElementById('relCustoDestaque');
+  const produtoPorId = {};
+  dados.produtos.forEach((p) => { produtoPorId[p.id] = p; });
+  let unidades = 0, receita = 0;
+  atual.vendas.forEach((v) => {
+    const fator = v.desconto > 0 && v.subtotal > 0 ? v.total / v.subtotal : 1;
+    (v.itens || []).forEach((it) => {
+      const prod = produtoPorId[it.produtoId];
+      const unidade = (prod && prod.unidade) || '';
+      if (!['', 'pé', 'maço'].includes(unidade)) return;
+      unidades += Number(it.quantidade) || 0;
+      receita += (Number(it.quantidade) || 0) * (Number(it.precoUnitario) || 0) * fator;
+    });
+  });
+  if (!(unidades > 0)) {
+    tiles.innerHTML = '';
+    destaque.textContent = 'Sem pés ou maços vendidos neste período.';
+    return;
+  }
+  const preco = receita / unidades;
+  if (!(atual.gastos > 0)) {
+    tiles.innerHTML = `<div class="card"><span class="label">Preço médio</span><span class="valor">${formatarMoeda(preco)}</span></div>`;
+    destaque.textContent = 'Lance os gastos em Insumos (adubo, mudas, energia...) para ver quanto custa cada pé.';
+    return;
+  }
+  const custo = atual.gastos / unidades;
+  const sobra = preco - custo;
+  tiles.innerHTML = [
+    ['Custo', formatarMoeda(custo)],
+    ['Preço médio', formatarMoeda(preco)],
+    [sobra >= 0 ? 'Sobra' : 'Falta', `${formatarMoeda(Math.abs(sobra))}`]
+  ].map(([r, v]) => `<div class="card"><span class="label">${r}</span><span class="valor"${r === 'Falta' ? ' style="color:var(--vermelho)"' : ''}>${v}</span></div>`).join('');
+  const equilibrio = Math.ceil(atual.gastos / preco);
+  destaque.textContent = `Você vendeu ${formatarQtd(unidades)} pés e maços. Cada um custou ${formatarMoeda(custo)} e foi vendido por ${formatarMoeda(preco)} em média` +
+    (sobra >= 0 ? `: sobram ${formatarMoeda(sobra)} (${porcento(sobra, preco)}).` : `: o gasto passou da venda em ${formatarMoeda(-sobra)} por unidade.`) +
+    ` Para pagar os gastos do período era preciso vender ${formatarQtd(equilibrio)}. Os gastos contam tudo o que foi lançado em Insumos (até equipamento).`;
 }
 
 function renderRelatorioPagamentos(atual) {
@@ -9108,11 +9193,154 @@ function renderClientesSumidos() {
   }));
 }
 
+// -------------------- CLIENTE FIXO (leva toda semana) --------------------
+// cliente.fixo = { dias: [1, 4], itens: [{ produtoId, quantidade }], forma, feitos: { 'AAAA-MM-DD': 'venda' | 'pulado' } }
+let fixoDiasForm = [];
+function prepararFixoDoCliente(cliente) {
+  const fixo = cliente.fixo || null;
+  fixoDiasForm = fixo ? [...fixo.dias] : [];
+  const box = document.getElementById('detalheFixoBox');
+  box.open = false;
+  document.getElementById('detalheFixoResumo').textContent = fixo
+    ? `📅 Cliente fixo: ${textoDiasSemana(fixo.dias)}`
+    : '📅 Cliente fixo (leva toda semana)';
+  renderDiasFixo();
+  const qtd = {};
+  ((fixo && fixo.itens) || []).forEach((i) => { qtd[i.produtoId] = i.quantidade; });
+  const produtos = carregar(CHAVES.produtos);
+  document.getElementById('fixoItens').innerHTML = produtos.length
+    ? produtos.map((p) => `<div class="fixo-item"><span>${escapeHTML(p.nome)}${p.unidade ? ` <small style="color:var(--texto-suave)">(${escapeHTML(p.unidade)})</small>` : ''}</span>
+        <input type="number" min="0" step="${p.unidade === 'kg' ? '0.1' : '1'}" inputmode="decimal" data-fixo-produto="${p.id}" value="${qtd[p.id] || ''}" placeholder="0"></div>`).join('')
+    : '<p class="vazio" style="padding:8px 0">Cadastre os produtos no Estoque primeiro.</p>';
+  document.getElementById('fixoForma').value = (fixo && fixo.forma) || 'Dinheiro';
+  document.getElementById('btnRemoverFixo').classList.toggle('hidden', !fixo);
+}
+function renderDiasFixo() {
+  document.getElementById('fixoDias').innerHTML = ORDEM_DIAS.map((d) => {
+    const ligado = fixoDiasForm.includes(d);
+    return `<button type="button" class="fantasma${ligado ? ' active' : ''}" data-dia-fixo="${d}" aria-pressed="${ligado}">${NOME_DIA_CURTO[d]}</button>`;
+  }).join('');
+  document.querySelectorAll('#fixoDias [data-dia-fixo]').forEach((b) => b.addEventListener('click', () => {
+    const d = Number(b.dataset.diaFixo);
+    fixoDiasForm = fixoDiasForm.includes(d) ? fixoDiasForm.filter((x) => x !== d) : [...fixoDiasForm, d];
+    renderDiasFixo();
+  }));
+}
+function salvarClienteAlterado(id, mudar) {
+  const clientes = carregar(CHAVES.clientes);
+  const c = clientes.find((x) => x.id === id);
+  if (!c) return null;
+  mudar(c);
+  salvar(CHAVES.clientes, clientes);
+  return c;
+}
+document.getElementById('btnSalvarFixo').addEventListener('click', () => {
+  const id = document.getElementById('modalDetalheCliente').dataset.clienteId;
+  const itens = [...document.querySelectorAll('[data-fixo-produto]')]
+    .map((el) => ({ produtoId: el.dataset.fixoProduto, quantidade: arred(parseFloat(String(el.value).replace(',', '.')) || 0) }))
+    .filter((i) => i.quantidade > 0);
+  if (!fixoDiasForm.length) { mostrarToast('Escolha em que dia(s) da semana ele leva.'); return; }
+  if (!itens.length) { mostrarToast('Coloque a quantidade de pelo menos um produto.'); return; }
+  const forma = document.getElementById('fixoForma').value;
+  const c = salvarClienteAlterado(id, (cli) => { cli.fixo = { dias: [...fixoDiasForm].sort(), itens, forma, feitos: (cli.fixo && cli.fixo.feitos) || {} }; });
+  if (!c) return;
+  prepararFixoDoCliente(c);
+  renderClientes();
+  mostrarToast(`Pedido fixo salvo: ${textoDiasSemana(c.fixo.dias)}.`);
+});
+document.getElementById('btnRemoverFixo').addEventListener('click', () => {
+  const id = document.getElementById('modalDetalheCliente').dataset.clienteId;
+  if (!confirm('Tirar o pedido fixo deste cliente?')) return;
+  const c = salvarClienteAlterado(id, (cli) => { delete cli.fixo; });
+  if (c) prepararFixoDoCliente(c);
+  renderClientes();
+  mostrarToast('Não é mais cliente fixo.');
+});
+
+// Pedidos fixos que caem hoje e ainda não foram registrados nem pulados
+function fixosDeHoje() {
+  const hoje = hojeISO();
+  const diaSemana = new Date(hoje + 'T12:00:00').getDay();
+  const produtoPorId = {};
+  carregar(CHAVES.produtos).forEach((p) => { produtoPorId[p.id] = p; });
+  return carregar(CHAVES.clientes)
+    .filter((c) => c.fixo && (c.fixo.dias || []).includes(diaSemana) && !(c.fixo.feitos || {})[hoje])
+    .map((c) => {
+      const itens = (c.fixo.itens || []).map((i) => ({ ...i, produto: produtoPorId[i.produtoId] })).filter((i) => i.produto);
+      const total = arred(itens.reduce((s, i) => s + precoVigente(i.produto) * i.quantidade, 0), 2);
+      return { cliente: c, itens, total };
+    })
+    .filter((f) => f.itens.length);
+}
+function marcarFixo(clienteId, como) {
+  const hoje = hojeISO();
+  salvarClienteAlterado(clienteId, (c) => {
+    if (!c.fixo) return;
+    const feitos = { ...(c.fixo.feitos || {}), [hoje]: como };
+    // guarda só as últimas semanas
+    Object.keys(feitos).forEach((d) => { if (diasDesde(d) > 30) delete feitos[d]; });
+    c.fixo.feitos = feitos;
+  });
+}
+function registrarVendaDoFixo(f) {
+  const produtos = carregar(CHAVES.produtos);
+  const itens = f.itens.map((i) => {
+    const p = produtos.find((x) => x.id === i.produtoId);
+    return { produtoId: i.produtoId, nome: p.nome, precoUnitario: precoVigente(p), quantidade: i.quantidade };
+  });
+  const venda = {
+    id: gerarId(), data: new Date().toISOString(), clienteId: f.cliente.id, clienteNome: f.cliente.nome,
+    itens, total: arred(itens.reduce((s, i) => s + i.precoUnitario * i.quantidade, 0), 2), formaPagamento: f.cliente.fixo.forma || 'Dinheiro'
+  };
+  const vendas = carregar(CHAVES.vendas);
+  vendas.push(venda);
+  salvar(CHAVES.vendas, vendas);
+  itens.forEach((i) => { const p = produtos.find((x) => x.id === i.produtoId); if (p) p.estoqueAtual = arred(p.estoqueAtual - i.quantidade); });
+  salvar(CHAVES.produtos, produtos);
+  marcarFixo(f.cliente.id, 'venda');
+  return venda;
+}
+function renderFixosDeHoje() {
+  const box = document.getElementById('dashFixosBox');
+  const lista = fixosDeHoje();
+  box.classList.toggle('hidden', !lista.length);
+  if (!lista.length) { document.getElementById('dashFixos').innerHTML = ''; return; }
+  document.getElementById('dashFixos').innerHTML = lista.map((f) => `
+    <div class="item" style="cursor:default">
+      <div class="info">
+        <strong>${escapeHTML(f.cliente.nome)}</strong>
+        <small>${escapeHTML(f.itens.map((i) => `${formatarQtd(i.quantidade)} ${i.produto.nome}`).join(', '))}</small>
+        <small class="linha-extra">${formatarMoeda(f.total)} · ${escapeHTML(f.cliente.fixo.forma || 'Dinheiro')}${f.itens.some((i) => (Number(i.produto.estoqueAtual) || 0) < i.quantidade) ? ' · ⚠️ falta estoque' : ''}</small>
+      </div>
+      <div class="acoes-fixo">
+        <button class="primario" data-fixo-venda="${f.cliente.id}">✅ Vendi</button>
+        <button class="fantasma" data-fixo-pular="${f.cliente.id}">Pular</button>
+      </div>
+    </div>`).join('');
+  document.querySelectorAll('[data-fixo-venda]').forEach((b) => b.addEventListener('click', () => {
+    const f = lista.find((x) => x.cliente.id === b.dataset.fixoVenda);
+    if (!f) return;
+    const venda = registrarVendaDoFixo(f);
+    renderDashboard();
+    mostrarToast(`Venda de ${f.cliente.nome} registrada: ${formatarMoeda(venda.total)} (${venda.formaPagamento}).`);
+  }));
+  document.querySelectorAll('[data-fixo-pular]').forEach((b) => b.addEventListener('click', () => {
+    marcarFixo(b.dataset.fixoPular, 'pulado');
+    renderFixosDeHoje();
+    mostrarToast('Pulado só por hoje.');
+  }));
+}
+
 // -------------------- O QUE SEPARAR DOS PEDIDOS NOVOS --------------------
 // Soma os itens dos pedidos do catálogo que ainda não viraram venda e compara com o estoque.
 let painelSepararAberto = false;
 function resumoSeparacao() {
-  const pedidos = [...pedidosNovos()].sort((a, b) => dataPedidoMs(a) - dataPedidoMs(b));
+  // Pedidos novos do catálogo + pedidos fixos de hoje (ainda não vendidos)
+  const fixos = fixosDeHoje().map((f) => ({
+    clienteNome: `${f.cliente.nome} (fixo)`, total: f.total,
+    itens: f.itens.map((i) => ({ produtoId: i.produtoId, nome: i.produto.nome, quantidade: i.quantidade }))
+  }));
+  const pedidos = [...pedidosNovos()].sort((a, b) => dataPedidoMs(a) - dataPedidoMs(b)).concat(fixos);
   const produtoPorId = {};
   carregar(CHAVES.produtos).forEach((p) => { produtoPorId[p.id] = p; });
   const totais = {};
@@ -9132,7 +9360,7 @@ function renderSeparacaoPedidos() {
   const painel = document.getElementById('painelSeparar');
   const { pedidos, totais } = resumoSeparacao();
   btn.classList.toggle('hidden', !pedidos.length);
-  btn.textContent = painelSepararAberto ? '▴ Esconder o que separar' : `🧺 O que separar dos ${pedidos.length > 1 ? `${pedidos.length} pedidos novos` : 'pedidos novos'}`;
+  btn.textContent = painelSepararAberto ? '▴ Esconder o que separar' : `🧺 O que separar (${pedidos.length} pedido${pedidos.length > 1 ? 's' : ''})`;
   const mostrar = painelSepararAberto && pedidos.length > 0;
   painel.classList.toggle('hidden', !mostrar);
   if (!mostrar) { painel.innerHTML = ''; return; }
