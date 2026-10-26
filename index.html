@@ -399,7 +399,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.17.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.18.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -1743,9 +1743,9 @@
 
 <div id="modalRegrasMidia" class="modal-overlay hidden">
   <div class="modal-box">
-    <h3>📸 Liberar fotos extras e vídeo</h3>
+    <h3 id="tituloRegrasMidia">📸 Liberar fotos extras e vídeo</h3>
     <p style="font-size:0.82rem;color:var(--texto-suave);margin-top:-8px">
-      Para guardar mais fotos e o vídeo dos produtos, o Firebase precisa de uma liberação.
+      <span id="motivoRegrasMidia">Para guardar mais fotos e o vídeo dos produtos, o Firebase precisa de uma liberação.</span>
       É <strong>uma vez só</strong>, é <strong>grátis</strong> e dá para fazer pelo celular:
     </p>
     <ol style="font-size:0.84rem;padding-left:20px;margin:0 0 10px;line-height:1.5">
@@ -2062,6 +2062,7 @@
     <button class="primario hidden" id="btnEntrarGoogle" style="width:100%">Entrar com Google</button>
     <div id="nuvemLogado" class="hidden">
       <p id="nuvemSyncInfo" style="font-size:0.8rem;font-weight:600;margin:-4px 0 10px"></p>
+      <button class="fantasma hidden" id="btnRegrasSeguranca" style="width:100%;margin-bottom:8px">🔒 Atualizar as regras do Firebase (1 vez)</button>
       <button class="fantasma" id="btnSincronizarAgora" style="width:100%;margin-bottom:8px">🔄 Sincronizar agora</button>
       <button class="fantasma" id="btnSairGoogle" style="width:100%">Sair da conta</button>
     </div>
@@ -2105,7 +2106,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.17.0';
+const APP_VERSION = '3.18.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao', trocasSolucao: 'hg_trocas_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -2741,8 +2742,14 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == userId;
     }
     match /catalogos/{userId}/clientesCadastrados/{telefone} {
-      allow get, write: if true;
-      allow list: if request.auth != null && request.auth.uid == userId;
+      allow get: if true;
+      allow list, delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if (request.auth != null && request.auth.uid == userId)
+        || (request.resource.data.keys().hasOnly(['telefone', 'nome', 'primeiroAcesso', 'ultimoAcesso'])
+            && request.resource.data.get('nome', '') is string
+            && request.resource.data.get('nome', '').size() <= 80
+            && request.resource.data.get('telefone', '') is string
+            && request.resource.data.get('telefone', '').size() <= 15);
     }
     match /catalogos/{userId}/midias/{midiaId} {
       allow read: if true;
@@ -2757,14 +2764,39 @@ service cloud.firestore {
                         && request.resource.data.pedidosRodada == resource.data.pedidosRodada + 1
                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pedidosRodada']));
     }
+    match /versaoRegras/{versao} {
+      allow get: if versao == 'v3';
+    }
     match /pedidos/{pedidoId} {
-      allow create: if true;
+      allow create: if request.resource.data.keys().hasOnly(['uid', 'itens', 'total', 'endereco', 'clienteTelefone', 'clienteNome', 'origem', 'criadoEm'])
+        && request.resource.data.uid is string
+        && exists(/databases/$(database)/documents/catalogos/$(request.resource.data.uid))
+        && request.resource.data.itens is list
+        && request.resource.data.itens.size() > 0
+        && request.resource.data.itens.size() <= 60
+        && request.resource.data.total is number
+        && request.resource.data.total >= 0
+        && request.resource.data.total <= 100000
+        && request.resource.data.get('endereco', '') is string
+        && request.resource.data.get('endereco', '').size() <= 1000
+        && request.resource.data.get('clienteTelefone', '') is string
+        && request.resource.data.get('clienteTelefone', '').size() <= 20
+        && request.resource.data.get('clienteNome', '') is string
+        && request.resource.data.get('clienteNome', '').size() <= 80
+        && request.resource.data.origem in ['whatsapp', 'pix', 'link']
+        && request.resource.data.criadoEm == request.time;
       allow read: if request.auth != null && request.auth.uid == resource.data.uid;
       allow update, delete: if false;
     }
   }
 }`;
-function abrirModalRegrasMidia() {
+function abrirModalRegrasMidia(motivo = 'midia') {
+  const modal = document.getElementById('modalRegrasMidia');
+  modal.dataset.motivo = motivo;
+  document.getElementById('tituloRegrasMidia').textContent = motivo === 'seguranca' ? '🔒 Regras novas do Firebase' : '📸 Liberar fotos extras e vídeo';
+  document.getElementById('motivoRegrasMidia').textContent = motivo === 'seguranca'
+    ? 'As regras novas barram pedidos falsos no catálogo (campos estranhos, valores em texto, vendedor que não existe) e cadastros com lixo. Os pedidos de verdade continuam iguais.'
+    : 'Para guardar mais fotos e o vídeo dos produtos, o Firebase precisa de uma liberação.';
   document.getElementById('textoRegrasMidia').value = REGRAS_FIRESTORE;
   document.getElementById('modalRegrasMidia').classList.remove('hidden');
 }
@@ -2783,10 +2815,12 @@ document.getElementById('btnAbrirFirebaseRegras').addEventListener('click', () =
   window.open(`https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/databases/-default-/rules`, '_blank');
 });
 document.getElementById('btnTestarRegrasMidia').addEventListener('click', async () => {
-  const ok = await conferirRegrasMidia(true);
+  const seguranca = document.getElementById('modalRegrasMidia').dataset.motivo === 'seguranca';
+  const ok = seguranca ? await conferirRegrasNovas(true) : await conferirRegrasMidia(true);
   if (ok) {
     document.getElementById('modalRegrasMidia').classList.add('hidden');
-    mostrarToast('✅ Liberado! Agora é só salvar o produto com as fotos e o vídeo.');
+    mostrarToast(seguranca ? '✅ Regras novas ativas! O catálogo está protegido.' : '✅ Liberado! Agora é só salvar o produto com as fotos e o vídeo.');
+    if (seguranca) { atualizarStatusSyncUi(); renderDashboard(); }
   } else {
     mostrarToast('Ainda não liberou. Confira se tocou em Publicar (pode levar 1 minutinho).');
   }
@@ -7071,6 +7105,55 @@ function explicarErroNuvem(err) {
   return 'Não foi possível salvar na nuvem: ' + ((err && (err.code || err.message)) || 'erro desconhecido');
 }
 
+// -------------------- NUVEM EM PARTES (formato 2) --------------------
+// Tudo num documento só esbarra no limite de 1 MB do Firestore (fotos + meses de vendas).
+// Agora o pacote vai compactado (gzip) e dividido em partes de até 700 mil letras em
+// users/{uid}/nuvem/{n}; a ficha users/{uid} guarda a versão e quantas partes existem.
+// A ficha mantém um "dump" vazio para versões antigas do app não acharem que a nuvem está vazia.
+const TAMANHO_PARTE_NUVEM = 700000;
+let nuvemSemPartes = false; // regras antigas não deixam gravar as partes: usa o documento único
+let regrasNovasOk = null;
+function temDadosNaNuvem(dados) { return !!(dados && (dados.formato === 2 || dados.dump)); }
+async function compactarParaTexto(obj) {
+  const json = JSON.stringify(obj);
+  if (typeof CompressionStream === 'undefined') return { texto: json, gz: false };
+  const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+  return { texto: base64DeBytes(new Uint8Array(await new Response(stream).arrayBuffer())), gz: true };
+}
+async function descompactarTexto(texto, gz) {
+  if (!gz) return JSON.parse(texto);
+  const bin = atob(texto);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text());
+}
+async function lerDumpDaNuvem(dados, uid) {
+  if (!dados) return null;
+  if (dados.formato !== 2) return dados.dump || null;
+  const n = Number(dados.partes) || 0;
+  const ref = nuvemDb.collection('users').doc(uid);
+  const snaps = await Promise.all(Array.from({ length: n }, (_, i) => ref.collection('nuvem').doc(String(i)).get()));
+  const partes = snaps.map((x) => (x.exists ? x.data() : null));
+  // Outro aparelho gravando neste instante: as partes não batem com a ficha. Tenta de novo depois.
+  if (!partes.every((p) => p && p.versao === dados.versao)) throw new Error('unavailable: nuvem sendo atualizada por outro aparelho');
+  return descompactarTexto(partes.map((p) => p.texto).join(''), !!dados.gz);
+}
+// Só as regras novas deixam ler versaoRegras/v3 (não grava nada para testar)
+async function conferirRegrasNovas(forcar) {
+  if (!nuvemAuth || !nuvemAuth.currentUser) return null;
+  if (regrasNovasOk !== null && !forcar) return regrasNovasOk;
+  try {
+    await nuvemDb.collection('versaoRegras').doc('v3').get();
+    regrasNovasOk = true;
+  } catch (err) {
+    if (/permission/i.test(String((err && err.code) || '') + ' ' + String((err && err.message) || ''))) regrasNovasOk = false;
+  }
+  const btn = document.getElementById('btnRegrasSeguranca');
+  if (btn) btn.classList.toggle('hidden', regrasNovasOk !== false);
+  return regrasNovasOk;
+}
+
 function versaoDaNuvem(dados) {
   return dados.versao || ('ts-' + (dados.atualizadoEm && dados.atualizadoEm.toMillis ? dados.atualizadoEm.toMillis() : 0));
 }
@@ -7102,16 +7185,37 @@ async function enviarParaNuvem(versaoQuePodeSubstituir) {
   try {
     const ref = nuvemDb.collection('users').doc(uid);
     const dump = empacotarDump();
-    const resultado = await nuvemDb.runTransaction(async (tx) => {
+    const { texto, gz } = await compactarParaTexto(dump);
+    const pedacos = [];
+    for (let i = 0; i < texto.length; i += TAMANHO_PARTE_NUVEM) pedacos.push(texto.slice(i, i + TAMANHO_PARTE_NUVEM));
+    const gravar = (emPartes) => nuvemDb.runTransaction(async (tx) => {
       const snap = await tx.get(ref);
       const dados = snap.exists ? snap.data() : null;
-      if (dados && dados.dump) {
+      if (temDadosNaNuvem(dados)) {
         const naNuvem = versaoDaNuvem(dados);
         if (naNuvem !== localStorage.getItem(chaveVersao) && naNuvem !== versaoQuePodeSubstituir) return 'mudou';
       }
-      tx.set(ref, { dump, versao, atualizadoEm: firebase.firestore.FieldValue.serverTimestamp() });
+      const agora = firebase.firestore.FieldValue.serverTimestamp();
+      if (emPartes) {
+        tx.set(ref, { formato: 2, gz, partes: pedacos.length, tamanho: texto.length, versao, atualizadoEm: agora, dump: { _formato: 2 } });
+        pedacos.forEach((t, i) => tx.set(ref.collection('nuvem').doc(String(i)), { versao, texto: t }));
+        const antigas = dados && dados.formato === 2 ? Number(dados.partes) || 0 : 0;
+        for (let i = pedacos.length; i < antigas; i++) tx.delete(ref.collection('nuvem').doc(String(i)));
+      } else {
+        tx.set(ref, { dump, versao, atualizadoEm: agora });
+      }
       return 'ok';
     });
+    let resultado;
+    try {
+      resultado = await gravar(!nuvemSemPartes);
+    } catch (err) {
+      // Regras antigas (sem users/{uid}/...): volta para o documento único e pede as regras novas
+      if (nuvemSemPartes || !/permission/i.test(String((err && err.code) || '') + ' ' + String((err && err.message) || ''))) throw err;
+      nuvemSemPartes = true;
+      regrasNovasOk = false;
+      resultado = await gravar(false);
+    }
     if (resultado === 'mudou') {
       setTimeout(() => sincronizarComNuvem(false), 0);
       return false;
@@ -7157,9 +7261,10 @@ async function sincronizarComNuvem(manual) {
   try {
     const doc = await nuvemDb.collection('users').doc(nuvemAuth.currentUser.uid).get();
     dados = doc.exists ? doc.data() : null;
-    if (!dados || !dados.dump) {
+    if (!temDadosNaNuvem(dados)) {
       acao = 'enviar'; // nuvem vazia: manda o que tem aqui
     } else {
+      dados.dump = await lerDumpDaNuvem(dados, nuvemAuth.currentUser.uid);
       versaoNuvem = versaoDaNuvem(dados);
       const versaoLocal = localStorage.getItem(chaveVersao);
       const pendente = !!localStorage.getItem(SYNC_PENDENTE);
@@ -7220,6 +7325,9 @@ function iniciarFirebase() {
     if (user) {
       iniciarEscutaPedidos(user.uid);
       sincronizarComNuvem(false);
+      conferirRegrasNovas().then(() => {
+        if (document.getElementById('painelInicioDashboard').style.display !== 'none') renderAvisosDashboard();
+      });
       abrirPedidosSeVeioDoAviso();
     } else {
       pararEscutaPedidos();
@@ -7266,6 +7374,7 @@ document.getElementById('btnSairGoogle').addEventListener('click', () => {
   mostrarToast('Desconectado da nuvem.');
 });
 document.getElementById('btnSincronizarAgora').addEventListener('click', () => sincronizarComNuvem(true));
+document.getElementById('btnRegrasSeguranca').addEventListener('click', () => abrirModalRegrasMidia('seguranca'));
 
 // Reaproveita salvar() para também empurrar mudanças para a nuvem (com debounce),
 // e reconstrói o catálogo automaticamente quando os produtos mudam.
@@ -8927,9 +9036,15 @@ function renderAvisosDashboard() {
   if (troca && troca.dias >= limiteTrocaSolucao(cfg.situacao)) {
     avisos.push({ classe: '', icone: '🔄', texto: `<strong>Solução sem trocar há ${troca.dias} dias.</strong> Hora de trocar toda a água e o adubo.` });
   }
-  el.innerHTML = avisos.map((a) => `<div class="aviso-dia ${a.classe}" role="button"><span class="icone">${a.icone}</span><span>${a.texto}</span></div>`).join('');
+  if (regrasNovasOk === false) {
+    avisos.push({ classe: '', icone: '🔒', texto: '<strong>Atualize as regras do Firebase (1 vez só).</strong> Protege o catálogo contra pedidos falsos. Toque aqui.', acao: () => abrirModalRegrasMidia('seguranca') });
+  }
+  el.innerHTML = avisos.map((a, i) => `<div class="aviso-dia ${a.classe}" role="button" data-aviso="${i}"><span class="icone">${a.icone}</span><span>${a.texto}</span></div>`).join('');
   el.classList.toggle('hidden', !avisos.length);
-  el.querySelectorAll('.aviso-dia').forEach((b) => b.addEventListener('click', () => irParaAba('adubacao')));
+  el.querySelectorAll('.aviso-dia').forEach((b) => b.addEventListener('click', () => {
+    const aviso = avisos[Number(b.dataset.aviso)];
+    if (aviso.acao) aviso.acao(); else irParaAba('adubacao');
+  }));
   // Previsão velha: busca de novo sem travar o painel
   atualizarPrevisao().then((novo) => {
     if (novo && document.getElementById('painelInicioDashboard').style.display !== 'none') renderAvisosDashboard();

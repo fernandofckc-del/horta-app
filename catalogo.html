@@ -307,7 +307,7 @@
 <div id="telaIdentificacao" class="tela-identificacao hidden">
   <h2>🌱 Bem-vindo!</h2>
   <p>Digita seu nome e seu WhatsApp pra continuar. Assim o vendedor sabe quem fez o pedido, e você não precisa digitar de novo da próxima vez.</p>
-  <input type="text" id="inputNomeIdentificacao" placeholder="Seu nome" autocomplete="name">
+  <input type="text" id="inputNomeIdentificacao" placeholder="Seu nome" autocomplete="name" maxlength="80">
   <input type="tel" id="inputTelefoneIdentificacao" placeholder="(00) 00000-0000" inputmode="numeric">
   <button type="button" id="btnConfirmarIdentificacao">Entrar</button>
 </div>
@@ -518,7 +518,7 @@ function iniciarIdentificacaoCliente() {
 document.getElementById('btnConfirmarIdentificacao').addEventListener('click', () => {
   const campoNome = document.getElementById('inputNomeIdentificacao');
   const campoTelefone = document.getElementById('inputTelefoneIdentificacao');
-  const nome = campoNome.value.trim().replace(/\s+/g, ' ');
+  const nome = campoNome.value.trim().replace(/\s+/g, ' ').slice(0, 80);
   const valor = normalizarTelefoneBR(campoTelefone.value);
   const telefoneOk = valor.length === 10 || valor.length === 11;
   campoNome.style.borderColor = nome.length < 2 ? '#dc2626' : '';
@@ -839,9 +839,10 @@ async function registrarPedidoEIncrementar(itensPedido, total, endereco, origem)
       uid,
       itens: itensPedido,
       total,
-      endereco: endereco || '',
-      clienteTelefone: telefoneCliente || '',
-      clienteNome: nomeCliente || '',
+      // Tamanhos dentro do que as regras do Firebase aceitam
+      endereco: String(endereco || '').slice(0, 1000),
+      clienteTelefone: String(telefoneCliente || '').slice(0, 20),
+      clienteNome: String(nomeCliente || '').slice(0, 80),
       origem,
       criadoEm: firebase.firestore.FieldValue.serverTimestamp()
     }).then(() => db.collection('contadores').doc(uid).set({
