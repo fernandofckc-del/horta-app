@@ -406,7 +406,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.19.1</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.19.2</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -962,7 +962,7 @@
       <select id="adubMicro">
         <option value="pronto">Pronto para hidroponia (dose de fertirrigação)</option>
         <option value="micromax">Micromax (pó dissolvido em água)</option>
-        <option value="micromaxConmicros">Micromax + ConMicros Light (pó dissolvido)</option>
+        <option value="micromaxConmicros">Micromax + ConMicros Light (sem ácido bórico e sem sulfato de cobre)</option>
         <option value="caseiro">Concentrado caseiro (receita do app)</option>
       </select>
     </label>
@@ -1035,7 +1035,7 @@
           <li>Mesmo que ele tenha um pouco de ferro, continue usando o ferro separado da receita.</li>
         </ul>
         <p style="margin:10px 0 6px"><strong>Micromax Concentrado:</strong> o rótulo é de pulverização (50 a 150 g em 100 litros). Essa dose no reservatório daria de 100 a 300 vezes o zinco e o manganês que a planta precisa. Na solução vão só <strong>5 g do pó para cada 1.000 litros</strong> — pouco demais para pesar toda vez. Por isso faça um <strong>líquido</strong> numa garrafa de 1 litro: <strong>50 g de Micromax + 10 g de ácido bórico + 1,5 g de sulfato de cobre</strong>, complete com água morna e agite (o Micromax não tem cobre e tem pouco boro; ácido bórico e sulfato de cobre se acham em agropecuária). Use <strong>100 mL desse líquido para cada 1.000 litros</strong> na força total, medidos com seringa ou copinho de remédio — escolha "Micromax" em Micronutrientes, lá em cima, e a calculadora faz a conta. No balde B do concentrado A e B dá para pôr o pó direto: a conta aparece em "🪣 Concentrado A e B". Agite antes de usar e guarde fechado, na sombra. A cor escura é do ácido fúlvico e não faz mal. O ferro dele é muito pouco: continue com o ferro separado.</p>
-        <p style="margin:10px 0 6px"><strong>ConMicros Light</strong> (B 4,1% · Cu 4,09% · Mn 4,09% · Zn 1,6% · Mo 0,92% · Ni 0,81%): tem muito cobre, então <strong>não serve sozinho</strong> — para dar o manganês e o boro da alface, o cobre passaria do ponto e machucaria a raiz. Mas completa o Micromax, que não tem cobre: na garrafa de 1 litro, <strong>50 g de Micromax + 10 g de ácido bórico + 9 g de ConMicros Light</strong> (no lugar do sulfato de cobre), mesma dose de 100 mL para cada 1.000 litros. Escolha "Micromax + ConMicros Light" em Micronutrientes.</p>
+        <p style="margin:10px 0 6px"><strong>ConMicros Light</strong> (B 4,1% · Cu 4,09% · Mn 4,09% · Zn 1,6% · Mo 0,92% · Ni 0,81%): tem muito cobre, então <strong>não serve sozinho</strong> — para dar o manganês e o boro da alface, o cobre passaria do ponto e machucaria a raiz. Mas completa o Micromax, que não tem cobre, e ainda traz boro: na garrafa de 1 litro, <strong>50 g de Micromax + 24 g de ConMicros Light</strong> (não precisa de ácido bórico nem de sulfato de cobre), mesma dose de 100 mL para cada 1.000 litros. No galão B de 20 L, direto: 10 g de Micromax + 5 g de ConMicros. Escolha "Micromax + ConMicros Light" em Micronutrientes. Se um dia tiver ácido bórico, 5 g na garrafa melhoram o boro, sem mudar a dose.</p>
         <p style="margin:10px 0 6px"><strong>Caseiro:</strong> em <strong>1 litro de água morna</strong>, 15 g de ácido bórico, 15 g de sulfato de manganês, 5 g de sulfato de zinco, 1,5 g de sulfato de cobre e 1,5 g de molibdato de sódio. Rende <strong>100 mL para cada 1.000 litros</strong> na força total. Guarde fechado e na sombra.</p>
       </div>
     </details>
@@ -2159,7 +2159,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.19.1';
+const APP_VERSION = '3.19.2';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao', trocasSolucao: 'hg_trocas_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -7833,13 +7833,14 @@ const MICRO_CONCENTRADOS = {
     }
   },
   // ConMicros Light (B 4,1 · Cu 4,09 · Mn 4,09 · Zn 1,6 · Mo 0,916 · Ni 0,814%) tem cobre demais para ir
-  // sozinho; 9 g dele no lugar do 1,5 g de sulfato de cobre dão o mesmo cobre (0,037 mg/L) e ainda somam
-  // um pouco de B, Mn, Zn, Mo e níquel: B 0,31 · Mn 0,39 · Zn 0,41 · Mo 0,033 · Cu 0,037 · Ni 0,007 mg/L.
+  // sozinho. Com o Micromax (sem cobre) e sem ácido bórico nem sulfato de cobre: 50 g de Micromax + 24 g de
+  // ConMicros por litro, a 100 mL/1.000 L, dão B 0,20 · Mn 0,45 · Zn 0,44 · Mo 0,047 · Cu 0,098 · Ni 0,02 mg/L
+  // (cobre no máximo recomendado, boro no mínimo).
   micromaxConmicros: {
     nome: 'Micromax + ConMicros (líquido)', curto: 'líquido de micronutrientes', noBalde: 'do líquido de Micromax + ConMicros',
-    pos: [{ nome: 'Micromax', g: 50 }, { nome: 'ácido bórico', g: 10 }, { nome: 'ConMicros Light', g: 9 }], // gramas em 1 litro do líquido
+    pos: [{ nome: 'Micromax', g: 50 }, { nome: 'ConMicros Light', g: 24 }], // gramas em 1 litro do líquido
     dica(ml, litros) {
-      return `Numa garrafa de 1 litro: <strong>50 g de Micromax + 10 g de ácido bórico + 9 g de ConMicros Light</strong>, complete com água morna e agite. O ConMicros entra no lugar do sulfato de cobre (sozinho ele tem cobre demais). Meça o líquido com seringa ou copinho de remédio: ${fmtQtd(ml, 'mL')} nos seus ${fmtNum(litros, 0)} litros. <strong>Não use a dose do rótulo do Micromax</strong>: é de pulverização.`;
+      return `Numa garrafa de 1 litro: <strong>50 g de Micromax + 24 g de ConMicros Light</strong>, complete com água morna e agite (não precisa de ácido bórico nem de sulfato de cobre: o ConMicros traz os dois). Meça o líquido com seringa ou copinho de remédio: ${fmtQtd(ml, 'mL')} nos seus ${fmtNum(litros, 0)} litros. <strong>Nunca use o ConMicros sozinho nem a dose do rótulo do Micromax</strong>: passa do ponto.`;
     }
   },
   caseiro: {
