@@ -406,7 +406,7 @@
 <body class="tela-inicio-ativa">
 
 <header>
-  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.18.0</span></h1>
+  <h1>🌱 Controle da Horta <span id="appVersaoTag" style="font-size:0.62rem;font-weight:400;opacity:0.75;vertical-align:middle;background:rgba(255,255,255,0.18);padding:2px 6px;border-radius:6px;margin-left:4px">v3.19.0</span></h1>
   <div style="display:flex;gap:8px">
     <button id="btnComandoVoz">🎤</button>
     <button id="btnTema">🌙</button>
@@ -946,6 +946,18 @@
         <option value="map">MAP purificado (12-61-0)</option>
       </select>
     </label>
+    <label>Adubo principal do balde B
+      <select id="adubBase">
+        <option value="receita">Nitrato de potássio + fósforo (receita do app)</option>
+        <option value="plantprod">Plant-Prod (ou outro NPK solúvel)</option>
+      </select>
+    </label>
+    <div id="adubPlantProdLinha" class="hidden">
+      <label>Fórmula do saco (os 3 números, se souber)
+        <input type="text" id="adubPlantProdFormula" placeholder="Ex: 20-20-20" autocomplete="off" inputmode="text">
+      </label>
+      <p class="dica-box" id="adubPlantProdDica" style="margin-top:-4px"></p>
+    </div>
     <label>Micronutrientes
       <select id="adubMicro">
         <option value="pronto">Pronto para hidroponia (dose de fertirrigação)</option>
@@ -2145,7 +2157,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    ============================================================ */
 
 // -------------------- ARMAZENAMENTO --------------------
-const APP_VERSION = '3.18.0';
+const APP_VERSION = '3.19.0';
 const CHAVES = { produtos: 'hg_produtos', clientes: 'hg_clientes', vendas: 'hg_vendas', pagamentos: 'hg_pagamentos', insumos: 'hg_insumos', plantios: 'hg_plantios', tarefas: 'hg_tarefas', financeiros: 'hg_financeiros', pagamentosFinanceiros: 'hg_pagamentos_financeiros', contasFixas: 'hg_contas_fixas', contasFixasPagas: 'hg_contas_fixas_pagas', cofrinhoMov: 'hg_cofrinho_mov', gastosPessoais: 'hg_gastos_pessoais', mapaBancadas: 'hg_mapa_bancadas', pedidosProcessados: 'hg_pedidos_processados', servicos: 'hg_servicos', materiaisServicos: 'hg_materiais_servicos', pagamentosServicos: 'hg_pagamentos_servicos', medicoesSolucao: 'hg_medicoes_solucao', trocasSolucao: 'hg_trocas_solucao' };
 const CATEGORIAS_GASTO_PESSOAL = ['Alimentação', 'Transporte', 'Saúde', 'Educação', 'Lazer', 'Casa', 'Vestuário', 'Outros'];
 const CATEGORIAS_INSUMO = ['Sementes/Mudas', 'Nutrientes/Solução', 'Substrato', 'Energia/Água', 'Embalagens', 'Equipamentos', 'Outros'];
@@ -7734,8 +7746,7 @@ document.getElementById('btnBannerCatalogo').addEventListener('click', () => {
 const RECEITA_FOLHOSAS = [
   { nome: 'Nitrato de cálcio', curto: 'nitrato de cálcio', obs: 'balde A', g: 750 },
   { nome: 'Ferro', curto: 'ferro', obs: 'balde A', ferro: true },
-  { nome: 'Nitrato de potássio', curto: 'nitrato de potássio', obs: 'balde B', g: 500 },
-  { nome: 'Fosfato', curto: 'fosfato', obs: 'balde B', fosfato: true },
+  { obs: 'balde B', baseB: true }, // nitrato de potássio + fosfato, ou o Plant-Prod (adubosDoBaldeB)
   { nome: 'Sulfato de magnésio', curto: 'sulfato de magnésio', obs: 'balde B', g: 400 },
   { nome: 'Micronutrientes', curto: 'micronutrientes', obs: 'balde B', micro: true }
 ];
@@ -7745,6 +7756,66 @@ const FOSFATOS = {
   mkp: { nome: 'MKP (fosfato monopotássico)', curto: 'MKP', g: 150 },
   map: { nome: 'MAP purificado (12-61-0)', curto: 'MAP', g: 150 }
 };
+// -------------------- PLANT-PROD (ou outro NPK solúvel) NO BALDE B --------------------
+// Sem a fórmula: vai pelo medidor. O teto é o mesmo peso do nitrato de cálcio (o jeito clássico
+// "nitrato de cálcio + NPK solúvel, 1 para 1") e começa com 60% disso.
+// Com a fórmula do saco (N-P2O5-K2O): a dose não passa do N que falta depois do nitrato de cálcio,
+// nem do P e do K da receita; o que faltar de P vem do fosfato e o de K, do nitrato de potássio.
+// O sulfato de magnésio continua (NPK solúvel quase não tem magnésio) e o cálcio vem do balde A.
+const ALVO_FOLHOSAS = { N: 199, P: 40, K: 200 };   // mg/L na força total
+const N_DO_NITRATO_CALCIO = 750 * 0.155;           // 750 g/1.000 L de nitrato de cálcio (15,5% de N)
+const PLANTPROD_SEM_FORMULA = { maximo: 750, inicio: 0.6 }; // g/1.000 L na força total
+const NUTRIENTES_FOSFATO = { mkp: { N: 0, P: 0.227, K: 0.282 }, map: { N: 0.12, P: 0.266, K: 0 } };
+const NUTRIENTES_KNO3 = { N: 0.13, K: 0.382 };
+function lerFormulaNPK(texto) {
+  const m = String(texto || '').trim().match(/^(\d+(?:[.,]\d+)?)\s*[-/ ]\s*(\d+(?:[.,]\d+)?)\s*[-/ ]\s*(\d+(?:[.,]\d+)?)$/);
+  if (!m) return null;
+  const [n, p, k] = m.slice(1).map((x) => parseFloat(x.replace(',', '.')));
+  if (n + p + k <= 0 || n + p + k > 100 || [n, p, k].some((x) => x > 65)) return null;
+  return { n, p, k };
+}
+function textoFormula(f) { return [f.n, f.p, f.k].map((x) => String(x).replace('.', ',')).join('-'); }
+// Gramas por 1.000 L (força total) dos adubos do balde B, fora o sulfato de magnésio e os micronutrientes
+function adubosDoBaldeB(c) {
+  const fosfato = FOSFATOS[c.fosfato];
+  if (c.base !== 'plantprod') {
+    return { itens: [{ nome: 'Nitrato de potássio', curto: 'nitrato de potássio', g: 500 }, { nome: fosfato.nome, curto: fosfato.curto, g: fosfato.g }] };
+  }
+  const f = lerFormulaNPK(c.ppFormula);
+  if (!f) return { semFormula: true, itens: [{ nome: 'Plant-Prod (pelo medidor)', curto: 'Plant-Prod', g: PLANTPROD_SEM_FORMULA.maximo, faixa: true }] };
+  const fr = { N: f.n / 100, P: f.p / 100 * 0.4364, K: f.k / 100 * 0.8301 };
+  const limites = [];
+  if (fr.N > 0) limites.push((ALVO_FOLHOSAS.N - N_DO_NITRATO_CALCIO) / fr.N);
+  if (fr.P > 0) limites.push(ALVO_FOLHOSAS.P / fr.P);
+  if (fr.K > 0) limites.push(ALVO_FOLHOSAS.K / fr.K);
+  const gPP = Math.min(...limites);
+  const total = { N: N_DO_NITRATO_CALCIO + gPP * fr.N, P: gPP * fr.P, K: gPP * fr.K };
+  const nf = NUTRIENTES_FOSFATO[c.fosfato];
+  let gFos = total.P < ALVO_FOLHOSAS.P ? (ALVO_FOLHOSAS.P - total.P) / nf.P : 0;
+  if (gFos < 5) gFos = 0; // pouquinho demais para fazer diferença
+  total.N += gFos * nf.N; total.P += gFos * nf.P; total.K += gFos * nf.K;
+  let gKno3 = total.K < ALVO_FOLHOSAS.K ? (ALVO_FOLHOSAS.K - total.K) / NUTRIENTES_KNO3.K : 0;
+  if (gKno3 < 5) gKno3 = 0;
+  total.N += gKno3 * NUTRIENTES_KNO3.N; total.K += gKno3 * NUTRIENTES_KNO3.K;
+  const itens = [{ nome: `Plant-Prod ${textoFormula(f)}`, curto: 'Plant-Prod', g: gPP }];
+  if (gKno3) itens.push({ nome: 'Nitrato de potássio (completa o potássio)', curto: 'nitrato de potássio', g: gKno3 });
+  if (gFos) itens.push({ nome: `${fosfato.curto} (completa o fósforo)`, curto: fosfato.curto, g: gFos });
+  return { formula: f, itens, total };
+}
+function dicaPlantProd(c) {
+  const b = adubosDoBaldeB(c);
+  if (b.semFormula) {
+    return String(c.ppFormula || '').trim()
+      ? 'Não entendi a fórmula. Digite os três números grandes do saco, assim: <strong>20-20-20</strong>.'
+      : 'Sem a fórmula, vai <strong>pelo medidor</strong>: coloque a dose menor, ligue a bomba 15 minutos, meça e vá pondo até a meta, <strong>sem passar da maior</strong>. Saem o nitrato de potássio e o fósforo; o nitrato de cálcio (balde A), o sulfato de magnésio e o ferro continuam. Dica: a fórmula costuma estar no título do anúncio (Mercado Livre → Minhas compras). Digitando ela aqui, a conta fica exata.';
+  }
+  const t = b.total;
+  return `Com o ${textoFormula(b.formula)}, a receita dá <strong>N ${Math.round(t.N)} · P ${Math.round(t.P)} · K ${Math.round(t.K)} mg/L</strong> na força total (o alvo é N ${ALVO_FOLHOSAS.N} · P ${ALVO_FOLHOSAS.P} · K ${ALVO_FOLHOSAS.K}).` +
+    (b.itens.length > 1 ? ' O que o Plant-Prod não cobre vem do nitrato de potássio e/ou do fósforo, na tabela abaixo.' : '') +
+    (t.N > 230 ? ' ⚠️ Fórmula com bastante nitrogênio (pode ter ureia ou amônio): no calor, fique no lado de baixo da meta de ppm.' : '') +
+    ' Se no saco estiver escrito <strong>Cal-Mag</strong> (tem cálcio), ele não pode ir no balde B: não use esta conta.';
+}
+
 // Micronutrientes em líquido de 1 litro (os pós dissolvidos em água): 100 mL por 1.000 L na força total.
 // O Micromax Concentrado é pó de pulverização (B 2%, Mn 7%, Zn 8%, Mo 0,5%, Fe 0,1%, sem cobre):
 // a dose do rótulo (50 a 150 g/100 L) no reservatório daria Zn 40 a 120 mg/L — intoxica.
@@ -7806,7 +7877,9 @@ function carregarConfigAdubacao() {
     micro: MICRO_CONCENTRADOS[c.micro] ? c.micro : 'pronto',
     microDose: c.microDose > 0 ? c.microDose : null,
     microUnidade: c.microUnidade === 'mL' ? 'mL' : 'g',
-    balde: c.balde > 0 ? c.balde : 18
+    balde: c.balde > 0 ? c.balde : 18,
+    base: c.base === 'plantprod' ? 'plantprod' : 'receita',
+    ppFormula: String(c.ppFormula || '').slice(0, 20)
   };
 }
 function lerConfigAdubacaoDaTela() {
@@ -7823,7 +7896,9 @@ function lerConfigAdubacaoDaTela() {
     micro: document.getElementById('adubMicro').value || atual.micro,
     microDose: parseFloat(document.getElementById('adubMicroDose').value) > 0 ? parseFloat(document.getElementById('adubMicroDose').value) : null,
     microUnidade: document.getElementById('adubMicroUnidade').value || atual.microUnidade,
-    balde: parseFloat(document.getElementById('adubBalde').value) > 0 ? parseFloat(document.getElementById('adubBalde').value) : atual.balde
+    balde: parseFloat(document.getElementById('adubBalde').value) > 0 ? parseFloat(document.getElementById('adubBalde').value) : atual.balde,
+    base: document.getElementById('adubBase').value === 'plantprod' ? 'plantprod' : 'receita',
+    ppFormula: document.getElementById('adubPlantProdFormula').value.slice(0, 20)
   };
   localStorage.setItem(CHAVE_CONFIG_ADUBACAO, JSON.stringify(c));
   return c;
@@ -7844,18 +7919,25 @@ function contasAdubacao(c) {
 // Quanto de cada adubo para "fracao" da força total em "litros" de solução.
 function linhasDaReceita(litros, fracao, c) {
   const k = litros / 1000 * fracao;
-  return RECEITA_FOLHOSAS.map((item) => {
+  // Plant-Prod costuma já trazer micronutrientes: o líquido/pronto entra pela metade
+  const fatorMicro = c.base === 'plantprod' ? 0.5 : 1;
+  const obsMicro = (obs) => (fatorMicro < 1 ? `${obs} · metade: o Plant-Prod já traz` : obs);
+  return RECEITA_FOLHOSAS.flatMap((item) => {
     if (item.ferro) return { nome: FERRO_POR_1000L[c.ferro].nome, curto: item.curto, obs: item.obs, texto: fmtQtd(FERRO_POR_1000L[c.ferro].g * k, 'g') };
-    if (item.fosfato) { const f = FOSFATOS[c.fosfato]; return { nome: f.nome, curto: f.curto, obs: item.obs, texto: fmtQtd(f.g * k, 'g') }; }
+    if (item.baseB) {
+      return adubosDoBaldeB(c).itens.map((a) => (a.faixa
+        ? { nome: a.nome, curto: a.curto, obs: 'balde B · comece pelo menor, meça e vá pondo até a meta', texto: `${fmtQtd(a.g * PLANTPROD_SEM_FORMULA.inicio * k, 'g').replace(/ g$/, '')} a ${fmtQtd(a.g * k, 'g')}` }
+        : { nome: a.nome, curto: a.curto, obs: item.obs, texto: fmtQtd(a.g * k, 'g') }));
+    }
     if (item.micro) {
       const conc = MICRO_CONCENTRADOS[c.micro];
       if (conc) {
-        const ml = 100 * k;
+        const ml = 100 * k * fatorMicro;
         const obs = conc.pos ? `${item.obs} · tem ${fmtQtd(ml * conc.pos[0].g / 1000, 'g')} do pó dissolvido` : item.obs;
-        return { nome: conc.nome, curto: conc.curto, obs, texto: fmtQtd(ml, 'mL') };
+        return { nome: conc.nome, curto: conc.curto, obs: obsMicro(obs), texto: fmtQtd(ml, 'mL') };
       }
       if (!c.microDose) return { nome: 'Micronutrientes (pronto)', curto: 'micronutrientes', obs: 'balde B · preencha a dose para hidroponia acima', texto: '—', semDose: true };
-      return { nome: 'Micronutrientes (pronto)', curto: 'micronutrientes', obs: doseMicroAlta(c) ? 'balde B · ⚠️ dose alta: confira se não é de pulverização' : item.obs, texto: fmtQtd(c.microDose * k, c.microUnidade) };
+      return { nome: 'Micronutrientes (pronto)', curto: 'micronutrientes', obs: doseMicroAlta(c) ? 'balde B · ⚠️ dose alta: confira se não é de pulverização' : obsMicro(item.obs), texto: fmtQtd(c.microDose * k * fatorMicro, c.microUnidade) };
     }
     return { nome: item.nome, curto: item.curto, obs: item.obs, texto: fmtQtd(item.g * k, 'g') };
   });
@@ -7880,6 +7962,8 @@ function renderAdubacao() {
   document.getElementById('adubMicroDose').value = c.microDose || '';
   document.getElementById('adubMicroUnidade').value = c.microUnidade;
   document.getElementById('adubBalde').value = c.balde;
+  document.getElementById('adubBase').value = c.base;
+  document.getElementById('adubPlantProdFormula').value = c.ppFormula;
   const ppm = ehPpm(c);
   document.getElementById('adubUnidadeDica').classList.toggle('hidden', !ppm);
   document.getElementById('adubCeAguaRotulo').textContent = ppm ? 'ppm da sua água' : 'CE da sua água';
@@ -7901,8 +7985,10 @@ function atualizarCalculadoraAdubacao() {
     `Receita a ${Math.round(forca * 100)}% da força total para ${fmtNum(c.volume, 0)} litros → deve dar ≈ ${textoMeta(ceEsperada, c)} (confira no medidor).` +
     (c.ceAgua >= 0.5 ? `<br>⚠️ Sua água já tem bastante sal (${textoMeta(0.5, c)} ou mais). Vale fazer uma análise: pode sobrar pouco espaço para os adubos.` : '');
   document.getElementById('adubMicroDoseLinha').classList.toggle('hidden', c.micro !== 'pronto');
+  document.getElementById('adubPlantProdLinha').classList.toggle('hidden', c.base !== 'plantprod');
+  if (c.base === 'plantprod') document.getElementById('adubPlantProdDica').innerHTML = dicaPlantProd(c);
   const conc = MICRO_CONCENTRADOS[c.micro];
-  document.getElementById('adubMicroDica').innerHTML = conc ? conc.dica(100 * c.volume / 1000 * forca, c.volume) : DICA_MICRO_PRONTO;
+  document.getElementById('adubMicroDica').innerHTML = conc ? conc.dica(100 * c.volume / 1000 * forca * (c.base === 'plantprod' ? 0.5 : 1), c.volume) : DICA_MICRO_PRONTO;
   const avisoMicro = document.getElementById('adubMicroAviso');
   avisoMicro.classList.toggle('hidden', !doseMicroAlta(c));
   avisoMicro.innerHTML = doseMicroAlta(c)
@@ -7921,21 +8007,23 @@ function atualizarCalculadoraAdubacao() {
   const rendeLitros = c.balde * 100;
   const reservatorios = rendeLitros / (c.volume * forca);
   const kb = rendeLitros / 1000;
-  const microB = conc ? `${fmtQtd(100 * kb, 'mL')} ${conc.noBalde}` + (conc.pos ? ` (ou o pó direto no balde: ${posNoLiquido(conc, 100 * kb)})` : '')
-    : (c.microDose ? `${fmtQtd(c.microDose * kb, c.microUnidade)} do micronutriente pronto` : `o micronutriente pronto na dose para hidroponia de ${fmtNum(rendeLitros, 0)} litros`);
+  const fatorMicroB = c.base === 'plantprod' ? 0.5 : 1;
+  const microB = conc ? `${fmtQtd(100 * kb * fatorMicroB, 'mL')} ${conc.noBalde}` + (conc.pos ? ` (ou o pó direto no balde: ${posNoLiquido(conc, 100 * kb * fatorMicroB)})` : '')
+    : (c.microDose ? `${fmtQtd(c.microDose * kb * fatorMicroB, c.microUnidade)} do micronutriente pronto` : `o micronutriente pronto na dose para hidroponia de ${fmtNum(rendeLitros * fatorMicroB, 0)} litros`);
+  const adubosB = adubosDoBaldeB(c).itens.map((a) => `${fmtQtd(a.g * kb, 'g')} de ${a.curto}`).join(' + ');
   document.getElementById('adubConcentrado').innerHTML = `
     <p style="margin:8px 0 8px">Em dois baldes de ${fmtNum(c.balde, 0)} litros (de preferência escuros, com tampa, guardados na sombra):</p>
     <ul>
       <li><strong>Balde A</strong> (${fmtNum(c.balde, 0)} L de água): ${fmtQtd(750 * kb, 'g')} de nitrato de cálcio + ${fmtQtd(FERRO_POR_1000L[c.ferro].g * kb, 'g')} de ${FERRO_POR_1000L[c.ferro].nome}.</li>
-      <li><strong>Balde B</strong> (${fmtNum(c.balde, 0)} L de água): ${fmtQtd(500 * kb, 'g')} de nitrato de potássio + ${fmtQtd(FOSFATOS[c.fosfato].g * kb, 'g')} de ${FOSFATOS[c.fosfato].curto} + ${fmtQtd(400 * kb, 'g')} de sulfato de magnésio + ${microB}.</li>
+      <li><strong>Balde B</strong> (${fmtNum(c.balde, 0)} L de água): ${adubosB} + ${fmtQtd(400 * kb, 'g')} de sulfato de magnésio + ${microB}.</li>
     </ul>
     <p style="margin:8px 0 0"><strong>Para montar seus ${fmtNum(c.volume, 0)} litros nesta situação:</strong> ${fmtNum(litrosAB, 2)} L de A + ${fmtNum(litrosAB, 2)} L de B, cada um num canto do reservatório, com a bomba ligada.</p>
     <p style="margin:8px 0 0"><strong>Para repor no dia a dia:</strong> cada 50 mL de A + 50 mL de B sobem uns ${ehPpm(c) ? `${fmtNum(0.1 * fatorMedidor(c), 0)} ppm` : '0,1 de CE'} em 100 litros. A "Medição de hoje" faz essa conta para você.</p>
     <p style="margin:8px 0 0">Cada par de baldes rende ${fmtNum(rendeLitros, 0)} litros na força total (≈ ${fmtNum(reservatorios, 1)} reservatórios como o seu nesta situação). Nunca junte A e B puros no mesmo balde.</p>`;
 }
 ['adubVolume', 'adubCeAgua'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
-['adubSituacao', 'adubFerro', 'adubFosfato', 'adubMicro', 'adubMicroUnidade'].forEach((id) => document.getElementById(id).addEventListener('change', atualizarCalculadoraAdubacao));
-['adubMicroDose', 'adubBalde'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
+['adubSituacao', 'adubFerro', 'adubFosfato', 'adubMicro', 'adubMicroUnidade', 'adubBase'].forEach((id) => document.getElementById(id).addEventListener('change', atualizarCalculadoraAdubacao));
+['adubMicroDose', 'adubBalde', 'adubPlantProdFormula'].forEach((id) => document.getElementById(id).addEventListener('input', atualizarCalculadoraAdubacao));
 document.getElementById('adubSituacao').addEventListener('change', () => renderGraficosSolucao()); // a faixa da meta muda com a situação
 document.getElementById('adubUnidade').addEventListener('change', (e) => {
   const c = carregarConfigAdubacao();
